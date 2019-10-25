@@ -1,0 +1,9 @@
+ReleaseNotes for Chisel v2.2.33
+
+This release of Chisel is largely a maintenance release.
+See the associated Changelog for issues resolved with this release.
+
+We will be removing support for Scala 2.10 in future Chisel
+releases. Please verify your code compiles and runs correctly under
+Scala 2.11.
+

@@ -1,0 +1,20 @@
+ChangeLog for Chisel v2.2.33
+
+#678,#180 [Tester] shut down processes when exceptions occur
+#677 Changed index literals to base 10. for example, somewire[2'h3:1'h0] to somewire[3:0]
+#675 [emulator] dump printfs between clock_lo & hi
+#665,#692 Don't initialize the channels until we know how big they need to be.
+#658 Issue informative error messages if errors at startup.
+#655 Add Option types for Bundle.
+ Move documentation to a separate repo https://github.com/ucb-bar/chisel-doc
+ Fix memory access masking bug for nonPow2 memories
+ Bump sbt to version 0.13.11
+ Do not extract a single bit wire
+ Ensure reg_status is initialized.
+ Don't try Verilog tests if we don't have vcs available.
+ Make the package structure of hwiotesters in chisel2 emulate the two repo model used in chisel3
+ Add expect(Bool, Boolean) methods
+ Fix problem where isTrace is ignored for Flo & Dbl
+ Support wire_poke for Flo & Dbl.
+ Generate code compatible with the 1.7 JVM (cherry-pick from release).
+ Make vcd/vpd dump file configurable
