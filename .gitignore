@@ -3,5 +3,5 @@ project/target
 *.swp
 *~
 .addons-dont-touch
-riscv/
-tools/
+./riscv/
+./tools/
