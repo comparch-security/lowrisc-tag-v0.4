@@ -63,6 +63,15 @@ module minion_soc
  wire [31:0] keyb_fifo_status = {keyb_empty,keyb_almostfull,keyb_full,keyb_rderr,keyb_wrerr,keyb_rdcount,keyb_wrcount};
  wire [35:0] keyb_fifo_out;
  
+   logic [15:0] one_hot_data_addr;
+   logic [31:0] one_hot_rdata[15:0];
+
+   logic     core_lsu_req;
+   logic     core_lsu_gnt;
+   logic     core_lsu_rvalid;
+   logic     core_lsu_we;
+   logic [31:0] core_lsu_rdata;
+
   assign one_hot_rdata[9] = core_lsu_addr[2] ? {keyb_empty,keyb_fifo_out[15:0]} : keyb_fifo_status;
  
     ps2 keyb_mouse(
@@ -137,12 +146,6 @@ logic         core_instr_gnt;
 logic         core_instr_rvalid;
 logic [31:0]  core_instr_addr;
 
-logic         core_lsu_req;
-logic         core_lsu_gnt;
-logic         core_lsu_rvalid;
-logic         core_lsu_we;
-logic [31:0]  core_lsu_rdata;
-
   logic                  debug_req = 1'b0;
   logic                  debug_gnt;
   logic                  debug_rvalid;
@@ -158,9 +161,6 @@ logic [31:0]  core_lsu_rdata;
   logic        clock_gating_i = 1'b1;
   logic [31:0] boot_addr_i = 32'h80;
   logic  [7:0] core_lsu_rx_byte;
-
-  logic [15:0] one_hot_data_addr;
-  logic [31:0] one_hot_rdata[15:0];
 
   assign shared_sel = one_hot_data_addr[8];
    
