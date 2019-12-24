@@ -244,7 +244,12 @@ uint64_t uni_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
   uint64_t tm1_wmask = tg::mask(2, tm0_addr, 0);
   bool wen = false;
 
-  enum state_t {s_idle, s_tt_r, s_tm0_r, s_tm1_fr, s_tm0_fr, s_tm0_c, s_tt_fr, s_tt_c, s_tt_w, s_tm0_w, s_tm1_w};
+  enum state_t {
+    s_idle, s_tt_r, s_tm0_r, 
+    s_tt_w, 
+    s_tm1_f, s_tm0_f, s_tt_f,s_tm1_l, s_tm0_fl,s_tm0_cl, s_tt_fl,s_tt_cl,
+    s_tm0_w, s_tm1_w
+    };
 
   state_t state = s_tt_r;
   uint64_t rv = 0;
@@ -254,52 +259,72 @@ uint64_t uni_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
     case s_tt_r:                // read tag table
       tt_tag = read(tt_addr, tt_data, 0);
       if(tt_tag & VALID)        // hit
-        state = store && (tt_wdata & tt_wmask) != (tt_data & tt_wmask) ? s_tt_w : s_idle;
+        state = store && (tt_wdata & tt_wmask) != (tt_data & tt_wmask) ? s_tm1_l : s_idle;
       else
         state = s_tm0_r;
-      break;
+      break; // s_tt_r is right.
     case s_tm0_r:               // read tag map 0
       tm0_tag = read(tm0_addr, tm0_data, 0);
       if(tm0_tag & VALID) {     // hit
         if(tm0_data & tm0_wmask)   // tagFlag = 1
-          state = s_tt_fr;
+          state = s_tt_f;  // tm0 hit, R/W to the corresponding tt.
         else
-          state = store && (tt_wdata & tt_wmask) != 0 ? s_tt_c : s_idle;
-      } else
-        state = s_tm1_fr;
+          state = store && (tt_wdata & tt_wmask) != 0 ? s_tm1_l : s_idle;
+      } else  //tm0 miss
+        state = s_tm1_f;
       break;
-    case s_tm1_fr:
+    case s_tm1_f: 
       tm1_tag = read(tm1_addr, tm1_data, 1);
-      if(tm1_data & tm1_wmask)     // tagFlag = 1
-        state = s_tm0_fr;
-      else
-        state = store && (tt_wdata & tt_wmask) != 0 ? s_tm0_c : s_idle;
+      if (tm1_data & tm1_wmask)   // tagFlag = 1
+        state = s_tm0_f ; // tagFlag in tm1 is 1, Fetch the corresponding cache line in tm0.
+      else 
+        state = store && (tt_wdata & tt_wmask) != 0 ? s_tm1_l : s_idle;
       break;
-    case s_tm0_fr:
+    case s_tm0_f :
       tm0_tag = read(tm0_addr, tm0_data, 1);
-      if(tm0_data & tm0_wmask)     // tagFlag = 1
-        state = s_tt_fr;
-      else
-        state = store && (tt_wdata & tt_wmask) != 0 ? s_tt_c : s_idle;
+      if (tm0_data & tm0_wmask)     //tagFlag = 1;
+        state = s_tt_f;
+      else 
+        state = store && (tt_wdata & tt_wmask) != 0 ? s_tm1_l : s_idle; 
       break;
-    case s_tm0_c:
-      tm0_tag = create(tm0_addr, 0, 0); // empty tag map 0 block
-      state = s_tt_c;
-      break;
-    case s_tt_fr:
+    case s_tt_f :
       tt_tag = read(tt_addr, tt_data, 1);
-      state = store && (tt_wdata & tt_wmask) != (tt_data & tt_wmask) ? s_tt_w : s_idle;
+      state = store && (tt_wdata & tt_wmask) != (tt_data & tt_wmask) ? s_tm1_l : s_idle;
       break;
-    case s_tt_c:
-      tt_tag = create(tt_addr, tt_wdata, tt_wmask);
-      state = s_tm0_w;
+    case s_tm1_l :
+      tm1_tag = read(tm1_addr,tm1_data,1);
+      if (tm1_data & tm1_wmask)   //tagFlag = 1
+        state = s_tm0_fl;
+      else 
+        state = s_tm0_cl;
+      break;
+    case s_tm0_fl :
+      tm0_tag = read(tm0_addr,tm0_data,1);
+      if (tm0_data & tm0_wmask)  //tagFlag = 1
+        state = s_tt_fl;
+      else 
+        state = s_tt_cl;
+      break;
+    case s_tm0_cl:
+      tm0_tag = create(tm0_addr,0,0);
+      state = s_tt_cl;
+      break;
+    case s_tt_fl :
+      tt_tag = read(tt_addr,tt_data,1);
+      state = s_tt_w;
+      break;
+    case s_tt_cl:
+      tt_tag = create(tt_addr, 0,0);
+      state = s_tt_w;
       break;
     case s_tt_w:
+      //TODO invalid tt if it's empty
       tt_tag = write(tt_addr, tt_wdata, tt_wmask);
       state = (tt_tag & DIRTY) ? s_tm0_w : s_idle;
       wen = true;
       break;
     case s_tm0_w:
+      //TODO invalid tm0 if it's empty
       tm0_tag = write(tm0_addr, (tt_tag & TAGFLAG) ? tm0_wmask : 0, tm0_wmask);
       state = (tm0_tag & DIRTY) ? s_tm1_w : s_idle;
       break;
@@ -312,6 +337,7 @@ uint64_t uni_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
       // even idle is not reachable here
     }
   } while(state != s_idle);
+
 
 #ifdef TC_STAT_BEHAV
     store ? write_accesses++ : read_accesses++;
