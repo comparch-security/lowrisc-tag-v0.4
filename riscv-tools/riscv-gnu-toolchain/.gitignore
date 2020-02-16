@@ -2,5 +2,5 @@ autom4te.cache
 build
 config.log
 config.status
-Makefile
+./Makefile
 .DS_Store
