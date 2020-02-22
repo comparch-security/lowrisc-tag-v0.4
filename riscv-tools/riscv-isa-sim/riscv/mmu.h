@@ -68,8 +68,9 @@ public:
   // load tag
   reg_t load_tag(word_t addr) __attribute__((always_inline)) {
     uint64_t tag;
-    if (addr & (sizeof(word_t)-1))
-      throw trap_load_address_misaligned(addr);
+    // A tag load of an unaligned address always accesses the tag for the
+    // word-aligned value.
+    addr = addr & ~(sizeof(word_t)-1);
     word_t vpn = addr >> PGSHIFT;
     if (likely(tlb_load_tag[vpn % TLB_ENTRIES] == vpn))
       tag = read_tag(sim->mem_to_addr(tlb_data[vpn % TLB_ENTRIES] + addr));
@@ -98,8 +99,9 @@ public:
   store_func(uint64)
 
   void store_tag(word_t addr, reg_t val) {
-    if (addr & (sizeof(word_t)-1))
-      throw trap_load_address_misaligned(addr);
+    // A tag store to an unaligned address always accesses the tag for the
+    // word-aligned value.
+    addr = addr & ~(sizeof(word_t)-1);
     word_t vpn = addr >> PGSHIFT;
     if (likely(tlb_load_tag[vpn % TLB_ENTRIES] == vpn))
       write_tag(sim->mem_to_addr(tlb_data[vpn % TLB_ENTRIES] + addr), val.data);

@@ -55,6 +55,7 @@ riscv_test_srcs =
 riscv_gen_hdrs = \
 	icache.h \
 	insn_list.h \
+	insn_wrappers.h \
 
 riscv_insn_list = \
 	add \
@@ -249,6 +250,8 @@ riscv_insn_list = \
 	sub \
 	subw \
 	sw \
+	tagr \
+	tagw \
 	wfi \
 	xor \
 	xori \
@@ -266,6 +269,10 @@ insn_list.h: $(src_dir)/riscv/riscv.mk.in
 	for insn in $(foreach insn,$(riscv_insn_list),$(subst .,_,$(insn))) ; do \
 		printf 'DEFINE_INSN(%s)\n' "$${insn}" ; \
 	done > $@.tmp
+	mv $@.tmp $@
+
+insn_wrappers.h: $(src_dir)/riscv/insn_wrappers.h.sh
+	$(src_dir)/riscv/insn_wrappers.h.sh $(src_dir) > $@.tmp
 	mv $@.tmp $@
 
 $(riscv_gen_srcs): %.cc: insns/%.h insn_template.cc

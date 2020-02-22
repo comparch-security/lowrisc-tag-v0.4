@@ -75,6 +75,37 @@
 #define EXT_IO_BASE        0x40000000
 #define DRAM_BASE          0x80000000
 
+// tagged memory configuration
+#define TAG_BITS                4
+#define TAG_INST_BITS           2
+
+#define TMASK_ALU_CHECK         (0x000000000000000f)
+#define TMASK_ALU_PROP          (0x00000000000000f0)
+#define TMASK_LOAD_CHECK        (0x0000000000000f00)
+#define TMASK_LOAD_PROP         (0x000000000000f000)
+#define TMASK_STORE_CHECK       (0x00000000000f0000)
+#define TMASK_STORE_PROP        (0x0000000000f00000)
+#define TMASK_STORE_KEEP        (0x000000000f000000)
+#define TMASK_CFLOW_DIR_TGT     (0x0000000030000000)
+#define TMASK_CFLOW_INDIR_TGT   (0x00000000c0000000)
+#define TMASK_JMP_CHECK         (0x0000000f00000000)
+#define TMASK_JMP_PROP          (0x000000f000000000)
+#define TMASK_FETCH_CHECK       (0x0000030000000000)
+
+#define TSHIM_ALU_CHECK         0
+#define TSHIM_ALU_PROP          4
+#define TSHIM_LOAD_CHECK        8
+#define TSHIM_LOAD_PROP         12
+#define TSHIM_STORE_CHECK       16
+#define TSHIM_STORE_PROP        20
+#define TSHIM_STORE_KEEP        24
+#define TSHIM_CFLOW_DIR_TGT     28
+#define TSHIM_CFLOW_INDIR_TGT   30
+#define TSHIM_JMP_CHECK         32
+#define TSHIM_JMP_PROP          36
+#define TSHIM_FETCH_CHECK       40
+
+
 // page table entry (PTE) fields
 #define PTE_V     0x001 // Valid
 #define PTE_R     0x002 // Read
@@ -138,6 +169,12 @@
   else \
     asm volatile ("csrrc %0, " #reg ", %1" : "=r"(__tmp) : "r"(bit)); \
   __tmp; })
+
+#define stm_trace(id, value) \
+  { \
+  asm volatile ("mv a0,%0": :"r" ((uint64_t)value) : "a0"); \
+  asm volatile ("csrw swtrace, %0" :: "r"(id)); \
+  }
 
 #define rdtime() read_csr(time)
 #define rdcycle() read_csr(cycle)
@@ -619,7 +656,7 @@
 #define CSR_CYCLE 0xc00
 #define CSR_TIME 0xc01
 #define CSR_INSTRET 0xc02
-#define CSR_TAGCTRL 0x8f0
+#define CSR_UTAGCTRL 0x8f0
 #define CSR_SWTRACE 0x8ff
 #define CSR_SSTATUS 0x100
 #define CSR_SIE 0x104
@@ -634,6 +671,7 @@
 #define CSR_SCYCLE 0xd00
 #define CSR_STIME 0xd01
 #define CSR_SINSTRET 0xd02
+#define CSR_STAGCTRL 0x9f0
 #define CSR_MSTATUS 0x300
 #define CSR_MEDELEG 0x302
 #define CSR_MIDELEG 0x303
@@ -661,6 +699,9 @@
 #define CSR_MIMPID 0xf13
 #define CSR_MHARTID 0xf14
 #define CSR_MRESET 0x7c2
+#define CSR_MTAGCTRL 0xbf0
+#define CSR_MUTAGCTRLEN 0x7f0
+#define CSR_MSTAGCTRLEN 0x7f1
 #define CSR_CYCLEH 0xc80
 #define CSR_TIMEH 0xc81
 #define CSR_INSTRETH 0xc82
@@ -685,6 +726,7 @@
 #define CAUSE_SUPERVISOR_ECALL 0x9
 #define CAUSE_HYPERVISOR_ECALL 0xa
 #define CAUSE_MACHINE_ECALL 0xb
+#define CAUSE_TAG_CHECK_FAIL 0x10
 #endif
 #ifdef DECLARE_INSN
 DECLARE_INSN(beq, MATCH_BEQ, MASK_BEQ)
@@ -925,7 +967,7 @@ DECLARE_CSR(fcsr, CSR_FCSR)
 DECLARE_CSR(cycle, CSR_CYCLE)
 DECLARE_CSR(time, CSR_TIME)
 DECLARE_CSR(instret, CSR_INSTRET)
-DECLARE_CSR(tagctrl, CSR_TAGCTRL)
+DECLARE_CSR(utagctrl, CSR_UTAGCTRL)
 DECLARE_CSR(swtrace, CSR_SWTRACE)
 DECLARE_CSR(sstatus, CSR_SSTATUS)
 DECLARE_CSR(sie, CSR_SIE)
@@ -940,6 +982,7 @@ DECLARE_CSR(sasid, CSR_SASID)
 DECLARE_CSR(scycle, CSR_SCYCLE)
 DECLARE_CSR(stime, CSR_STIME)
 DECLARE_CSR(sinstret, CSR_SINSTRET)
+DECLARE_CSR(stagctrl, CSR_STAGCTRL)
 DECLARE_CSR(mstatus, CSR_MSTATUS)
 DECLARE_CSR(medeleg, CSR_MEDELEG)
 DECLARE_CSR(mideleg, CSR_MIDELEG)
@@ -967,6 +1010,9 @@ DECLARE_CSR(marchid, CSR_MARCHID)
 DECLARE_CSR(mimpid, CSR_MIMPID)
 DECLARE_CSR(mhartid, CSR_MHARTID)
 DECLARE_CSR(mreset, CSR_MRESET)
+DECLARE_CSR(mtagctrl, CSR_MTAGCTRL)
+DECLARE_CSR(mutagctrlen, CSR_MUTAGCTRLEN)
+DECLARE_CSR(mstagctrlen, CSR_MSTAGCTRLEN)
 DECLARE_CSR(cycleh, CSR_CYCLEH)
 DECLARE_CSR(timeh, CSR_TIMEH)
 DECLARE_CSR(instreth, CSR_INSTRETH)
@@ -993,4 +1039,5 @@ DECLARE_CAUSE("user_ecall", CAUSE_USER_ECALL)
 DECLARE_CAUSE("supervisor_ecall", CAUSE_SUPERVISOR_ECALL)
 DECLARE_CAUSE("hypervisor_ecall", CAUSE_HYPERVISOR_ECALL)
 DECLARE_CAUSE("machine_ecall", CAUSE_MACHINE_ECALL)
+DECLARE_CAUSE("tag check fail", CAUSE_TAG_CHECK_FAIL)
 #endif

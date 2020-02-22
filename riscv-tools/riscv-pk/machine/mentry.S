@@ -39,6 +39,13 @@ trap_vector:
   csrrw sp, mscratch, sp
   beqz sp, .Ltrap_from_machine_mode
 
+  # Assume gp is untagged and use that assumption to allow tagctrl to be
+  # stored then set to zero
+  STORE gp, 3*REGBYTES(sp)
+  csrr gp, mtagctrl
+  csrw mtagctrl, zero
+  STORE gp, 32*REGBYTES(sp)
+
   STORE a0, 10*REGBYTES(sp)
   STORE a1, 11*REGBYTES(sp)
 
@@ -58,6 +65,12 @@ trap_vector:
   # Go back whence we came.
   LOAD a0, 10*REGBYTES(sp)
   LOAD a1, 11*REGBYTES(sp)
+
+  # Restore tagctrl prior to returning
+  LOAD gp, 32*REGBYTES(sp)
+  csrw mtagctrl, gp
+  LOAD gp, 3*REGBYTES(sp)
+
   csrrw sp, mscratch, sp
   mret
 
@@ -71,7 +84,6 @@ trap_vector:
 .Lhandle_trap_in_machine_mode:
   # Preserve the registers.  Compute the address of the trap handler.
   STORE ra, 1*REGBYTES(sp)
-  STORE gp, 3*REGBYTES(sp)
   STORE tp, 4*REGBYTES(sp)
   STORE t0, 5*REGBYTES(sp)
 1:auipc t0, %pcrel_hi(trap_table)  # t0 <- %hi(trap_table)
@@ -126,7 +138,6 @@ restore_mscratch:
 restore_regs:
   # Restore all of the registers.
   LOAD ra, 1*REGBYTES(sp)
-  LOAD gp, 3*REGBYTES(sp)
   LOAD tp, 4*REGBYTES(sp)
   LOAD t0, 5*REGBYTES(sp)
   LOAD t1, 6*REGBYTES(sp)
@@ -155,12 +166,24 @@ restore_regs:
   LOAD t4,29*REGBYTES(sp)
   LOAD t5,30*REGBYTES(sp)
   LOAD t6,31*REGBYTES(sp)
+
+  # Restore tagctrl prior to returning
+  LOAD gp, 32*REGBYTES(sp)
+  csrw mtagctrl, gp
+
+  LOAD gp, 3*REGBYTES(sp)
   LOAD sp, 2*REGBYTES(sp)
   mret
 
 .Ltrap_from_machine_mode:
   csrr sp, mscratch
-  addi sp, sp, -INTEGER_CONTEXT_SIZE
+  addi sp, sp, -INTEGER_CONTEXT_SIZE -TAG_CONTEXT_SIZE
+  # Assume gp is untagged and use that assumption to allow tagctrl to be
+  # stored then set to zero
+  STORE gp, 3*REGBYTES(sp)
+  csrr gp, mtagctrl
+  csrw mtagctrl, zero
+  STORE gp, 32*REGBYTES(sp)
   STORE a0,10*REGBYTES(sp)
   STORE a1,11*REGBYTES(sp)
   li a1, TRAP_FROM_MACHINE_MODE_VECTOR

@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   bool dump_config_string = false;
   size_t nprocs = 1;
   size_t mem_mb = 0;
-  size_t tagsz = 1;             // set to 1 bit tag by default
+  size_t tagsz = 4;             // set to 4-bit tag by default
   std::unique_ptr<icache_sim_t> ic;
   std::unique_ptr<dcache_sim_t> dc;
   std::unique_ptr<cache_sim_t> l2;

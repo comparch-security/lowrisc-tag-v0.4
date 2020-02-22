@@ -5,4 +5,5 @@
 #include "softfloat.h"
 #include "internals.h"
 #include "tracer.h"
+#include "insn_wrappers.h"
 #include <assert.h>

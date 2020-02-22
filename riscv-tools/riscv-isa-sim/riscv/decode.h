@@ -163,10 +163,14 @@ private:
 #define MMU (*p->get_mmu())
 #define STATE (*p->get_state())
 #define READ_REG(reg) STATE.XPR[reg]
+#define READ_REG_TAG(reg) STATE.XPR_tags[reg]
 #define READ_FREG(reg) STATE.FPR[reg]
 #define RS1 READ_REG(insn.rs1())
+#define RS1_TAG READ_REG_TAG(insn.rs1())
 #define RS2 READ_REG(insn.rs2())
+#define RS2_TAG READ_REG_TAG(insn.rs2())
 #define WRITE_RD(value) WRITE_REG(insn.rd(), value)
+#define WRITE_RD_TAG(value) WRITE_REG_TAG(insn.rd(), value)
 
 #ifndef RISCV_ENABLE_COMMITLOG
 # define WRITE_REG(reg, value) STATE.XPR.write(reg, value)
@@ -183,6 +187,7 @@ private:
     DO_WRITE_FREG(reg, wdata); \
   })
 #endif
+#define WRITE_REG_TAG(reg, value) STATE.XPR_tags.write(reg, value)
 
 // RVC macros
 #define WRITE_RVC_RS1S(value) WRITE_REG(insn.rvc_rs1s(), value)

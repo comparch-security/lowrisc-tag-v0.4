@@ -20,11 +20,16 @@
 #undef STATE
 #define STATE state
 
-processor_t::processor_t(const char* isa, sim_t* sim, uint32_t id)
+processor_t::processor_t(const char* isa, sim_t* sim, uint32_t id, uint32_t tagsz)
   : sim(sim), ext(NULL), disassembler(new disassembler_t),
-    id(id), run(false), debug(false)
+    id(id), run(false), debug(false), tagsz(tagsz)
 {
   parse_isa_string(isa);
+
+  if (tagsz >= max_xlen) {
+    fprintf(stderr, "error: tagsz can't be greater than xlen");
+    abort();
+  }
 
   mmu = new mmu_t(sim, this);
 
@@ -346,6 +351,9 @@ void processor_t::set_csr(int which, word_t val)
     case CSR_MSCRATCH: state.mscratch = val; break;
     case CSR_MCAUSE: state.mcause = val; break;
     case CSR_MBADADDR: state.mbadaddr = val; break;
+    case CSR_MTAGCTRL:
+    case CSR_STAGCTRL:
+    case CSR_UTAGCTRL: state.tagctrl = val; break;
   }
 }
 
@@ -434,6 +442,9 @@ word_t processor_t::get_csr(int which)
     case CSR_MTVEC: return state.mtvec;
     case CSR_MEDELEG: return state.medeleg;
     case CSR_MIDELEG: return state.mideleg;
+    case CSR_MTAGCTRL:
+    case CSR_STAGCTRL:
+    case CSR_UTAGCTRL: return state.tagctrl;
   }
   throw trap_illegal_instruction();
 }

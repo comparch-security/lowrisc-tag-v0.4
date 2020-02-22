@@ -53,7 +53,7 @@ sim_t::sim_t(const char* isa, size_t nprocs, size_t mem_mb, size_t tagsz,
   debug_mmu = new mmu_t(this, NULL);
 
   for (size_t i = 0; i < procs.size(); i++)
-    procs[i] = new processor_t(isa, this, i);
+    procs[i] = new processor_t(isa, this, i, tagsz);
 
   rtc.reset(new rtc_t(procs));
   make_config_string();

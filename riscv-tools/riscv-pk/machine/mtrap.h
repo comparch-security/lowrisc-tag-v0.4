@@ -82,7 +82,7 @@ static inline void wfi()
 
 #define MACHINE_STACK_SIZE RISCV_PGSIZE
 #define MENTRY_FRAME_SIZE (INTEGER_CONTEXT_SIZE + SOFT_FLOAT_CONTEXT_SIZE \
-                           + HLS_SIZE)
+                           + TAG_CONTEXT_SIZE + HLS_SIZE)
 
 #ifdef __riscv_hard_float
 # define SOFT_FLOAT_CONTEXT_SIZE 0
@@ -91,5 +91,8 @@ static inline void wfi()
 #endif
 #define HLS_SIZE 64
 #define INTEGER_CONTEXT_SIZE (32 * REGBYTES)
+// Only need one register for tag context, but lets keep the stack aligned at
+// 2 x word size
+#define TAG_CONTEXT_SIZE (REGBYTES*2)
 
 #endif
