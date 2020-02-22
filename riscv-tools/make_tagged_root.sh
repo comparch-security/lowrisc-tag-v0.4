@@ -1,8 +1,8 @@
 BUSYBOX=$TOP/riscv-tools/busybox-1.21.1
-BUSYBOX_CFG=$TOP/riscv-tools/busybox_config
+BUSYBOX_CFG=$TOP/riscv-tools/busybox_config.spike
 ROOT_INITTAB=$TOP/riscv-tools/inittab
 LINUX=$TOP/riscv-tools/linux-4.1.25
-LINUX_CFG=$TOP/riscv-tools/vmlinux_config
+LINUX_CFG=$TOP/riscv-tools/vmlinux_config.spike
 
 echo "build busybox..."
 cp  $BUSYBOX_CFG "$BUSYBOX"/.config
