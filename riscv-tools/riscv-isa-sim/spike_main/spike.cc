@@ -23,6 +23,7 @@ static void help()
   fprintf(stderr, "  -p<n>                  Simulate <n> processors [default 1]\n");
   fprintf(stderr, "  -m<n>                  Provide <n> MiB of target memory [default 4096]\n");
   fprintf(stderr, "  -t<n>                  number of tag bits\n");
+  fprintf(stderr, "  -r<n>                  Record address and disasm last <n> instructions each processor executed\n");
   fprintf(stderr, "  -d                     Interactive debug mode\n");
   fprintf(stderr, "  -g                     Track histogram of PCs\n");
   fprintf(stderr, "  -l                     Generate a log of execution\n");
@@ -46,6 +47,7 @@ int main(int argc, char** argv)
   bool debug = false;
   bool histogram = false;
   bool log = false;
+  size_t nc_insn_trace = 0; //record 0 insn as default
   bool dump_config_string = false;
   size_t nprocs = 1;
   size_t mem_mb = 0;
@@ -67,6 +69,7 @@ int main(int argc, char** argv)
   parser.option('p', 0, 1, [&](const char* s){nprocs = atoi(s);});
   parser.option('m', 0, 1, [&](const char* s){mem_mb = atoi(s);});
   parser.option('t', 0, 1, [&](const char* s){tagsz = atoi(s);});
+  parser.option('r',0,1,[&](const char* s){nc_insn_trace=atoi(s);});
   parser.option(0, "ic", 1, [&](const char* s){ic.reset(new icache_sim_t(s));});
   parser.option(0, "dc", 1, [&](const char* s){dc.reset(new dcache_sim_t(s));});
   parser.option(0, "l2", 1, [&](const char* s){l2.reset(cache_sim_t::construct(s, "L2$"));});
@@ -134,5 +137,6 @@ int main(int argc, char** argv)
   s.set_debug(debug);
   s.set_log(log);
   s.set_histogram(histogram);
+  s.set_nc_insn_trace(nc_insn_trace);
   return s.run();
 }

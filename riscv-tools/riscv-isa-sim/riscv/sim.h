@@ -28,6 +28,7 @@ public:
   void set_log(bool value);
   void set_histogram(bool value);
   void set_procs_debug(bool value);
+  void set_nc_insn_trace(size_t value);
   htif_isasim_t* get_htif() { return htif.get(); }
   const char* get_config_string() { return config_string.c_str(); }
 
@@ -60,6 +61,7 @@ private:
   bool debug;
   bool log;
   bool histogram_enabled; // provide a histogram of PCs
+  bool insn_trace_enabled;
 
   // memory-mapped I/O routines
   bool addr_is_mem(word_t addr) {

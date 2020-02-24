@@ -129,6 +129,14 @@ void sim_t::set_histogram(bool value)
   }
 }
 
+void sim_t::set_nc_insn_trace(size_t value)
+{
+  insn_trace_enabled = value != 0;
+  for (size_t i = 0; i < procs.size(); i++) {
+    procs[i]->set_nc_insn_trace(value);
+  }
+}
+
 void sim_t::set_procs_debug(bool value)
 {
   for (size_t i=0; i< procs.size(); i++)

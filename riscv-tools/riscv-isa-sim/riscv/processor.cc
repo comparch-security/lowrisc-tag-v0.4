@@ -24,6 +24,8 @@ processor_t::processor_t(const char* isa, sim_t* sim, uint32_t id, uint32_t tags
   : sim(sim), ext(NULL), disassembler(new disassembler_t),
     id(id), run(false), debug(false), tagsz(tagsz)
 {
+  i_insn_trace = 0;
+
   parse_isa_string(isa);
 
   if (tagsz >= max_xlen) {
@@ -48,7 +50,17 @@ processor_t::~processor_t()
       fprintf(stderr, "%0" PRIx64 " %" PRIu64 "\n", it.first, it.second);
   }
 #endif
-
+if (insn_trace_enabled){
+  fprintf(stderr,"last %zu instructions proc %3d executed:\n",nc_insn_trace,id);
+  for (size_t  k = (i_insn_trace );k < (i_insn_trace + nc_insn_trace) ; k ++){
+      int i = k % nc_insn_trace;
+      insn_t insn = insn_trace[i].insn;
+      word_t pc = insn_trace[i].pc;
+      uint64_t bits = insn.bits() & ((1ULL << (8 * insn_length(insn.bits()))) - 1);
+      fprintf(stderr, "core %3d: 0x%016" PRIx64 " (0x%08" PRIx64 ") %s\n",
+          id,pc, bits, disassembler->disassemble(insn).c_str());
+  }
+}
   delete mmu;
   delete disassembler;
 }
@@ -140,6 +152,13 @@ void processor_t::set_histogram(bool value)
     fprintf(stderr, " please re-build the riscv-isa-run project using \"configure --enable-histogram\".\n");
   }
 #endif
+}
+
+void processor_t::set_nc_insn_trace(size_t value)
+{
+  insn_trace_enabled = value != 0;
+  nc_insn_trace = value;
+  insn_trace.resize(nc_insn_trace);
 }
 
 void processor_t::reset(bool value)

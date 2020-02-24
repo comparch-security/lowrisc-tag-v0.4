@@ -39,11 +39,22 @@ inline void processor_t::update_histogram(reg_t pc)
 #endif
 }
 
+inline void processor_t::update_insn_trace(reg_t pc,insn_t insn){
+  if (insn_trace_enabled){
+    if(pc.data < 0x80000000){
+      insn_trace[i_insn_trace].pc = pc.data;
+      insn_trace[i_insn_trace].insn = insn;
+      i_insn_trace = (i_insn_trace + 1)%nc_insn_trace;
+    }
+  }
+}
+
 static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
 {
   commit_log_stash_privilege(p->get_state());
   reg_t npc = fetch.func(p, fetch.insn, pc);
   if (!invalid_pc(npc)) {
+    p->update_insn_trace(pc,fetch.insn);
     commit_log_print_insn(p->get_state(), pc, fetch.insn);
     p->update_histogram(pc);
   }

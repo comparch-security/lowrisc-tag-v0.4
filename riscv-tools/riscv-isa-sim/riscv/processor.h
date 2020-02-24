@@ -102,6 +102,9 @@ public:
   void yield_load_reservation() { state.load_reservation = (word_t)-1; }
   void update_histogram(reg_t pc);
 
+  void update_insn_trace(reg_t pc,insn_t insn);
+  void set_nc_insn_trace(size_t value);
+
   void register_insn(insn_desc_t);
   void register_extension(extension_t*);
 
@@ -124,9 +127,15 @@ private:
   bool debug;
   bool histogram_enabled;
   uint32_t tagsz;
+  bool insn_trace_enabled;
+  size_t nc_insn_trace;
 
   std::vector<insn_desc_t> instructions;
   std::map<word_t,uint64_t> pc_histogram;
+
+  struct meta_insn_t {word_t pc;insn_t insn;};
+  std::vector<meta_insn_t> insn_trace;
+  uint32_t i_insn_trace;
 
   static const size_t OPCODE_CACHE_SIZE = 8191;
   insn_desc_t opcode_cache[OPCODE_CACHE_SIZE];
