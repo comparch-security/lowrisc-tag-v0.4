@@ -104,6 +104,7 @@ public:
   insn_t(insn_bits_t bits) : b(bits) {}
   insn_t(word_t bits) : b(insn_bits_t(bits)) {}
   word_t bits() { return b.data; }
+  uint64_t tag() {return b.tag; }
   int length() { return insn_length(b.data); }
   int64_t i_imm() { return int64_t(b.data) >> 20; }
   int64_t s_imm() { return x(7, 5) + (xs(25, 7) << 5); }

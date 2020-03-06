@@ -121,7 +121,7 @@ public:
     const uint16_t* iaddr = translate_insn_addr(addr);
     word_t paddr = sim->mem_to_addr((char*)iaddr);
     word_t insn_m = *iaddr;
-    //uint64_t insn_tag = read_tag(paddr);
+    uint64_t insn_tag = read_tag(paddr);
     int length = insn_length(insn_m);
 
     if (likely(length == 4)) {
@@ -138,7 +138,7 @@ public:
       insn_m |= (word_t)*(const uint16_t*)translate_insn_addr(addr + 2) << 16;
     }
 
-    insn_t insn = insn_t(insn_bits_t(insn_m, 0 /*insn_tag*/));
+    insn_t insn = insn_t(insn_bits_t(insn_m, insn_tag));
     insn_fetch_t fetch = {proc->decode_insn(insn), insn};
     entry->tag = addr;
     entry->data = fetch;
