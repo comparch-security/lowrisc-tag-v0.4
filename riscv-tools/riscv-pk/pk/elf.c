@@ -10,6 +10,17 @@
 #include <elf.h>
 #include <string.h>
 
+#define set_tagged_val(dst, val, tag) \
+  asm volatile ( "tagw %0, %1; sd %0, 0(%2); tagw %0, zero;" : : "r" (val), "r" (tag), "r" (dst))
+#define disable_tag_rules() write_csr(utagctrl, 0)
+#define enable_tag_rules() write_csr(utagctrl, TMASK_STORE_PROP | TMASK_STORE_CHECK)
+
+
+typedef struct  {
+    uint64_t addr;
+    uint64_t tag;
+} Tag;
+
 void load_elf(const char* fn, elf_info* info)
 {
   file_t* file = file_open(fn, O_RDONLY, 0);
@@ -65,6 +76,69 @@ void load_elf(const char* fn, elf_info* info)
           goto fail;
     }
   }
+
+#ifdef __riscv64
+  int en_tagging = 1; // reserved for cmd options control.
+  int en_tagchk = 0; //reserved for cmd options control.
+  if (en_tagging){
+    if (eh.e_shoff != 0 && eh.e_shnum != 0){
+      Elf64_Shdr sh;
+      Elf64_Shdr shstr;
+      size_t shtagndx = eh.e_shnum;
+      uintptr_t sec_str = 0;
+      uintptr_t sec_tag = 0;
+      const char * mmap_str = 0;
+      const char * tag_str_ref = ".tag";
+      Tag * mmap_tag = NULL;
+      size_t ntags = 0;
+      
+      if (eh.e_shstrndx != SHN_UNDEF){
+        ret = file_pread(file,(void*)&shstr,sizeof(Elf64_Shdr),eh.e_shoff + (eh.e_shstrndx * eh.e_shentsize));
+        if (ret < (typeof(ret))sizeof(Elf64_Shdr))
+          goto fail;
+        sec_str = __do_mmap(0,shstr.sh_size,PROT_READ,MAP_PRIVATE,file,shstr.sh_offset);
+        if (sec_str == (uintptr_t)-1)
+          goto fail;
+        mmap_str = (const char *) sec_str;
+
+        for (size_t i = 0 ; i < eh.e_shnum ; i++){
+          ret = file_pread(file,(void*)&sh,sizeof(Elf64_Shdr),eh.e_shoff + (i * eh.e_shentsize));
+          if (ret < (typeof(ret))sizeof(Elf64_Shdr))
+            goto fail;
+
+          if (strcmp((mmap_str + sh.sh_name),tag_str_ref) == 0) {
+            shtagndx = i;
+            break;
+          }
+          
+        }
+
+        if (shtagndx < eh.e_shnum){
+          sec_tag = __do_mmap(0,sh.sh_size,PROT_READ,MAP_PRIVATE,file,sh.sh_offset);
+          if (sec_tag == (uintptr_t)-1)
+            goto fail;
+
+          mmap_tag = (Tag *) sec_tag;
+          ntags = sh.sh_size/sizeof(Tag);
+
+          disable_tag_rules();
+
+          for (size_t i = 0; i < ntags ; i++){
+            set_tagged_val(mmap_tag[i].addr,*(uint64_t*)mmap_tag[i].addr,mmap_tag[i].tag);
+          }
+          
+          if (en_tagchk){
+            enable_tag_rules();
+          }
+          
+        }
+
+      }      
+    }
+  }
+
+
+#endif
 
   file_decref(file);
   return;
