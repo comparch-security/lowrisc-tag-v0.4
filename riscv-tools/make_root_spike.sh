@@ -8,7 +8,7 @@ BUSYBOX_CFG=$TOP/riscv-tools/busybox_config.spike
 
 ROOT_INITTAB=$TOP/riscv-tools/inittab
 
-if [ -z "$LINUX" ]; then LINUX=$TOP/riscv-tools/linux-4.6.2; fi
+if [ -z "$LINUX" ]; then LINUX=$TOP/riscv-tools/linux-4.6.3; fi
 LINUX_CFG=$TOP/riscv-tools/vmlinux_config.spike
 
 
@@ -26,11 +26,11 @@ if [ -d "$BUSYBOX" ] && [ -d "$LINUX" ]; then
     cp $ROOT_INITTAB etc/inittab &&
     printf "#!/bin/sh\necho 0 > /proc/sys/kernel/randomize_va_space\n" > disable_aslr.sh &&
     chmod +x disable_aslr.sh &&
-    riscv64-unknown-linux-gnu-gcc -O1 -static ../hello_tagctrl.c -o hello &&
-    riscv64-unknown-linux-gnu-gcc -O2 -static ../stack_vuln.c -o stack_vuln &&
-    riscv64-unknown-linux-gnu-gcc -O2 -static ../stack_tagged.c -o stack_tagged &&
-    riscv64-unknown-linux-gnu-gcc -O2 -static ../secret_vuln.c -o secret_vuln &&
-    riscv64-unknown-linux-gnu-gcc -O2 -static ../secret_tagged.c -o secret_tagged &&
+    riscv64-unknown-linux-gnu-gcc -O1 -static -I$TOP/riscv-tools/riscv-isa-sim/riscv ../hello_tagctrl.c -o hello &&
+    riscv64-unknown-linux-gnu-gcc -O2 -static -I$TOP/riscv-tools/riscv-isa-sim/riscv ../stack_vuln.c -o stack_vuln &&
+    riscv64-unknown-linux-gnu-gcc -O2 -static -I$TOP/riscv-tools/riscv-isa-sim/riscv ../stack_tagged.c -o stack_tagged &&
+    riscv64-unknown-linux-gnu-gcc -O2 -static -I$TOP/riscv-tools/riscv-isa-sim/riscv ../secret_vuln.c -o secret_vuln &&
+    riscv64-unknown-linux-gnu-gcc -O2 -static -I$TOP/riscv-tools/riscv-isa-sim/riscv ../secret_tagged.c -o secret_tagged &&
     echo "\
         mknod dev/null c 1 3 && \
         mknod dev/tty c 5 0 && \
