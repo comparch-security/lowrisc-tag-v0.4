@@ -11,9 +11,13 @@
 #include <string.h>
 
 #define set_tagged_val(dst, val, tag) \
-  asm volatile ( "tagw %0, %1; sd %0, 0(%2); tagw %0, zero;" : : "r" (val), "r" (tag), "r" (dst))
-#define disable_tag_rules() write_csr(utagctrl, 0)
-#define enable_tag_rules() write_csr(utagctrl, TMASK_STORE_PROP | TMASK_STORE_CHECK)
+  asm volatile ( "tagw %0, %1; sw %0, 0(%2); tagw %0, zero;" : : "r" (val), "r" (tag), "r" (dst))
+#define disable_tag_rules() write_csr(stagctrl, 0)
+#define enable_tag_prop() write_csr(stagctrl, TMASK_STORE_PROP | TMASK_LOAD_PROP | TMASK_ALU_PROP )
+#define get_tag(dst) ({\
+  unsigned long __tmp1, __tmp2;\
+  asm volatile ( "lw %0, 0(%2); tagr %1, %0; tagw %0, zero;" :"=r"(__tmp1), "=r"(__tmp2):"r"(dst));\
+  __tmp2;})
 
 
 typedef struct  {
@@ -91,8 +95,10 @@ void load_elf(const char* fn, elf_info* info)
       const char * tag_str_ref = ".tag";
       Tag * mmap_tag = NULL;
       size_t ntags = 0;
-      
-      if (eh.e_shstrndx != SHN_UNDEF){
+      extern uintptr_t __do_brk(size_t);
+      uintptr_t brkmin = __do_brk(0);
+
+      if (eh.e_shstrndx != 0){
         ret = file_pread(file,(void*)&shstr,sizeof(Elf64_Shdr),eh.e_shoff + (eh.e_shstrndx * eh.e_shentsize));
         if (ret < (typeof(ret))sizeof(Elf64_Shdr))
           goto fail;
@@ -100,7 +106,7 @@ void load_elf(const char* fn, elf_info* info)
         if (sec_str == (uintptr_t)-1)
           goto fail;
         mmap_str = (const char *) sec_str;
-
+        
         for (size_t i = 0 ; i < eh.e_shnum ; i++){
           ret = file_pread(file,(void*)&sh,sizeof(Elf64_Shdr),eh.e_shoff + (i * eh.e_shentsize));
           if (ret < (typeof(ret))sizeof(Elf64_Shdr))
@@ -122,14 +128,18 @@ void load_elf(const char* fn, elf_info* info)
           ntags = sh.sh_size/sizeof(Tag);
 
           disable_tag_rules();
+          enable_tag_prop();
+
+          // printk("stagctrl = %#x\n",read_csr(stagctrl));
 
           for (size_t i = 0; i < ntags ; i++){
+            if (mmap_tag[i].addr == (uintptr_t)-1) break;
             set_tagged_val(mmap_tag[i].addr,*(uint64_t*)mmap_tag[i].addr,mmap_tag[i].tag);
+            // printk("tagging insn no.%d @ %p with tag %x,",i,mmap_tag[i].addr,mmap_tag[i].tag);
+            // printk("tag is %x\n",get_tag(mmap_tag[i].addr));
           }
           
-          if (en_tagchk){
-            enable_tag_rules();
-          }
+          
           
         }
 

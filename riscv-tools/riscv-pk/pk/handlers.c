@@ -81,6 +81,13 @@ static void handle_interrupt(trapframe_t* tf)
   clear_csr(sip, SIP_SSIP);
 }
 
+static void handle_tag_check_failure(trapframe_t* tf)
+{
+  dump_tf(tf);
+  panic("Tag check failure @ %p",tf->epc);
+  
+}
+
 void handle_trap(trapframe_t* tf)
 {
   if ((intptr_t)tf->cause < 0)
@@ -97,6 +104,7 @@ void handle_trap(trapframe_t* tf)
     [CAUSE_MISALIGNED_STORE] = handle_misaligned_store,
     [CAUSE_FAULT_LOAD] = handle_fault_load,
     [CAUSE_FAULT_STORE] = handle_fault_store,
+    [CAUSE_TAG_CHECK_FAIL] = handle_tag_check_failure,
   };
 
   kassert(tf->cause < ARRAY_SIZE(trap_handlers) && trap_handlers[tf->cause]);
