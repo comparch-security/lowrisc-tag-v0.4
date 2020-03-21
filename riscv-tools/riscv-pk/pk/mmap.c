@@ -228,7 +228,6 @@ uintptr_t __do_mmap(uintptr_t addr, size_t length, int prot, int flags, file_t* 
   }
   else if ((addr = __vm_alloc(npage)) == 0)
     return (uintptr_t)-1;
-
   vmr_t* v = __vmr_alloc(addr, length, f, offset, npage, prot);
   if (!v)
     return (uintptr_t)-1;
