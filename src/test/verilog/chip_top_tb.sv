@@ -262,6 +262,7 @@ module tb;
 
    initial begin
 `ifndef ADD_PHY_DDR
+      #5; // wait for the initialization of memory
       if($value$plusargs("load=%s", memfile))
         DUT.ram_behav.memory_load_mem(memfile);
 `endif

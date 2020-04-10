@@ -1,5 +1,11 @@
 #!/bin/sh
 
+#--------------------------------------
+# if bash failed have a try to use dash
+# or check whether there is a space after \
+# the \ is in front of EOF
+#---------------------------------------
+
 if [ -z "$1" ]; then
   printf "Error: must give source base directory as first argument\n" 1>&2
   exit 1
