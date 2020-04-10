@@ -122,37 +122,6 @@ module chip_top
    output        sd_reset,
 `endif
 
-`ifdef ADD_MINION_SD
-   // 4-bit full SD interface
-   output        sd_sclk,
-   input         sd_detect,
-   inout [3:0]   sd_dat,
-   inout         sd_cmd,
-   output        sd_reset,
-
-   // LED and DIP switch
-   output [7:0]  o_led,
-   input  [3:0]  i_dip,
-
-   // push button array
-   input         GPIO_SW_C,
-   input         GPIO_SW_W,
-   input         GPIO_SW_E,
-   input         GPIO_SW_N,
-   input         GPIO_SW_S,
-
-   //keyboard
-   inout         PS2_CLK,
-   inout         PS2_DATA,
-
-  // display
-   output        VGA_HS_O,
-   output        VGA_VS_O,
-   output [3:0]  VGA_RED_O,
-   output [3:0]  VGA_BLUE_O,
-   output [3:0]  VGA_GREEN_O,
-`endif
-
    // clock and reset
    input         clk_p,
    input         clk_n,
@@ -638,47 +607,6 @@ module chip_top
 
    initial $readmemh("boot.mem", ram);
 
- `ifdef ADD_MINION_SD
-
-   logic [3:0]                  m_enb;
-   logic                        m_web;
-    
-   logic [31:0]                 core_lsu_addr;
-   logic [31:0]                 core_lsu_addr_dly;
-   logic [31:0]                 core_lsu_wdata;
-   logic [3:0]                  core_lsu_be;
-   logic                        ce_d;
-   logic                        we_d;
-   logic                        shared_sel;
-   logic [31:0]                 shared_rdata;
-
-   genvar                       r;
-
-   assign m_enb = (we_d ? core_lsu_be : 4'hF);
-   assign m_web = ce_d & shared_sel & we_d;
-
-   generate for (r = 0; r < 4; r=r+1)
-     RAMB16_S9_S9
-     RAMB16_S9_S9_inst
-       (
-        .CLKA   ( ram_clk                  ),     // Port A Clock
-        .DOA    ( ram_rddata_b[r*8 +: 8]   ),     // Port A 1-bit Data Output
-        .ADDRA  ( ram_addr[12:2]           ),     // Port A 14-bit Address Input
-        .DIA    ( ram_wrdata[r*8 +:8]      ),     // Port A 1-bit Data Input
-        .ENA    ( ram_en & ram_sel_b       ),     // Port A RAM Enable Input
-        .SSRA   ( 1'b0                     ),     // Port A Synchronous Set/Reset Input
-        .WEA    ( ram_we[r]                ),     // Port A Write Enable Input
-        .CLKB   ( clk                      ),     // Port B Clock
-        .DOB    ( shared_rdata[r*8 +: 8]   ),     // Port B 1-bit Data Output
-        .ADDRB  ( core_lsu_addr[12:2]      ),     // Port B 14-bit Address Input
-        .DIB    ( core_lsu_wdata[r*8 +: 8] ),     // Port B 1-bit Data Input
-        .ENB    ( m_enb[r]                 ),     // Port B RAM Enable Input
-        .SSRB   ( 1'b0                     ),     // Port B Synchronous Set/Reset Input
-        .WEB    ( m_web                    )      // Port B Write Enable Input
-        );
-   endgenerate
-
- `endif //  `ifdef ADD_MINION_SD
 `endif //  `ifdef ADD_BRAM
 
    /////////////////////////////////////////////////////////////
@@ -1258,25 +1186,4 @@ module chip_top
    defparam io_mem_crossbar.MASK2 = `DEV_MAP__io_ext_flash__MASK;
 `endif
 
-`ifdef ADD_MINION_SD
-
-   minion_soc
-   msoc
-     (
-      .uart_tx    (                 ),
-      .uart_rx    ( 1'b1            ),
-      .msoc_clk   ( clk             ),
-      .sd_sclk    ( sd_sclk         ),
-      .sd_detect  ( sd_detect       ),
-      .sd_dat     ( sd_dat          ),
-      .sd_cmd     ( sd_cmd          ),
-      .from_dip   ( {12'b0,i_dip}   ),
-      .to_led     ( o_led           ),
-      .rstn       ( clk_locked      ),
-      .clk_200MHz ( mig_sys_clk     ),
-      .pxl_clk    ( clk_pixel       ),
-      .*
-      );
-`endif
-   
 endmodule // chip_top
