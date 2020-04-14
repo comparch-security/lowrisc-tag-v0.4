@@ -55,6 +55,9 @@ class RocketTile(id: Int = 0, resetSignal: Bool = null)(implicit p: Parameters) 
   core.io.prci <> io.prci
   icache.io.cpu <> core.io.imem
   core.io.irq <> io.irq
+  //Cache perfrmance connect
+  core.io.cpfc.L1I <> icache.io.pfc
+  core.io.cpfc.L1D <> dcache.io.pfc
 
   val fpuOpt = if (p(UseFPU)) Some(Module(new FPU)) else None
   fpuOpt.foreach(fpu => core.io.fpu <> fpu.io)

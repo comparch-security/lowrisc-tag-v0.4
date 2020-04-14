@@ -142,6 +142,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
     val irq = Bool(INPUT)
     val dbgnet = Vec(2, new DiiIO)       // debug network
     val dbgrst = Bool(INPUT)             // reset debug network
+    val cpfc   = new CachePerform()      //Cache(L1I\L1D\L2\TAG) performance
   }
 
   var decode_table = new XDecode().table
@@ -571,7 +572,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   csr.io.rw.wdata := wb_reg_wdata
   csr.io.rw.wtag  := wb_reg_wtag
   // hook up control/status regfile : PerformCounter
-  csr.io.pf.Cache.L1I <> io.imem.L1IPFC
+  csr.io.pf.Cache <> io.cpfc
 
   val hazard_targets = Seq((id_ctrl.rxs1 && id_raddr1 =/= UInt(0), id_raddr1),
                            (id_ctrl.rxs2 && id_raddr2 =/= UInt(0), id_raddr2),
