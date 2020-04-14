@@ -10,6 +10,7 @@ import Util._
 import cde.{Parameters, Field}
 
 case object UseFPU extends Field[Boolean]
+case object UsePFC extends Field[Boolean]
 case object FDivSqrt extends Field[Boolean]
 case object XLen extends Field[Int]
 case object FetchWidth extends Field[Int]
@@ -34,6 +35,7 @@ trait HasCoreParameters extends HasAddrMapParameters with HasTagParameters {
 
   val usingVM = p(UseVM)
   val usingFPU = p(UseFPU)
+  val usingPFC = p(UsePFC)
   val usingFDivSqrt = p(FDivSqrt)
   val usingRoCC = !p(BuildRoCC).isEmpty
   val usingFastMulDiv = p(FastMulDiv)
@@ -568,6 +570,8 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   csr.io.rw.cmd := Mux(wb_reg_valid, wb_ctrl.csr, CSR.N)
   csr.io.rw.wdata := wb_reg_wdata
   csr.io.rw.wtag  := wb_reg_wtag
+  // hook up control/status regfile : PerformCounter
+  csr.io.pf.Cache.L1I <> io.imem.L1IPFC
 
   val hazard_targets = Seq((id_ctrl.rxs1 && id_raddr1 =/= UInt(0), id_raddr1),
                            (id_ctrl.rxs2 && id_raddr2 =/= UInt(0), id_raddr2),

@@ -100,7 +100,10 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   ////////////////////////////////////////////
   // local partial parameter overrides
 
-  val rocketParams = p.alterPartial({ case TLId => l1tol2TLId })
+  val rocketParams = p.alterPartial({
+    case TLId => l1tol2TLId
+    case PFCL2N => nBanks
+  })
   val coherentNetParams = p.alterPartial({ case TLId => l1tol2TLId })
   val memNetParams = if(p(UseTagMem)) p.alterPartial({ case TLId => l2totcTLId })
                      else p.alterPartial({ case TLId => l2tomemTLId })

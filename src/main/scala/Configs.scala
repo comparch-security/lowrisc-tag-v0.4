@@ -228,6 +228,7 @@ class BaseConfig extends Config (
       case XLen => 64
       case NSCR => 64
       case UseFPU => true
+      case UsePFC => true
       case FDivSqrt => true
       case SFMALatency => 2
       case DFMALatency => 3

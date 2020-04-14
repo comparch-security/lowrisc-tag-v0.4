@@ -311,6 +311,21 @@ object CSRs {
   val mutagctrlen = 0x7f0
   val mstagctrlen = 0x7f1
   val swtrace = 0x8ff
+  //PFC
+  val Iread   = 0x401  //ICache read
+  val Imiss   = 0x402  //Icache miss
+  val Dread   = 0x403  //L1D read
+  val Dmissr  = 0x404  //L1D read miss
+  val Dwrite  = 0x405  //L1D write
+  val Dmissw  = 0x406  //L1d write miss
+  val L2read  = 0x407  //L2D read
+  val L2missr = 0x408  //L2R read miss
+  val L2write = 0x409  //L2D write
+  val L2missw = 0x40a  //L2D write miss
+  val Tread   = 0x40b  //TAG read
+  val Tmissr  = 0x40c  //TAG read miss
+  val Twrite  = 0x40d  //TAG write
+  val Tmissw  = 0x40e  //TAG write miss
   val all = {
     val res = collection.mutable.ArrayBuffer[Int]()
     res += fflags
@@ -366,6 +381,21 @@ object CSRs {
     res += mutagctrlen
     res += mstagctrlen
     res += swtrace
+    //PFC
+    res += Iread
+    res += Imiss
+    res += Dread
+    res += Dmissr
+    res += Dwrite
+    res += Dmissw
+    res += L2read
+    res += L2missr
+    res += L2write
+    res += L2missw
+    res += Tread
+    res += Tmissr
+    res += Twrite
+    res += Tmissw
     res.toArray
   }
   val all32 = {

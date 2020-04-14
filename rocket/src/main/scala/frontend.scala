@@ -30,6 +30,7 @@ class FrontendIO(implicit p: Parameters) extends CoreBundle()(p) {
   val flush_icache = Bool(OUTPUT)
   val flush_tlb = Bool(OUTPUT)
   val npc = UInt(INPUT, width = vaddrBitsExtended)
+  val L1IPFC = new L1ICachePerform()
 }
 
 class Frontend(implicit p: Parameters) extends CoreModule()(p) with HasL1CacheParameters {
@@ -162,4 +163,9 @@ class Frontend(implicit p: Parameters) extends CoreModule()(p) with HasL1CachePa
 
   io.cpu.btb_resp.valid := s2_btb_resp_valid
   io.cpu.btb_resp.bits := s2_btb_resp_bits
+
+  //L1IPFC
+  val icache_pa = Cat(tlb.io.resp.ppn, s1_pc(pgIdxBits-1 ,0))
+  io.cpu.L1IPFC.read := Reg(next = io.cpu.resp.fire() && addrMap.isCacheable(icache_pa))
+  io.cpu.L1IPFC.read_miss := Reg(next = io.mem.acquire.fire() && addrMap.isCacheable(icache_pa))  //exclude io
 }
