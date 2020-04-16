@@ -19,7 +19,12 @@ class L1DCachePerform extends Bundle {
   val write_miss = Bool(INPUT)
 }
 
-class L2DCachePerform extends L1DCachePerform
+class L2DCachePerform extends Bundle {
+  val read = Bool(INPUT) //inner.acquire
+  val read_miss = Bool(INPUT) //outer.acquire
+  val write =Bool(INPUT) //inner.release
+  val write_back = Bool(INPUT) //outer.release
+}
 class TAGCachePerform extends L1DCachePerform
 
 class CachePerform(implicit val p: Parameters) extends Bundle {

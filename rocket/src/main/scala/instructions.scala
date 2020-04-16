@@ -318,10 +318,10 @@ object CSRs {
   val Dmissr  = 0x404  //L1D read miss
   val Dwrite  = 0x405  //L1D write
   val Dmissw  = 0x406  //L1d write miss
-  val L2read  = 0x407  //L2D read
-  val L2missr = 0x408  //L2R read miss
+  val L2read  = 0x407  //L2D read(inner.acquire)
+  val L2missr = 0x408  //L2D read miss(outer.acquire)
   val L2write = 0x409  //L2D write
-  val L2missw = 0x40a  //L2D write miss
+  val L2backw = 0x40a  //L2D write back
   val Tread   = 0x40b  //TAG read
   val Tmissr  = 0x40c  //TAG read miss
   val Twrite  = 0x40d  //TAG write
@@ -391,7 +391,7 @@ object CSRs {
     res += L2read
     res += L2missr
     res += L2write
-    res += L2missw
+    res += L2backw
     res += Tread
     res += Tmissr
     res += Twrite
