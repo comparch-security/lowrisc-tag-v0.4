@@ -130,6 +130,7 @@ abstract class CoherenceAgent(implicit p: Parameters) extends CoherenceAgentModu
   def innerTL: ManagerTileLinkIO
   def outerTL: ClientTileLinkIO
   def incoherent: Vec[Bool]
+  def pfc: L2DCachePerform
 }
 
 abstract class ManagerCoherenceAgent(implicit p: Parameters) extends CoherenceAgent()(p)
@@ -138,17 +139,28 @@ abstract class ManagerCoherenceAgent(implicit p: Parameters) extends CoherenceAg
   def innerTL = io.inner
   lazy val outerTL = TileLinkIOWrapper(io.outer)(p.alterPartial({case TLId => p(OuterTLId)}))
   def incoherent = io.incoherent
+  //this is useless only for pass syntax check in LowRISCChip.scala managerEndpoints
+  val reg_pfc = new L2DCachePerform()
+  reg_pfc := UInt(0)
+  override def pfc = reg_pfc
+
 }
 
 class HierarchicalTLIO(implicit p: Parameters) extends CoherenceAgentBundle()(p)
   with HasInnerTLIO
   with HasCachedOuterTLIO
 
+class HierarchicalTLIOwithPFC(implicit p: Parameters)  extends  HierarchicalTLIO {
+  val pfc = new L2DCachePerform().flip()
+}
+
 abstract class HierarchicalCoherenceAgent(implicit p: Parameters) extends CoherenceAgent()(p) {
-  val io = new HierarchicalTLIO
+  //val io = new HierarchicalTLIO
+  val io = new HierarchicalTLIOwithPFC
   def innerTL = io.inner
   def outerTL = io.outer
   def incoherent = io.incoherent
+  def pfc = io.pfc
 }
 
 trait HasTrackerAllocationIO extends Bundle {

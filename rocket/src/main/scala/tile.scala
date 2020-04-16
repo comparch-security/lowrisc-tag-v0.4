@@ -37,6 +37,7 @@ abstract class Tile(resetSignal: Bool = null)
     val dbgnet = Vec(2, new DiiIO)       // debug network
     val prci = new PRCITileIO().flip
     val dma = new DmaIO
+    val l2pfc = Vec(p(PFCL2N), new L2DCachePerform())
   }
 }
 
@@ -58,6 +59,7 @@ class RocketTile(id: Int = 0, resetSignal: Bool = null)(implicit p: Parameters) 
   //Cache perfrmance connect
   core.io.cpfc.L1I <> icache.io.pfc
   core.io.cpfc.L1D <> dcache.io.pfc
+  core.io.cpfc.L2D <> io.l2pfc
 
   val fpuOpt = if (p(UseFPU)) Some(Module(new FPU)) else None
   fpuOpt.foreach(fpu => core.io.fpu <> fpu.io)

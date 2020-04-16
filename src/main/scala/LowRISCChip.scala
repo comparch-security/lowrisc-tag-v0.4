@@ -181,6 +181,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
 
   coherent_net.io.managers <> managerEndpoints.map(_.innerTL) :+ mmioManager.io.inner
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
+  if(p(UseFPU) && p(UseL2Cache)) { managerEndpoints.map(_.pfc) <> tileList(0).io.l2pfc } //connect all L2Dpfc to csr performance count
 
   ////////////////////////////////////////////
   // the network between L2 and memory/tag cache

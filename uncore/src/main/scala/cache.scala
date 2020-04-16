@@ -393,6 +393,11 @@ class L2HellaCacheBank(implicit p: Parameters) extends HierarchicalCoherenceAgen
   require(isPow2(nSets))
   require(isPow2(nWays)) 
 
+  io.pfc.read := RegNext(next = io.inner.acquire.fire() && io.inner.acquire.bits.allocate())
+  io.pfc.read_miss := RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.allocate())
+  io.pfc.write := RegNext(next = io.inner.release.fire() && io.inner.release.bits.addr_beat === UInt(0))
+  io.pfc.write_miss := RegNext(next = io.outer.release.fire() && io.outer.release.bits.addr_beat === UInt(0))
+
   val meta = Module(new L2MetadataArray) // TODO: add delay knob
   val data = Module(new L2DataArray(1))
   val tshrfile = Module(new TSHRFile)
