@@ -1035,7 +1035,7 @@ class TCTagXactDemux(banks: Int)(implicit p: Parameters) extends TCModule()(p) {
 class TagCache(implicit p: Parameters) extends TCModule()(p)
   with HasCoherenceAgentWiringHelpers
 {
-  val io = new ManagerTLIO
+  val io = new TCManagerTLIOwithPFC
 
   val meta      = Module(new TCMetadataArray)
   val data      = Module(new TCDataArray)

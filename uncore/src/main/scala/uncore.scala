@@ -126,6 +126,10 @@ class ManagerTLIO(implicit p: Parameters) extends CoherenceAgentBundle()(p)
   with HasInnerTLIO
   with HasUncachedOuterTLIO
 
+class TCManagerTLIOwithPFC(implicit p: Parameters) extends ManagerTLIO {
+  val pfc = new TAGCachePerform().flip()
+}
+
 abstract class CoherenceAgent(implicit p: Parameters) extends CoherenceAgentModule()(p) {
   def innerTL: ManagerTileLinkIO
   def outerTL: ClientTileLinkIO

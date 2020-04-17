@@ -200,6 +200,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
       case OuterTLId => memConvParams(TLId)
     })))
     tc.io.inner <> mem_net.io.out(0)
+    if(p(UseFPU)) { tc.io.pfc <> tileList(0).io.tagcpfc }
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
   } else {
     TopUtils.connectTilelinkNasti(io.nasti_mem, mem_net.io.out(0))(memConvParams)
