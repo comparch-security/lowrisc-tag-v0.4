@@ -130,7 +130,6 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle {
   val irq = Bool(INPUT)
 
   val tag_ctrl = new TagCtrlSig().asOutput
-  val pf = new Perform()
 }
 
 class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
@@ -199,24 +198,6 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   val reg_fflags = Reg(UInt(width = 5))
   val reg_frm = Reg(UInt(width = 3))
 
-  //PerformCounter
-  //CachePerformCounter
-  //if do not use Reg find signals is harder
-  val reg_L1I_read = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.L1I.read).value) else UInt(0)
-  val reg_L1I_read_miss = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.L1I.read_miss).value) else UInt(0)
-  val reg_L1D_read = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.L1D.read).value) else UInt(0)
-  val reg_L1D_read_miss = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.L1D.read_miss).value) else UInt(0)
-  val reg_L1D_write = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.L1D.write).value) else UInt(0)
-  val reg_L1D_write_miss = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.L1D.write_miss).value) else UInt(0)
-  val reg_L2D_read = if(usingPFC) RegNext(next = WideCounter(64, PopCount((Range(0,p(PFCL2N))).map{io.pf.Cache.L2D(_).read})).value) else UInt(0)
-  val reg_L2D_read_miss = if(usingPFC) RegNext(next = WideCounter(64,PopCount((Range(0,p(PFCL2N))).map{io.pf.Cache.L2D(_).read_miss})).value) else UInt(0)
-  val reg_L2D_write = if(usingPFC) RegNext(next = WideCounter(64,PopCount((Range(0,p(PFCL2N))).map{io.pf.Cache.L2D(_).write})).value) else UInt(0)
-  val reg_L2D_write_back = if(usingPFC) RegNext(next = WideCounter(64,PopCount((Range(0,p(PFCL2N))).map{io.pf.Cache.L2D(_).write_back})).value) else UInt(0)
-  val reg_TAG_read = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.TAG.read).value) else UInt(0)
-  val reg_TAG_read_miss = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.TAG.read_miss).value) else UInt(0)
-  val reg_TAG_write = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.TAG.write).value) else UInt(0)
-  val reg_TAG_write_miss = if(usingPFC) RegNext(next = WideCounter(64, io.pf.Cache.TAG.write_miss).value) else UInt(0)
-
   val reg_instret = WideCounter(64, io.retire)
   val reg_cycle = if (enableCommitLog) reg_instret else WideCounter(64)
 
@@ -272,23 +253,6 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     CSRs.mcause ->          (reg_mcause,   UInt(0)           ),
     CSRs.mhartid ->         (UInt(id),     UInt(0)           ),
     CSRs.swtrace ->         (UInt(0),      UInt(0)           ))
-
-  if(usingPFC) {
-    read_mapping += CSRs.Iread   -> (reg_L1I_read,                 UInt(0))
-    read_mapping += CSRs.Imiss   -> (reg_L1I_read_miss,            UInt(0))
-    read_mapping += CSRs.Dread   -> (reg_L1D_read,                 UInt(0))
-    read_mapping += CSRs.Dmissr  -> (reg_L1D_read_miss,            UInt(0))
-    read_mapping += CSRs.Dwrite  -> (reg_L1D_write,                UInt(0))
-    read_mapping += CSRs.Dmissw  -> (reg_L1D_write_miss,           UInt(0))
-    read_mapping += CSRs.L2read  -> (reg_L2D_read,                 UInt(0))
-    read_mapping += CSRs.L2missr -> (reg_L2D_read_miss,            UInt(0))
-    read_mapping += CSRs.L2write -> (reg_L2D_write,                UInt(0))
-    read_mapping += CSRs.L2backw -> (reg_L2D_write_back,           UInt(0))
-    read_mapping += CSRs.Tread   -> (reg_TAG_read,                 UInt(0))
-    read_mapping += CSRs.Tmissr  -> (reg_TAG_read_miss,            UInt(0))
-    read_mapping += CSRs.Twrite  -> (reg_TAG_write,                UInt(0))
-    read_mapping += CSRs.Tmissw  -> (reg_TAG_write_miss,           UInt(0))
-  }
 
   if (usingFPU) {
     read_mapping += CSRs.fflags ->    (reg_fflags,                  UInt(0))

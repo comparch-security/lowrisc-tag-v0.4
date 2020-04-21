@@ -100,10 +100,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   ////////////////////////////////////////////
   // local partial parameter overrides
 
-  val rocketParams = p.alterPartial({
-    case TLId => l1tol2TLId
-    case PFCL2N => nBanks
-  })
+  val rocketParams = p.alterPartial({ case TLId => l1tol2TLId })
   val coherentNetParams = p.alterPartial({ case TLId => l1tol2TLId })
   val memNetParams = if(p(UseTagMem)) p.alterPartial({ case TLId => l2totcTLId })
                      else p.alterPartial({ case TLId => l2tomemTLId })
@@ -181,7 +178,6 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
 
   coherent_net.io.managers <> managerEndpoints.map(_.innerTL) :+ mmioManager.io.inner
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
-  if(p(UseFPU) && p(UseL2Cache)) { managerEndpoints.map(_.pfc) <> tileList(0).io.l2pfc } //connect all L2Dpfc to csr performance count
 
   ////////////////////////////////////////////
   // the network between L2 and memory/tag cache
@@ -200,7 +196,6 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
       case OuterTLId => memConvParams(TLId)
     })))
     tc.io.inner <> mem_net.io.out(0)
-    if(p(UseFPU)) { tc.io.pfc <> tileList(0).io.tagcpfc }
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
   } else {
     TopUtils.connectTilelinkNasti(io.nasti_mem, mem_net.io.out(0))(memConvParams)
