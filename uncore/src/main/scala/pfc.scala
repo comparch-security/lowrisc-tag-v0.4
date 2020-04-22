@@ -25,7 +25,30 @@ class L2DCachePerform extends Bundle {
   val write =Bool(INPUT) //inner.release
   val write_back = Bool(INPUT) //outer.release
 }
-class TAGCachePerform extends L1DCachePerform
+
+class TCTAGTrackerPerform extends Bundle {
+  val MR  = Bool(INPUT)        //read meta
+  val MW  = Bool(INPUT)        //update the meta
+  val DR  = Bool(INPUT)        //read tag from data array
+  val DW  = Bool(INPUT)        //write tag to data array //equals DWR+DWB
+  val WB  = Bool(INPUT)        //write dirty line back to memory
+  val F   = Bool(INPUT)        //fetch the target cache line (from memory) // equals DWB
+}
+
+class TCMEMTrackerPerform extends Bundle {
+  val TTW = Bool(INPUT)        //TTW count equals TM0W/TM1W
+  val TTR = Bool(INPUT)        //TTR count
+  val TTR_miss = Bool(INPUT)   //TTR miss count
+  val TM0R = Bool(INPUT)       //TM0R count
+  val TM0R_miss = Bool(INPUT)  //TM0R miss count
+  val TM1F = Bool(INPUT)       //TM1F count
+  val TM1F_miss = Bool(INPUT)  //TM1F miss count (miss in tagcache)
+}
+
+class TAGCachePerform extends Bundle {
+  val tcttp = new TCTAGTrackerPerform()//
+  val tcmtp = new TCMEMTrackerPerform()
+}
 
 class CachePerform(implicit val p: Parameters) extends Bundle {
   val L1I = new L1ICachePerform()

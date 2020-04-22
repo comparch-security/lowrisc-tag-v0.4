@@ -81,6 +81,7 @@ trait HasTCData extends HasTCParameters { val data = UInt(width = rowBits) }
 trait HasTCByteMask extends HasTCParameters { val mask = UInt(width = rowBytes) }
 trait HasTCBitMask extends HasTCParameters { val mask = UInt(width = rowBits) }
 trait HasTCAddr extends HasTCParameters { val addr = UInt(width=p(PAddrBits)) }
+trait HasTCMEMPFCType extends HasTCParameters { val pfc = new TCMEMTrackerPerform() }
 
 class TCDataReadReq(implicit p: Parameters) extends TCBundle()(p) with HasTCId with HasTCRow
 {
@@ -122,7 +123,7 @@ object TCTagOp {
 }
 
 class TCTagRequest(implicit p: Parameters) extends TCBundle()(p)
-    with HasTCId with HasTCData with HasTCBitMask with HasTCAddr
+    with HasTCId with HasTCData with HasTCBitMask with HasTCAddr with HasTCMEMPFCType
 {
   val op   = UInt(width=TCTagOp.nBits)
 }
@@ -297,6 +298,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     val wb   = new TCWBIO
     val tl   = new ClientUncachedTileLinkIO()
     val lock = Decoupled(new TCTagLock)
+    val pfc = new TAGCachePerform().flip()
   }
 
   // IDLE:      idle, ready for new request
@@ -350,6 +352,23 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   io.xact.resp.valid := state === s_L && state_next === s_IDLE
   when(io.meta.resp.valid) { data_buf(row) := UInt(0) }
   when(io.data.resp.valid) { data_buf(row) := io.data.resp.bits.data }
+
+  //PFC
+  //tcttp: TCTAGTrackerPerform
+  io.pfc.tcttp.MR  := io.meta.read.fire()
+  io.pfc.tcttp.MW  := io.meta.write.fire()
+  io.pfc.tcttp.DR  := io.data.read.fire()
+  io.pfc.tcttp.DW  := io.data.write.valid && state_next === s_MW //not use io.data.write.fire() because refillCycles is more than one
+  io.pfc.tcttp.WB  := io.wb.req.fire()
+  io.pfc.tcttp.F   := io.tl.acquire.fire()
+  //tcmtp: TCMEMTrackerPerform
+  io.pfc.tcmtp.TTW       := io.meta.resp.valid && xact.pfc.TTW
+  io.pfc.tcmtp.TTR       := io.meta.resp.valid && xact.pfc.TTR
+  io.pfc.tcmtp.TTR_miss  := io.pfc.tcmtp.TTR && !io.meta.resp.bits.hit
+  io.pfc.tcmtp.TM0R      := io.meta.resp.valid && xact.pfc.TM0R
+  io.pfc.tcmtp.TM0R_miss := io.pfc.tcmtp.TM0R && !io.meta.resp.bits.hit
+  io.pfc.tcmtp.TM1F      := io.meta.resp.valid && xact.pfc.TM1F
+  io.pfc.tcmtp.TM1F_miss := io.pfc.tcmtp.TM1F && !io.meta.resp.bits.hit
 
   // metadata read
   io.meta.read.bits.id := UInt(id)
@@ -774,6 +793,13 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   when(tc_state === ts_TM1W && io.tc.resp.valid) {
     tc_state_next := ts_IDLE
   }
+
+  //PFC
+  io.tc.req.bits.pfc.TTW  := tc_state === ts_TTW
+  io.tc.req.bits.pfc.TTR  := tc_state === ts_TTR
+  io.tc.req.bits.pfc.TM0R := tc_state === ts_TM0R
+  io.tc.req.bits.pfc.TM1F := tc_state === ts_TM1F
+
 }
 
 class TCMemReleaseTracker(id: Int)(implicit p: Parameters) extends TCMemXactTracker(id)(p) {
@@ -1039,6 +1065,7 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
 
   val meta      = Module(new TCMetadataArray)
   val data      = Module(new TCDataArray)
+  val pfc       = Reg(new TAGCachePerform)
 
   val relTrackers =
     (0                      until nMemReleaseTransactors).map(id => Module(new TCMemReleaseTracker(id)))
@@ -1181,6 +1208,21 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   doTcOutputArbitration(wb.io.xact.req, tagTrackers.map(_.io.wb.req))
   doTcInputRouting(wb.io.xact.resp, tagTrackers.map(_.io.wb.resp), nMemTransactors)
 
+  //pfc
+  io.pfc := pfc
+  pfc.tcttp.MR        := tagTrackers.map(_.io.pfc.tcttp.MR).reduce(_||_)
+  pfc.tcttp.MW        := tagTrackers.map(_.io.pfc.tcttp.MW).reduce(_||_)
+  pfc.tcttp.DR        := tagTrackers.map(_.io.pfc.tcttp.DR).reduce(_||_)
+  pfc.tcttp.DW        := tagTrackers.map(_.io.pfc.tcttp.DW).reduce(_||_)
+  pfc.tcttp.WB        := tagTrackers.map(_.io.pfc.tcttp.WB).reduce(_||_)
+  pfc.tcttp.F         := tagTrackers.map(_.io.pfc.tcttp.F).reduce(_||_)
+  pfc.tcmtp.TTW       := tagTrackers.map(_.io.pfc.tcmtp.TTW).reduce(_||_)
+  pfc.tcmtp.TTR       := tagTrackers.map(_.io.pfc.tcmtp.TTR).reduce(_||_)
+  pfc.tcmtp.TTR_miss  := tagTrackers.map(_.io.pfc.tcmtp.TTR_miss).reduce(_||_)
+  pfc.tcmtp.TM0R      := tagTrackers.map(_.io.pfc.tcmtp.TM0R).reduce(_||_)
+  pfc.tcmtp.TM0R_miss := tagTrackers.map(_.io.pfc.tcmtp.TM0R_miss).reduce(_||_)
+  pfc.tcmtp.TM1F      := tagTrackers.map(_.io.pfc.tcmtp.TM1F).reduce(_||_)
+  pfc.tcmtp.TM1F_miss := tagTrackers.map(_.io.pfc.tcmtp.TM1F_miss).reduce(_||_)
 }
 
 
