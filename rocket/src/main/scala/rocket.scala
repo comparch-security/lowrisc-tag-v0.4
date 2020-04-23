@@ -690,6 +690,11 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   io.rocc.cmd.bits.rs1 := wb_reg_wdata
   io.rocc.cmd.bits.rs2 := wb_reg_rs2
 
+  //PFC
+  val privatePFC = Module(new PrivatePFC())
+  privatePFC.io.update.L1I := io.imem.pfc
+  privatePFC.io.update.L1D := io.dmem.pfc
+
   if (emitLog) {
     if (enableCommitLog) {
       val pc = Wire(SInt(width=xLen))

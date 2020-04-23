@@ -7,6 +7,14 @@ import cde.{Parameters, Field}
 
 case object PFCL2N extends Field[Int]
 
+trait HasPFCParameters extends HasTagParameters {
+  implicit val p: Parameters
+  val L2DBanks = p(PFCL2N)
+}
+
+abstract class PFCModule(implicit val p: Parameters) extends Module with HasPFCParameters
+abstract class PFCBundle(implicit val p: Parameters) extends Bundle with HasPFCParameters
+
 object PerFormanceCounter {
   def apply(cond: Bool, n: Int): UInt = {
     val c = new Counter(n)
@@ -90,12 +98,14 @@ class PrivatePerform extends Bundle {
   val L1D = new L1DCachePerform()
 }
 
+//class SharePerform(implicit val p: Parameters) extends PFCBundle { //WRONG
+//  val L2D = Vec(L2DBanks, new L2DCachePerform)
 class SharePerform(implicit val p: Parameters) extends Bundle {
   val L2D = Vec(p(PFCL2N), new L2DCachePerform)
   val TAG = new TAGCachePerform()
 }
 
-class PrivatePFC extends Bundle {
+class PrivatePFC extends Module {
   val io = new Bundle {
     //val req = //req from csr
     //val resp = //resp to csr
@@ -122,19 +132,20 @@ class PrivatePFC extends Bundle {
   val Reg_L1DPFC_writemiss  = RegEnable(l1dpfc_writemiss,  acquire)
 }
 
-class SharePFC(implicit val p: Parameters) extends Bundle {
+class SharePFC(implicit val p: Parameters) extends Module {
   val io = new Bundle {
     //val req = //req from csr
     //val resp = //resp to csr
     val update = new SharePerform()
   }
 
+  val L2DBanks = p(PFCL2N)
   val acquire = Bool()
 
   //L2D
-  val l2dpfcs     = (0 until p(PFCL2N)).map(i => Wire(new L2DCachePerformCounter(w=64)))
-  val Reg_l2dpfcs = (0 until p(PFCL2N)).map(i => Reg(new  L2DCachePerformCounter(w=64)))
-  (0 until p(PFCL2N)).map(i =>{
+  val l2dpfcs     = (0 until L2DBanks).map(i => Wire(new L2DCachePerformCounter(w=64)))
+  val Reg_l2dpfcs = (0 until L2DBanks).map(i => Reg(new  L2DCachePerformCounter(w=64)))
+    (0 until L2DBanks).map(i =>{
     Reg_l2dpfcs(i)         := RegEnable(l2dpfcs(i), acquire)
     l2dpfcs(i).read        := PerFormanceCounter(io.update.L2D(i).read.toBool(),        2^64-1)
     l2dpfcs(i).read_miss   := PerFormanceCounter(io.update.L2D(i).read_miss.toBool(),   2^64-1)
