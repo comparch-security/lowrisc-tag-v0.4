@@ -59,13 +59,13 @@ class TCTAGTrackerPerform extends Bundle {
   val F   = Bool(INPUT)        //fetch the target cache line (from memory) // equals DWB
 }
 
-class TCTAGTrackerPerformCounter(w: Int=1) extends Bundle {
-  val MR  = UInt(width=w)        //read meta
-  val MW  = UInt(width=w)        //update the meta
-  val DR  = UInt(width=w)        //read tag from data array
-  val DW  = UInt(width=w)        //write tag to data array //equals DWR+DWB
-  val WB  = UInt(width=w)        //write dirty line back to memory
-  val F   = UInt(width=w)        //fetch the target cache line (from memory) // equals DWB
+class TCTAGTrackerPerformCounter extends Bundle {
+  val MR  = UInt(width=64)        //read meta
+  val MW  = UInt(width=64)        //update the meta
+  val DR  = UInt(width=64)        //read tag from data array
+  val DW  = UInt(width=64)        //write tag to data array //equals DWR+DWB
+  val WB  = UInt(width=64)        //write dirty line back to memory
+  val F   = UInt(width=64)        //fetch the target cache line (from memory) // equals DWB
 }
 
 class TCMEMTrackerPerform extends Bundle {
@@ -78,14 +78,14 @@ class TCMEMTrackerPerform extends Bundle {
   val TM1F_miss  = Bool(INPUT)   //TM1F miss count (miss in tagcache)
 }
 
-class TCMEMTrackerPerformCounter(w: Int=1) extends Bundle {
-  val TTW        = UInt(width=w)   //TTW count equals TM0W/TM1W
-  val TTR        = UInt(width=w)   //TTR count
-  val TTR_miss   = UInt(width=w)   //TTR miss count
-  val TM0R       = UInt(width=w)   //TM0R count
-  val TM0R_miss  = UInt(width=w)   //TM0R miss count
-  val TM1F       = UInt(width=w)   //TM1F count
-  val TM1F_miss  = UInt(width=w)   //TM1F miss count (miss in tagcache)
+class TCMEMTrackerPerformCounter extends Bundle {
+  val TTW        = UInt(width=64)   //TTW count equals TM0W/TM1W
+  val TTR        = UInt(width=64)   //TTR count
+  val TTR_miss   = UInt(width=64)   //TTR miss count
+  val TM0R       = UInt(width=64)   //TM0R count
+  val TM0R_miss  = UInt(width=64)   //TM0R miss count
+  val TM1F       = UInt(width=64)   //TM1F count
+  val TM1F_miss  = UInt(width=64)   //TM1F miss count (miss in tagcache)
 }
 
 class TAGCachePerform extends Bundle {
@@ -143,7 +143,7 @@ class SharePFC(implicit val p: Parameters) extends Module {
   val acquire = Bool()
 
   //L2D
-  val l2dpfcs     = (0 until L2DBanks).map(i => Wire(new L2DCachePerformCounter(w=64)))
+  /*val l2dpfcs     = (0 until L2DBanks).map(i => Wire(new L2DCachePerformCounter(w=64)))
   val Reg_l2dpfcs = (0 until L2DBanks).map(i => Reg(new  L2DCachePerformCounter(w=64)))
     (0 until L2DBanks).map(i =>{
     Reg_l2dpfcs(i)         := RegEnable(l2dpfcs(i), acquire)
@@ -151,11 +151,11 @@ class SharePFC(implicit val p: Parameters) extends Module {
     l2dpfcs(i).read_miss   := PerFormanceCounter(io.update.L2D(i).read_miss.toBool(),   2^64-1)
     l2dpfcs(i).write       := PerFormanceCounter(io.update.L2D(i).write.toBool(),       2^64-1)
     l2dpfcs(i).write_back  := PerFormanceCounter(io.update.L2D(i).write_back.toBool(),  2^64-1)
-  })
+  })*/
 
   //TAG
-  val tcttpfc = Wire(new TCTAGTrackerPerformCounter(w=64))
-  val tcmtpfc = Wire(new TCMEMTrackerPerformCounter(w=64))
+  val tcttpfc = Wire(new TCTAGTrackerPerformCounter)
+  val tcmtpfc = Wire(new TCMEMTrackerPerformCounter)
   val Reg_tcttpfc = RegEnable(tcttpfc, acquire)
   val Reg_tcmtpfc = RegEnable(tcmtpfc, acquire)
   tcttpfc.MR          := PerFormanceCounter(io.update.TAG.tcttp.MR.toBool(),          2^64-1)
