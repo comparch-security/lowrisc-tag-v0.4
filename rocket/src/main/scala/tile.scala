@@ -157,4 +157,8 @@ class RocketTile(id: Int = 0, resetSignal: Bool = null)(implicit p: Parameters) 
   // debug
   io.dbgnet <> core.io.dbgnet
   io.dbgrst <> core.io.dbgrst
+
+  //pfc
+  core.io.pfc.L1I := icache.io.pfc
+  core.io.pfc.L1D := dcache.io.pfc
 }

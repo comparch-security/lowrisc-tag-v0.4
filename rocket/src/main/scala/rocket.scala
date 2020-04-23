@@ -142,6 +142,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
     val irq = Bool(INPUT)
     val dbgnet = Vec(2, new DiiIO)       // debug network
     val dbgrst = Bool(INPUT)             // reset debug network
+    val pfc = new PrivatePerform()
   }
 
   var decode_table = new XDecode().table
@@ -692,8 +693,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
 
   //PFC
   val privatePFC = Module(new PrivatePFC())
-  privatePFC.io.update.L1I := io.imem.pfc
-  privatePFC.io.update.L1D := io.dmem.pfc
+  privatePFC.io.update := io.pfc
 
   if (emitLog) {
     if (enableCommitLog) {

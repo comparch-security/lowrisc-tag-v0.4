@@ -117,7 +117,6 @@ class HellaCacheIO(implicit p: Parameters) extends CoreBundle()(p) {
   val tag_replay = Bool(INPUT)   // dmem operating a rplay, stall core pipe for tag check
   val invalidate_lr = Bool(OUTPUT)
   val ordered = Bool(INPUT)
-  val pfc = new L1DCachePerform()
 }
 
 class L1DataReadReq(implicit p: Parameters) extends L1HellaCacheBundle()(p) {
@@ -814,6 +813,7 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
     val cpu = (new HellaCacheIO).flip
     val ptw = new TLBPTWIO()
     val mem = new ClientTileLinkIO
+    val pfc = new L1DCachePerform().flip
   }
  
   require(isPow2(nWays)) // TODO: relax this
@@ -1176,10 +1176,10 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
   io.cpu.replay_next := (s1_replay && s1_read) || mshrs.io.replay_next
 
   //PFC
-  io.cpu.pfc.read := RegNext(next = cache_resp.valid && cache_resp.bits.has_data)
-  io.cpu.pfc.read_miss := RegNext(next = mshrs.io.req.fire() && isRead(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
-  io.cpu.pfc.write := RegNext(next = writeArb.io.in(0).fire())
-  io.cpu.pfc.write_miss := RegNext(next = mshrs.io.req.fire() && isWrite(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
+  io.pfc.read := RegNext(next = cache_resp.valid && cache_resp.bits.has_data)
+  io.pfc.read_miss := RegNext(next = mshrs.io.req.fire() && isRead(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
+  io.pfc.write := RegNext(next = writeArb.io.in(0).fire())
+  io.pfc.write_miss := RegNext(next = mshrs.io.req.fire() && isWrite(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
 }
 
 // exposes a sane decoupled request interface
