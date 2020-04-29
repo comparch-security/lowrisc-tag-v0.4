@@ -72,23 +72,33 @@ class TCTAGTrackerPerformCounter extends Bundle {
 }
 
 class TCMEMTrackerPerform extends Bundle {
-  val TTW        = Bool(INPUT)   //TTW count equals TM0W/TM1W
-  val TTR        = Bool(INPUT)   //TTR count
-  val TTR_miss   = Bool(INPUT)   //TTR miss count
-  val TM0R       = Bool(INPUT)   //TM0R count
-  val TM0R_miss  = Bool(INPUT)   //TM0R miss count
-  val TM1F       = Bool(INPUT)   //TM1F count
-  val TM1F_miss  = Bool(INPUT)   //TM1F miss count (miss in tagcache)
+  val readTT           = Bool(INPUT)
+  val readTT_miss      = Bool(INPUT)
+  val writeTT          = Bool(INPUT)
+  val writeTT_miss     = Bool(INPUT)
+  val readTM0          = Bool(INPUT)
+  val readTM0_miss     = Bool(INPUT)
+  val writeTM0         = Bool(INPUT)
+  val writeTM0_miss    = Bool(INPUT)
+  val readTM1          = Bool(INPUT)
+  val readTM1_miss     = Bool(INPUT)
+  val writeTM1         = Bool(INPUT)
+  val writeTM1_miss    = Bool(INPUT)
 }
 
 class TCMEMTrackerPerformCounter extends Bundle {
-  val TTW        = UInt(width=64)   //TTW count equals TM0W/TM1W
-  val TTR        = UInt(width=64)   //TTR count
-  val TTR_miss   = UInt(width=64)   //TTR miss count
-  val TM0R       = UInt(width=64)   //TM0R count
-  val TM0R_miss  = UInt(width=64)   //TM0R miss count
-  val TM1F       = UInt(width=64)   //TM1F count
-  val TM1F_miss  = UInt(width=64)   //TM1F miss count (miss in tagcache)
+  val  readTT          = UInt(width=64)
+  val  readTT_miss     = UInt(width=64)
+  val  writeTT         = UInt(width=64)
+  val  writeTT_miss    = UInt(width=64)
+  val  readTM0         = UInt(width=64)
+  val  readTM0_miss    = UInt(width=64)
+  val  writeTM0        = UInt(width=64)
+  val  writeTM0_miss   = UInt(width=64)
+  val  readTM1         = UInt(width=64)
+  val  readTM1_miss    = UInt(width=64)
+  val  writeTM1        = UInt(width=64)
+  val  writeTM1_miss   = UInt(width=64)
 }
 
 class TAGCachePerform extends Bundle {
@@ -169,11 +179,16 @@ class SharePFC(implicit val p: Parameters) extends Module {
   tcttpfc.DW          := PerFormanceCounter(io.update.TAG.tcttp.DW.toBool(),          2^64-1)
   tcttpfc.WB          := PerFormanceCounter(io.update.TAG.tcttp.WB.toBool(),          2^64-1)
   tcttpfc.F           := PerFormanceCounter(io.update.TAG.tcttp.F.toBool(),           2^64-1)
-  tcmtpfc.TTW         := PerFormanceCounter(io.update.TAG.tcmtp.TTW.toBool(),         2^64-1)
-  tcmtpfc.TTR         := PerFormanceCounter(io.update.TAG.tcmtp.TTR.toBool(),         2^64-1)
-  tcmtpfc.TTR_miss    := PerFormanceCounter(io.update.TAG.tcmtp.TTR_miss.toBool(),    2^64-1)
-  tcmtpfc.TM0R        := PerFormanceCounter(io.update.TAG.tcmtp.TM0R.toBool(),        2^64-1)
-  tcmtpfc.TM0R_miss   := PerFormanceCounter(io.update.TAG.tcmtp.TM0R_miss.toBool(),   2^64-1)
-  tcmtpfc.TM1F        := PerFormanceCounter(io.update.TAG.tcmtp.TM1F.toBool(),        2^64-1)
-  tcmtpfc.TM1F_miss   := PerFormanceCounter(io.update.TAG.tcmtp.TM1F_miss.toBool(),   2^64-1)
+  tcmtpfc.readTT          := PerFormanceCounter(io.update.TAG.tcmtp.readTT.toBool(),         2^64-1)
+  tcmtpfc.readTT_miss     := PerFormanceCounter(io.update.TAG.tcmtp.readTT_miss.toBool(),    2^64-1)
+  tcmtpfc.writeTT         := PerFormanceCounter(io.update.TAG.tcmtp.writeTT.toBool(),        2^64-1)
+  tcmtpfc.writeTT_miss    := PerFormanceCounter(io.update.TAG.tcmtp.writeTT_miss.toBool(),   2^64-1)
+  tcmtpfc.readTM0         := PerFormanceCounter(io.update.TAG.tcmtp.readTM0.toBool(),        2^64-1)
+  tcmtpfc.readTM0_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM0_miss.toBool(),   2^64-1)
+  tcmtpfc.writeTM0        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0.toBool(),       2^64-1)
+  tcmtpfc.writeTM0_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0_miss.toBool(),  2^64-1)
+  tcmtpfc.readTM1         := PerFormanceCounter(io.update.TAG.tcmtp.readTM1.toBool(),        2^64-1)
+  tcmtpfc.readTM1_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM1_miss.toBool(),   2^64-1)
+  tcmtpfc.writeTM1        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1.toBool(),       2^64-1)
+  tcmtpfc.writeTM1_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1_miss.toBool(),  2^64-1)
 }

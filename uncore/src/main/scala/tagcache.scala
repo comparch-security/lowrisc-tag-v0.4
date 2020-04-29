@@ -362,13 +362,18 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   io.pfc.tcttp.WB  := io.wb.req.fire()
   io.pfc.tcttp.F   := io.tl.acquire.fire()
   //tcmtp: TCMEMTrackerPerform
-  io.pfc.tcmtp.TTW       := io.meta.resp.valid && xact.pfc.TTW
-  io.pfc.tcmtp.TTR       := io.meta.resp.valid && xact.pfc.TTR
-  io.pfc.tcmtp.TTR_miss  := io.pfc.tcmtp.TTR && !io.meta.resp.bits.hit
-  io.pfc.tcmtp.TM0R      := io.meta.resp.valid && xact.pfc.TM0R
-  io.pfc.tcmtp.TM0R_miss := io.pfc.tcmtp.TM0R && !io.meta.resp.bits.hit
-  io.pfc.tcmtp.TM1F      := io.meta.resp.valid && xact.pfc.TM1F
-  io.pfc.tcmtp.TM1F_miss := io.pfc.tcmtp.TM1F && !io.meta.resp.bits.hit
+  io.pfc.tcmtp.readTT          := io.meta.resp.valid && xact.pfc.readTT
+  io.pfc.tcmtp.writeTT         := io.meta.resp.valid && xact.pfc.writeTT
+  io.pfc.tcmtp.readTM0         := io.meta.resp.valid && xact.pfc.readTM0
+  io.pfc.tcmtp.writeTM0        := io.meta.resp.valid && xact.pfc.writeTM0
+  io.pfc.tcmtp.readTM1         := io.meta.resp.valid && xact.pfc.readTM1
+  io.pfc.tcmtp.writeTM1        := io.meta.resp.valid && xact.pfc.writeTM1
+  io.pfc.tcmtp.readTT_miss     := !io.meta.resp.bits.hit && io.pfc.tcmtp.readTT
+  io.pfc.tcmtp.writeTT_miss    := !io.meta.resp.bits.hit && io.pfc.tcmtp.writeTT
+  io.pfc.tcmtp.readTM0_miss    := !io.meta.resp.bits.hit && io.pfc.tcmtp.readTM0
+  io.pfc.tcmtp.writeTM0_miss   := !io.meta.resp.bits.hit && io.pfc.tcmtp.writeTM0
+  io.pfc.tcmtp.readTM1_miss    := !io.meta.resp.bits.hit && io.pfc.tcmtp.readTM1
+  io.pfc.tcmtp.writeTM1_miss   := !io.meta.resp.bits.hit && io.pfc.tcmtp.writeTM1
 
   // metadata read
   io.meta.read.bits.id := UInt(id)
@@ -795,10 +800,12 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   }
 
   //PFC
-  io.tc.req.bits.pfc.TTW  := tc_state === ts_TTW
-  io.tc.req.bits.pfc.TTR  := tc_state === ts_TTR
-  io.tc.req.bits.pfc.TM0R := tc_state === ts_TM0R
-  io.tc.req.bits.pfc.TM1F := tc_state === ts_TM1F
+  io.tc.req.bits.pfc.readTT    := tc_state === ts_TTR && !tc_xact_rw
+  io.tc.req.bits.pfc.writeTT   := tc_state === ts_TTR && tc_xact_rw
+  io.tc.req.bits.pfc.readTM0   := tc_state === ts_TM0R && !tc_xact_rw
+  io.tc.req.bits.pfc.writeTM0  := tc_state === ts_TM0R && tc_xact_rw
+  io.tc.req.bits.pfc.readTM1   := tc_state === ts_TM1F && !tc_xact_rw
+  io.tc.req.bits.pfc.writeTM1  := tc_state === ts_TM1F && tc_xact_rw
 
 }
 
@@ -1216,13 +1223,18 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   pfc.tcttp.DW        := tagTrackers.map(_.io.pfc.tcttp.DW).reduce(_||_)
   pfc.tcttp.WB        := tagTrackers.map(_.io.pfc.tcttp.WB).reduce(_||_)
   pfc.tcttp.F         := tagTrackers.map(_.io.pfc.tcttp.F).reduce(_||_)
-  pfc.tcmtp.TTW       := tagTrackers.map(_.io.pfc.tcmtp.TTW).reduce(_||_)
-  pfc.tcmtp.TTR       := tagTrackers.map(_.io.pfc.tcmtp.TTR).reduce(_||_)
-  pfc.tcmtp.TTR_miss  := tagTrackers.map(_.io.pfc.tcmtp.TTR_miss).reduce(_||_)
-  pfc.tcmtp.TM0R      := tagTrackers.map(_.io.pfc.tcmtp.TM0R).reduce(_||_)
-  pfc.tcmtp.TM0R_miss := tagTrackers.map(_.io.pfc.tcmtp.TM0R_miss).reduce(_||_)
-  pfc.tcmtp.TM1F      := tagTrackers.map(_.io.pfc.tcmtp.TM1F).reduce(_||_)
-  pfc.tcmtp.TM1F_miss := tagTrackers.map(_.io.pfc.tcmtp.TM1F_miss).reduce(_||_)
+  pfc.tcmtp.readTT        := tagTrackers.map(_.io.pfc.tcmtp.readTT).reduce(_||_)
+  pfc.tcmtp.readTT_miss   := tagTrackers.map(_.io.pfc.tcmtp.readTT_miss).reduce(_||_)
+  pfc.tcmtp.writeTT       := tagTrackers.map(_.io.pfc.tcmtp.writeTT).reduce(_||_)
+  pfc.tcmtp.writeTT_miss  := tagTrackers.map(_.io.pfc.tcmtp.writeTT_miss).reduce(_||_)
+  pfc.tcmtp.readTM0       := tagTrackers.map(_.io.pfc.tcmtp.readTM0).reduce(_||_)
+  pfc.tcmtp.readTM0_miss  := tagTrackers.map(_.io.pfc.tcmtp.readTM0_miss).reduce(_||_)
+  pfc.tcmtp.writeTM0      := tagTrackers.map(_.io.pfc.tcmtp.writeTM0).reduce(_||_)
+  pfc.tcmtp.writeTM0_miss := tagTrackers.map(_.io.pfc.tcmtp.writeTM0_miss).reduce(_||_)
+  pfc.tcmtp.readTM1       := tagTrackers.map(_.io.pfc.tcmtp.readTM1).reduce(_||_)
+  pfc.tcmtp.readTM1_miss  := tagTrackers.map(_.io.pfc.tcmtp.readTT_miss).reduce(_||_)
+  pfc.tcmtp.writeTM1      := tagTrackers.map(_.io.pfc.tcmtp.writeTM1).reduce(_||_)
+  pfc.tcmtp.writeTM1_miss := tagTrackers.map(_.io.pfc.tcmtp.writeTM1_miss).reduce(_||_)
 }
 
 
