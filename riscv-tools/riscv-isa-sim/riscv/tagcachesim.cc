@@ -92,7 +92,7 @@ void tag_cache_sim_t::writeback(size_t row) {
   tags[row] = 0;
 }
 
-uint64_t tag_cache_sim_t::read(uint64_t addr, uint64_t &data, uint8_t fetch) {
+uint64_t tag_cache_sim_t::read(uint64_t addr, uint64_t &data, uint8_t fetch, uint8_t writeacc) {
   size_t row;
   uint64_t *tag = check_tag(addr, row);
   if(tag == NULL) {
@@ -100,7 +100,7 @@ uint64_t tag_cache_sim_t::read(uint64_t addr, uint64_t &data, uint8_t fetch) {
     tag = victimize(addr, row);
     writeback(row);
     refill(addr, row);
-    read_misses++;
+    writeacc? write_misses++:read_misses++;
   }
   if((*tag) & TAGFLAG) {        // read data
     data = *(uint64_t *)(datas + row*linesz + subrow(addr));
@@ -192,7 +192,7 @@ uint64_t sep_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
   bool map_bit = true;
 
   if(tag_map != NULL) map_bit = tag_map->access(tag_addr, 0, 0);
-  if(map_bit) tag_tag = read(tag_addr, tag_data, 1);
+  if(map_bit) tag_tag = read(tag_addr, tag_data, 1, store);
   bool wen = (wdata & wmask) != (tag_data & wmask);
   if(store && wen) {
     if(map_bit || wb_enforce) tag_tag = write(tag_addr, wdata, wmask);
@@ -257,14 +257,14 @@ uint64_t uni_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
   do {
     switch(state) {
     case s_tt_r:                // read tag table
-      tt_tag = read(tt_addr, tt_data, 0);
+      tt_tag = read(tt_addr, tt_data, 0, store);
       if(tt_tag & VALID)        // hit
         state = store && (tt_wdata & tt_wmask) != (tt_data & tt_wmask) ? s_tm1_l : s_idle;
       else
         state = s_tm0_r;
       break; // s_tt_r is right.
     case s_tm0_r:               // read tag map 0
-      tm0_tag = read(tm0_addr, tm0_data, 0);
+      tm0_tag = read(tm0_addr, tm0_data, 0, store);
       if(tm0_tag & VALID) {     // hit
         if(tm0_data & tm0_wmask)   // tagFlag = 1
           state = s_tt_f;  // tm0 hit, R/W to the corresponding tt.
@@ -274,32 +274,32 @@ uint64_t uni_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
         state = s_tm1_f;
       break;
     case s_tm1_f: 
-      tm1_tag = read(tm1_addr, tm1_data, 1);
+      tm1_tag = read(tm1_addr, tm1_data, 1, store);
       if (tm1_data & tm1_wmask)   // tagFlag = 1
         state = s_tm0_f ; // tagFlag in tm1 is 1, Fetch the corresponding cache line in tm0.
       else 
         state = store && (tt_wdata & tt_wmask) != 0 ? s_tm1_l : s_idle;
       break;
     case s_tm0_f :
-      tm0_tag = read(tm0_addr, tm0_data, 1);
+      tm0_tag = read(tm0_addr, tm0_data, 1, store);
       if (tm0_data & tm0_wmask)     //tagFlag = 1;
         state = s_tt_f;
       else 
         state = store && (tt_wdata & tt_wmask) != 0 ? s_tm1_l : s_idle; 
       break;
     case s_tt_f :
-      tt_tag = read(tt_addr, tt_data, 1);
+      tt_tag = read(tt_addr, tt_data, 1, store);
       state = store && (tt_wdata & tt_wmask) != (tt_data & tt_wmask) ? s_tm1_l : s_idle;
       break;
     case s_tm1_l :
-      tm1_tag = read(tm1_addr,tm1_data,1);
+      tm1_tag = read(tm1_addr,tm1_data,1, store);
       if (tm1_data & tm1_wmask)   //tagFlag = 1
         state = s_tm0_fl;
       else 
         state = s_tm0_cl;
       break;
     case s_tm0_fl :
-      tm0_tag = read(tm0_addr,tm0_data,1);
+      tm0_tag = read(tm0_addr,tm0_data,1,store);
       if (tm0_data & tm0_wmask)  //tagFlag = 1
         state = s_tt_fl;
       else 
@@ -310,7 +310,7 @@ uint64_t uni_tag_cache_sim_t::access(uint64_t addr, size_t bytes, bool store) {
       state = s_tt_cl;
       break;
     case s_tt_fl :
-      tt_tag = read(tt_addr,tt_data,1);
+      tt_tag = read(tt_addr,tt_data,1,store);
       state = s_tt_w;
       break;
     case s_tt_cl:

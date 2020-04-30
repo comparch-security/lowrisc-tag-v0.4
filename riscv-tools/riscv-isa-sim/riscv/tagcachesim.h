@@ -39,7 +39,7 @@ class tag_cache_sim_t : public cache_sim_t
     return *(uint64_t *)(sim->addr_to_mem(addr & ~(uint64_t)(0x7)));
   }
 
-  uint64_t read(uint64_t addr, uint64_t &data, uint8_t fetch);
+  uint64_t read(uint64_t addr, uint64_t &data, uint8_t fetch, uint8_t writeacc);
   uint64_t write(uint64_t addr, uint64_t data, uint64_t mask);
   uint64_t create(uint64_t addr, uint64_t data, uint64_t mask);
 };
