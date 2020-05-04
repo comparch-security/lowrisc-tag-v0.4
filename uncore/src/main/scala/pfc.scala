@@ -37,19 +37,19 @@ class L1DCachePerform extends Bundle {
   val write_back = Bool(INPUT)
 }
 
-class L2DCachePerform extends Bundle {
+class L2CachePerform extends Bundle {
   val read = Bool(INPUT) //inner.acquire
   val read_miss = Bool(INPUT) //outer.acquire
   val write =Bool(INPUT) //inner.release
-  val write_miss =Bool(INPUT) //inner.release
+  //val write_miss =Bool(INPUT) //
   val write_back = Bool(INPUT) //outer.release
 }
 
-class L2DCachePerformCounter extends Bundle {
+class L2CachePerformCounter extends Bundle {
    val read       = UInt(width=64)
    val read_miss  = UInt(width=64)
    val write      = UInt(width=64)
-   val write_miss = UInt(width=64)
+   //val write_miss = UInt(width=64)
    val write_back = UInt(width=64)
 }
 
@@ -114,7 +114,7 @@ class PrivatePerform extends Bundle {
 //class SharePerform(implicit val p: Parameters) extends PFCBundle { //WRONG
 //  val L2D = Vec(L2DBanks, new L2DCachePerform)
 class SharePerform(implicit val p: Parameters) extends Bundle {
-  val L2D = Vec(p(PFCL2N), new L2DCachePerform)
+  val L2D = Vec(p(PFCL2N), new L2CachePerform)
   val TAG = new TAGCachePerform()
 }
 
@@ -157,19 +157,18 @@ class SharePFC(implicit val p: Parameters) extends Module {
   val L2DBanks = p(PFCL2N)
   val acquire = Bool()
 
-  //L2D
-  val l2dpfcs     = (0 until L2DBanks).map(i => Wire(new L2DCachePerformCounter))
-  val Reg_l2dpfcs = (0 until L2DBanks).map(i => Reg(new  L2DCachePerformCounter))
+  //L2
+  val l2pfcs     = (0 until L2DBanks).map(i => Wire(new L2CachePerformCounter))
+  val Reg_l2pfcs = (0 until L2DBanks).map(i => Reg(new  L2CachePerformCounter))
     (0 until L2DBanks).map(i =>{
-    Reg_l2dpfcs(i)         := RegEnable(l2dpfcs(i), acquire)
-    l2dpfcs(i).read        := PerFormanceCounter(io.update.L2D(i).read.toBool(),        2^64-1)
-    l2dpfcs(i).read_miss   := PerFormanceCounter(io.update.L2D(i).read_miss.toBool(),   2^64-1)
-    l2dpfcs(i).write       := PerFormanceCounter(io.update.L2D(i).write.toBool(),       2^64-1)
-    l2dpfcs(i).write_miss  := PerFormanceCounter(io.update.L2D(i).write.toBool(),       2^64-1)
-    l2dpfcs(i).write_back  := PerFormanceCounter(io.update.L2D(i).write_back.toBool(),  2^64-1)
+    Reg_l2pfcs(i)         := RegEnable(l2pfcs(i), acquire)
+    l2pfcs(i).read        := PerFormanceCounter(io.update.L2D(i).read.toBool(),        2^64-1)
+    l2pfcs(i).read_miss   := PerFormanceCounter(io.update.L2D(i).read_miss.toBool(),   2^64-1)
+    l2pfcs(i).write       := PerFormanceCounter(io.update.L2D(i).write.toBool(),       2^64-1)
+    l2pfcs(i).write_back  := PerFormanceCounter(io.update.L2D(i).write_back.toBool(),  2^64-1)
   })
 
-  //TAG
+  //TC
   val tcttpfc = Wire(new TCTAGTrackerPerformCounter)
   val tcmtpfc = Wire(new TCMEMTrackerPerformCounter)
   val Reg_tcttpfc = RegEnable(tcttpfc, acquire)

@@ -393,16 +393,9 @@ class L2HellaCacheBank(implicit p: Parameters) extends HierarchicalCoherenceAgen
   require(isPow2(nSets))
   require(isPow2(nWays)) 
 
-  val IACQisread     = isRead(io.inner.acquire.bits.op_code())
-  val IACQiswrite    = isWrite(io.inner.acquire.bits.op_code())
-  val OACQisread     = isRead(io.inner.acquire.bits.op_code())
-  val OACQiswrite    = isWrite(io.outer.acquire.bits.op_code())
-  val IACQaccess     = io.inner.acquire.fire() && io.inner.acquire.bits.allocate()
-  val OACQaccess     = io.outer.acquire.fire() && io.outer.acquire.bits.allocate()
-  io.pfc.read        := RegNext(next = IACQaccess && IACQisread)
-  io.pfc.read_miss   := RegNext(next = OACQaccess && OACQisread)
-  io.pfc.write       := RegNext(next = IACQaccess && IACQiswrite)
-  io.pfc.write_miss  := RegNext(next = OACQaccess && OACQiswrite)
+  io.pfc.read        := RegNext(next = io.inner.acquire.fire() && io.inner.acquire.bits.allocate())
+  io.pfc.read_miss   := RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.allocate())
+  io.pfc.write       := RegNext(next = io.inner.release.fire() && io.outer.release.bits.addr_beat === UInt(0))
   io.pfc.write_back  := RegNext(next = io.outer.release.fire() && io.outer.release.bits.addr_beat === UInt(0))
 
   val meta = Module(new L2MetadataArray) // TODO: add delay knob

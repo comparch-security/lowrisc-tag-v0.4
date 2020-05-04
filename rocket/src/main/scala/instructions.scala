@@ -311,6 +311,8 @@ object CSRs {
   val mutagctrlen = 0x7f0
   val mstagctrlen = 0x7f1
   val swtrace = 0x8ff
+  val pfcr = 0x402 //pfc_read
+  val pfcc = 0x403 //pfc_config
   val all = {
     val res = collection.mutable.ArrayBuffer[Int]()
     res += fflags

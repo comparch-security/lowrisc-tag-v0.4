@@ -205,6 +205,9 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   val reg_mutagctrlen = Reg(init = ~UInt(0, xLen))
   val reg_mstagctrlen = Reg(init = ~UInt(0, xLen))
 
+  val reg_pfcr = Reg(init=UInt(x=0, width=64)) //pfc_read
+  val reg_pfcc = Reg(init=UInt(x=0, width=64)) //pfc_config
+
   val mip = Wire(init=reg_mip)
   mip.irq := io.irq
   mip.rocc := io.rocc.interrupt
@@ -304,6 +307,11 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     read_mapping += CSRs.mtagctrl ->  (reg_tagctrl,                 UInt(0)           )
     read_mapping += CSRs.mutagctrlen -> (reg_mutagctrlen,           UInt(0)           )
     read_mapping += CSRs.mstagctrlen -> (reg_mstagctrlen,           UInt(0)           )
+  }
+
+  if(usingPFC) {
+    read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
+    //read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
   }
 
   if (xLen == 32) {
