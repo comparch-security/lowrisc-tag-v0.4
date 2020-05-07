@@ -180,7 +180,13 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
 
   coherent_net.io.managers <> managerEndpoints.map(_.innerTL) :+ mmioManager.io.inner
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
-  if(p(UsePFC) && p(UseL2Cache)) { (0 until nBanks).map(i => sharePFC.io.update.L2D(i) := managerEndpoints(i).pfc) }
+  if(p(UsePFC)) {
+    sharePFC.io.req <> tileList(0).io.sharepfc_req
+    tileList(0).io.sharepfc_resp <> sharePFC.io.resp
+    if (p(UseL2Cache)) {
+      (0 until nBanks).map(i => sharePFC.io.update.L2D(i) := managerEndpoints(i).pfc)
+    }
+  }
 
   ////////////////////////////////////////////
   // the network between L2 and memory/tag cache

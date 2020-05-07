@@ -142,7 +142,9 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
     val irq = Bool(INPUT)
     val dbgnet = Vec(2, new DiiIO)       // debug network
     val dbgrst = Bool(INPUT)             // reset debug network
-    val pfc = new PrivatePerform()
+
+    val pfc_req  = Vec(2,Valid(new PFCReq())) //0:privatepfc  1:sharepfc
+    val pfc_resp = Vec(2,Valid(new PFCResp()).flip())
   }
 
   var decode_table = new XDecode().table
@@ -692,8 +694,10 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   io.rocc.cmd.bits.rs2 := wb_reg_rs2
 
   //PFC
-  val privatePFC = Module(new PrivatePFC())
-  privatePFC.io.update := io.pfc
+  (0 until 2).foreach(i => {
+    io.pfc_req(i) <> csr.io.pfc_req(i)
+    csr.io.pfc_resp(i) <> io.pfc_resp(i)
+  })
 
   if (emitLog) {
     if (enableCommitLog) {

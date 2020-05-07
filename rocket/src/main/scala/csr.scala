@@ -131,8 +131,8 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle {
 
   val tag_ctrl = new TagCtrlSig().asOutput
 
-  val pfc_req  = Vec(2,Valid(new PFCReq().asOutput))
-  val pfc_resp = Vec(2,Valid(new PFCResp().asInput))
+  val pfc_req  = Vec(2,Valid(new PFCReq()))  //output
+  val pfc_resp = Vec(2,Valid(new PFCResp()).flip())
 }
 
 class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)

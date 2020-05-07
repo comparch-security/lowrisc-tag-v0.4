@@ -133,8 +133,8 @@ class PFCResp extends Bundle {
 
 class PrivatePFC extends Module {
   val io = new Bundle {
-    val req = Valid(new PFCReq().asInput) //req from csr
-    val resp = Valid(new PFCResp().asOutput) //resp to csr
+    val req = Valid(new PFCReq()).flip() //req from csr
+    val resp = Valid(new PFCResp()) //resp to csr
     val update = new PrivatePerform()
   }
 
@@ -190,8 +190,8 @@ class PrivatePFC extends Module {
 
 class SharePFC(implicit val p: Parameters) extends Module {
   val io = new Bundle {
-    val req = Valid(new PFCReq().asInput) //req from csr
-    val resp = Valid(new PFCResp().asOutput) //resp to csr
+    val req = Valid(new PFCReq()).flip() //req from csr
+    val resp = Valid(new PFCResp()) //resp to csr
     val update = new SharePerform()
   }
 
