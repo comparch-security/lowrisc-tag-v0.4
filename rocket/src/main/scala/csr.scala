@@ -130,6 +130,9 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle {
   val irq = Bool(INPUT)
 
   val tag_ctrl = new TagCtrlSig().asOutput
+
+  val pfc_req  = Vec(2,Valid(new PFCReq().asOutput))
+  val pfc_resp = Vec(2,Valid(new PFCResp().asInput))
 }
 
 class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
@@ -312,6 +315,20 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   if(usingPFC) {
     read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
     //read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
+    val pfc_reqvalid =  io.rw.addr === CSRs.pfcc && io.rw.cmd === CSR.W
+    val privatepfc_reqvalid = pfc_reqvalid && io.rw.wdata(60)
+    val sharepfc_reqvalid = pfc_reqvalid && io.rw.wdata(61)
+    io.pfc_req(0).valid := RegNext(privatepfc_reqvalid)
+    io.pfc_req(1).valid := RegNext(sharepfc_reqvalid)
+    (0 until 2).foreach(i => {
+      io.pfc_req(i).bits.cmd := reg_pfcc(7,6)
+      io.pfc_req(i).bits.addr := reg_pfcc(5,0)
+      io.pfc_req(i).bits.groupID := reg_pfcc(63,60) //0001:PrivatePFC 0010:SharePFC others:reserve
+      io.pfc_req(i).bits.subGroID := reg_pfcc(59,55)
+      //for PrivatePFC 0001:L1I 0010:L1D  others:reserve
+      //for SharePFC   0001:L2  0010:TC   others:reserve
+      when(io.pfc_resp(i).valid) { reg_pfcr := io.pfc_resp(i).bits.data }
+    })
   }
 
   if (xLen == 32) {
