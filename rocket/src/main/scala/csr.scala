@@ -314,21 +314,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
 
   if(usingPFC) {
     read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
-    //read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
-    val pfc_reqvalid =  io.rw.addr === CSRs.pfcc && io.rw.cmd === CSR.W
-    val privatepfc_reqvalid = pfc_reqvalid && io.rw.wdata(60)
-    val sharepfc_reqvalid = pfc_reqvalid && io.rw.wdata(61)
-    io.pfc_req(0).valid := RegNext(privatepfc_reqvalid)
-    io.pfc_req(1).valid := RegNext(sharepfc_reqvalid)
-    (0 until 2).foreach(i => {
-      io.pfc_req(i).bits.cmd := reg_pfcc(7,6)
-      io.pfc_req(i).bits.addr := reg_pfcc(5,0)
-      io.pfc_req(i).bits.groupID := reg_pfcc(63,60) //0001:PrivatePFC 0010:SharePFC others:reserve
-      io.pfc_req(i).bits.subGroID := reg_pfcc(59,55)
-      //for PrivatePFC 0001:L1I 0010:L1D  others:reserve
-      //for SharePFC   0001:L2  0010:TC   others:reserve
-      when(io.pfc_resp(i).valid) { reg_pfcr := io.pfc_resp(i).bits.data }
-    })
+    read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
   }
 
   if (xLen == 32) {
@@ -562,6 +548,9 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       when (decoded_addr(CSRs.mutagctrlen)) { reg_mutagctrlen := wdata }
       when (decoded_addr(CSRs.mstagctrlen)) { reg_mstagctrlen := wdata }
     }
+    if (usingPFC) {
+      when (decoded_addr(CSRs.pfcc)) { reg_pfcc := wdata }
+    }
   }
 
   reg_mip := io.prci.interrupts
@@ -574,6 +563,19 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     io.tag_ctrl := new TagCtrlSig().fromBits(reg_tagctrl)
   } else {
     io.tag_ctrl := new TagCtrlSig().fromBits(UInt(0,xLen))
+  }
+  if (usingPFC) {
+    io.pfc_req(0).valid := reg_pfcc(60)
+    io.pfc_req(1).valid := reg_pfcc(61)
+    (0 until 2).foreach(i => {
+      io.pfc_req(i).bits.cmd := reg_pfcc(7,6)
+      io.pfc_req(i).bits.addr := reg_pfcc(5,0)
+      io.pfc_req(i).bits.groupID := reg_pfcc(63,60) //0001:PrivatePFC 0010:SharePFC others:reserve
+      io.pfc_req(i).bits.subGroID := reg_pfcc(59,55)
+      //for PrivatePFC 0001:L1I 0010:L1D  others:reserve
+      //for SharePFC   0001:L2  0010:TC   others:reserve
+      when(io.pfc_resp(i).valid) { reg_pfcr := io.pfc_resp(i).bits.data }
+    })
   }
 
   def writeCounter(lo: Int, ctr: WideCounter, wdata: UInt) = {
