@@ -368,6 +368,8 @@ object CSRs {
     res += mutagctrlen
     res += mstagctrlen
     res += swtrace
+    res += pfcr
+    res += pfcc
     res.toArray
   }
   val all32 = {
