@@ -16,11 +16,10 @@ abstract class PFCModule(implicit val p: Parameters) extends Module with HasPFCP
 abstract class PFCBundle(implicit val p: Parameters) extends Bundle with HasPFCParameters
 
 object PerFormanceCounter {
-  def apply(cond: Bool, n: Int): UInt = {
-    val c = new Counter(n)
-    var wrap: Bool = null
-    when (cond) { wrap = c.inc() }
-    c.value
+  def apply(op: UInt, n: Int): UInt = {
+    val counter=Reg(init=UInt(0, n))
+    counter := counter + op
+    counter
   }
 }
 
@@ -153,13 +152,13 @@ class PrivatePFC extends Module {
   //import rocket.WideCounter //can't import
   //val L1I_PFC_read = WideCounter(64, io.update.L1I.read)
   //val (L1IPFC_read, full0)     = Counter(io.update.L1I.read,         2^64-1) //wrong why??!!
-  val l1ipfc_read           = PerFormanceCounter(io.update.L1I.read,         2^64-1)
-  val l1ipfc_readmiss       = PerFormanceCounter(io.update.L1I.read_miss,    2^64-1)
-  val l1dpfc_read           = PerFormanceCounter(io.update.L1D.read,         2^64-1)
-  val l1dpfc_readmiss       = PerFormanceCounter(io.update.L1D.read_miss,    2^64-1)
-  val l1dpfc_write          = PerFormanceCounter(io.update.L1D.write,        2^64-1)
-  val l1dpfc_writemiss      = PerFormanceCounter(io.update.L1D.write_miss,   2^64-1)
-  val l1dpfc_writeback      = PerFormanceCounter(io.update.L1D.write_back,   2^64-1)
+  val l1ipfc_read           = PerFormanceCounter(io.update.L1I.read,         64)
+  val l1ipfc_readmiss       = PerFormanceCounter(io.update.L1I.read_miss,    64)
+  val l1dpfc_read           = PerFormanceCounter(io.update.L1D.read,         64)
+  val l1dpfc_readmiss       = PerFormanceCounter(io.update.L1D.read_miss,    64)
+  val l1dpfc_write          = PerFormanceCounter(io.update.L1D.write,        64)
+  val l1dpfc_writemiss      = PerFormanceCounter(io.update.L1D.write_miss,   64)
+  val l1dpfc_writeback      = PerFormanceCounter(io.update.L1D.write_back,   64)
 
   val Reg_l1ipfc_read       = RegEnable(l1ipfc_read,       acquire)
   val Reg_l1ipfc_readmiss   = RegEnable(l1ipfc_readmiss,   acquire)
@@ -215,10 +214,10 @@ class SharePFC(implicit val p: Parameters) extends Module {
   val Reg_l2pfcs = (0 until L2Banks).map(i => Reg(new  L2CachePerformCounter))
     (0 until L2Banks).map(i =>{
     Reg_l2pfcs(i)         := RegEnable(l2pfcs(i), acquire)
-    l2pfcs(i).read        := PerFormanceCounter(io.update.L2D(i).read.toBool(),        2^64-1)
-    l2pfcs(i).read_miss   := PerFormanceCounter(io.update.L2D(i).read_miss.toBool(),   2^64-1)
-    l2pfcs(i).write       := PerFormanceCounter(io.update.L2D(i).write.toBool(),       2^64-1)
-    l2pfcs(i).write_back  := PerFormanceCounter(io.update.L2D(i).write_back.toBool(),  2^64-1)
+    l2pfcs(i).read        := PerFormanceCounter(io.update.L2D(i).read,        64)
+    l2pfcs(i).read_miss   := PerFormanceCounter(io.update.L2D(i).read_miss,   64)
+    l2pfcs(i).write       := PerFormanceCounter(io.update.L2D(i).write,       64)
+    l2pfcs(i).write_back  := PerFormanceCounter(io.update.L2D(i).write_back,  64)
   })
 
   //TC
@@ -226,23 +225,26 @@ class SharePFC(implicit val p: Parameters) extends Module {
   val tcmtpfc = Wire(new TCMEMTrackerPerformCounter)
   val Reg_tcttpfc = RegEnable(tcttpfc, acquire)
   val Reg_tcmtpfc = RegEnable(tcmtpfc, acquire)
-  tcttpfc.MR          := PerFormanceCounter(io.update.TAG.tcttp.MR.toBool(),          2^64-1)
-  tcttpfc.DR          := PerFormanceCounter(io.update.TAG.tcttp.DR.toBool(),          2^64-1)
-  tcttpfc.DW          := PerFormanceCounter(io.update.TAG.tcttp.DW.toBool(),          2^64-1)
-  tcttpfc.WB          := PerFormanceCounter(io.update.TAG.tcttp.WB.toBool(),          2^64-1)
-  tcttpfc.F           := PerFormanceCounter(io.update.TAG.tcttp.F.toBool(),           2^64-1)
-  tcmtpfc.readTT          := PerFormanceCounter(io.update.TAG.tcmtp.readTT.toBool(),         2^64-1)
-  tcmtpfc.readTT_miss     := PerFormanceCounter(io.update.TAG.tcmtp.readTT_miss.toBool(),    2^64-1)
-  tcmtpfc.writeTT         := PerFormanceCounter(io.update.TAG.tcmtp.writeTT.toBool(),        2^64-1)
-  tcmtpfc.writeTT_miss    := PerFormanceCounter(io.update.TAG.tcmtp.writeTT_miss.toBool(),   2^64-1)
-  tcmtpfc.readTM0         := PerFormanceCounter(io.update.TAG.tcmtp.readTM0.toBool(),        2^64-1)
-  tcmtpfc.readTM0_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM0_miss.toBool(),   2^64-1)
-  tcmtpfc.writeTM0        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0.toBool(),       2^64-1)
-  tcmtpfc.writeTM0_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0_miss.toBool(),  2^64-1)
-  tcmtpfc.readTM1         := PerFormanceCounter(io.update.TAG.tcmtp.readTM1.toBool(),        2^64-1)
-  tcmtpfc.readTM1_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM1_miss.toBool(),   2^64-1)
-  tcmtpfc.writeTM1        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1.toBool(),       2^64-1)
-  tcmtpfc.writeTM1_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1_miss.toBool(),  2^64-1)
+  tcttpfc.MR          := PerFormanceCounter(io.update.TAG.tcttp.MR,          64)
+  tcttpfc.DR          := PerFormanceCounter(io.update.TAG.tcttp.DR,          64)
+  tcttpfc.DW          := PerFormanceCounter(io.update.TAG.tcttp.DW,          64)
+  tcttpfc.WB          := PerFormanceCounter(io.update.TAG.tcttp.WB,          64)
+  tcttpfc.F           := PerFormanceCounter(io.update.TAG.tcttp.F,           64)
+  tcmtpfc.readTT          := PerFormanceCounter(io.update.TAG.tcmtp.readTT,         64)
+  tcmtpfc.readTT_miss     := PerFormanceCounter(io.update.TAG.tcmtp.readTT_miss,    64)
+  tcmtpfc.writeTT         := PerFormanceCounter(io.update.TAG.tcmtp.writeTT,        64)
+  tcmtpfc.writeTT_miss    := PerFormanceCounter(io.update.TAG.tcmtp.writeTT_miss,   64)
+  tcmtpfc.writeTT_back    := PerFormanceCounter(io.update.TAG.tcmtp.writeTT_back,   64)
+  tcmtpfc.readTM0         := PerFormanceCounter(io.update.TAG.tcmtp.readTM0,        64)
+  tcmtpfc.readTM0_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM0_miss,   64)
+  tcmtpfc.writeTM0        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0,       64)
+  tcmtpfc.writeTM0_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0_miss,  64)
+  tcmtpfc.writeTM0_back   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0_back,  64)
+  tcmtpfc.readTM1         := PerFormanceCounter(io.update.TAG.tcmtp.readTM1,        64)
+  tcmtpfc.readTM1_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM1_miss,   64)
+  tcmtpfc.writeTM1        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1,       64)
+  tcmtpfc.writeTM1_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1_miss,  64)
+  tcmtpfc.writeTM1_back   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1_back,  64)
 
   val tcpfc = Reg_tcmtpfc.readTT
   val l2pfc = if(L2Banks>0) Reg_l2pfcs(0).read else UInt(0)
