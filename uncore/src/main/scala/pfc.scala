@@ -39,9 +39,9 @@ class L1DCachePerform extends Bundle {
 class L2CachePerform extends Bundle {
   val read = Bool(INPUT) //inner.acquire
   val read_miss = Bool(INPUT) //outer.acquire
-  val write =Bool(INPUT) //inner.release
+  val write = UInt(dir=INPUT, width=2) //
   //val write_miss =Bool(INPUT) //
-  val write_back = Bool(INPUT) //outer.release
+  val write_back = UInt(dir=INPUT, width=2) //
 }
 
 class L2CachePerformCounter extends Bundle {
