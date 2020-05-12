@@ -76,14 +76,17 @@ class TCMEMTrackerPerform extends Bundle {
   val readTT_miss      = Bool(INPUT)
   val writeTT          = Bool(INPUT)
   val writeTT_miss     = Bool(INPUT)
+  val writeTT_back     = Bool(INPUT)
   val readTM0          = Bool(INPUT)
   val readTM0_miss     = Bool(INPUT)
   val writeTM0         = Bool(INPUT)
   val writeTM0_miss    = Bool(INPUT)
+  val writeTM0_back    = Bool(INPUT)
   val readTM1          = Bool(INPUT)
   val readTM1_miss     = Bool(INPUT)
   val writeTM1         = Bool(INPUT)
   val writeTM1_miss    = Bool(INPUT)
+  val writeTM1_back    = Bool(INPUT)
 }
 
 class TCMEMTrackerPerformCounter extends Bundle {
@@ -91,14 +94,17 @@ class TCMEMTrackerPerformCounter extends Bundle {
   val  readTT_miss     = UInt(width=64)
   val  writeTT         = UInt(width=64)
   val  writeTT_miss    = UInt(width=64)
+  val  writeTT_back    = UInt(width=64)
   val  readTM0         = UInt(width=64)
   val  readTM0_miss    = UInt(width=64)
   val  writeTM0        = UInt(width=64)
   val  writeTM0_miss   = UInt(width=64)
+  val  writeTM0_back   = UInt(width=64)
   val  readTM1         = UInt(width=64)
   val  readTM1_miss    = UInt(width=64)
   val  writeTM1        = UInt(width=64)
   val  writeTM1_miss   = UInt(width=64)
+  val  writeTM1_back   = UInt(width=64)
 }
 
 class TAGCachePerform extends Bundle {
@@ -260,44 +266,47 @@ class SharePFC(implicit val p: Parameters) extends Module {
       if (L2Banks > 0) l2pfc := Reg_l2pfcs(0).write_back
     }
     is(UInt(4)) {
-      tcpfc := Reg_tcmtpfc.readTM0
+      tcpfc := Reg_tcmtpfc.writeTT_back
       if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).read
     }
     is(UInt(5)) {
-      tcpfc := Reg_tcmtpfc.readTM0_miss
+      tcpfc := Reg_tcmtpfc.readTM0
       if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).read_miss
     }
     is(UInt(6)) {
-      tcpfc := Reg_tcmtpfc.writeTM0
+      tcpfc := Reg_tcmtpfc.readTM0_miss
       if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).write
     }
     is(UInt(7)) {
-      tcpfc := Reg_tcmtpfc.writeTM0_miss
+      tcpfc := Reg_tcmtpfc.writeTM0
       if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).write_back
     }
     is(UInt(8)) {
-      tcpfc := Reg_tcmtpfc.readTM1
+      tcpfc := Reg_tcmtpfc.writeTM0_miss
       if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).read
     }
     is(UInt(9)) {
-      tcpfc := Reg_tcmtpfc.readTM1_miss
+      tcpfc := Reg_tcmtpfc.writeTM0_back
       if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).read_miss
     }
     is(UInt(10)) {
-      tcpfc := Reg_tcmtpfc.writeTM1
+      tcpfc := Reg_tcmtpfc.readTM1
       if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).write
     }
     is(UInt(11)) {
-      tcpfc := Reg_tcmtpfc.writeTM1_miss
+      tcpfc := Reg_tcmtpfc.readTM1_miss
       if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).write_back
     }
     is(UInt(12)) {
+      tcpfc := Reg_tcmtpfc.writeTM1
       if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).read
     }
     is(UInt(13)) {
+      tcpfc := Reg_tcmtpfc.writeTM1_miss
       if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).read_miss
     }
     is(UInt(14)) {
+      tcpfc := Reg_tcmtpfc.writeTM1_back
       if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).write
     }
     is(UInt(15)) {
