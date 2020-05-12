@@ -393,14 +393,22 @@ class L2HellaCacheBank(implicit p: Parameters) extends HierarchicalCoherenceAgen
   require(isPow2(nSets))
   require(isPow2(nWays)) 
 
+  val cache_read        =  RegNext(next = io.inner.acquire.fire() && !io.inner.acquire.bits.hasData() &&
+                                  io.inner.acquire.bits.allocate())
+  val uncache_read      =  RegNext(next = io.inner.acquire.fire() && !io.inner.acquire.bits.hasData() &&
+                                  !io.inner.acquire.bits.allocate())
+  val cache_readmiss    =  RegNext(next = io.outer.acquire.fire() && !io.outer.acquire.bits.hasData() &&
+                                  io.outer.acquire.bits.allocate())
+  val uncache_readmiss  =  RegNext(next = io.outer.acquire.fire() && !io.outer.acquire.bits.hasData() &&
+                                  !io.outer.acquire.bits.allocate())
   val cache_write       =  RegNext(next = io.inner.release.fire() && io.inner.release.bits.addr_beat === UInt(0))
   val uncache_write     =  RegNext(next = io.inner.acquire.fire() && io.inner.acquire.bits.addr_beat === UInt(0) &&
                                   io.inner.acquire.bits.hasData() && !io.inner.acquire.bits.allocate())
   val cache_writeback   =  RegNext(next = io.outer.release.fire() && io.outer.release.bits.addr_beat === UInt(0))
   val uncache_writeback =  RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.addr_beat === UInt(0) &&
                                   io.outer.acquire.bits.hasData() && !io.outer.acquire.bits.allocate())
-  io.pfc.read        := RegNext(next = io.inner.acquire.fire() && io.inner.acquire.bits.allocate())
-  io.pfc.read_miss   := RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.allocate())
+  io.pfc.read        := RegNext(next = io.inner.acquire.fire() && !io.inner.acquire.bits.hasData())
+  io.pfc.read_miss   := RegNext(next = io.outer.acquire.fire() && !io.outer.acquire.bits.hasData())
   io.pfc.write       := RegNext(next = Cat(UInt(0),cache_write) + uncache_write)
   io.pfc.write_back  := RegNext(next = Cat(UInt(0),cache_writeback) + uncache_writeback)
 
