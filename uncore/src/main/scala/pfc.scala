@@ -52,25 +52,8 @@ class L2CachePerformCounter extends Bundle {
    val write_back = UInt(width=64)
 }
 
-class TCTAGTrackerPerform extends Bundle {
-  val MR  = Bool(INPUT)        //read meta
-  val MW  = Bool(INPUT)        //update the meta
-  val DR  = Bool(INPUT)        //read tag from data array
-  val DW  = Bool(INPUT)        //write tag to data array //equals DWR+DWB
-  val WB  = Bool(INPUT)        //write dirty line back to memory
-  val F   = Bool(INPUT)        //fetch the target cache line (from memory) // equals DWB
-}
 
-class TCTAGTrackerPerformCounter extends Bundle {
-  val MR  = UInt(width=64)        //read meta
-  val MW  = UInt(width=64)        //update the meta
-  val DR  = UInt(width=64)        //read tag from data array
-  val DW  = UInt(width=64)        //write tag to data array //equals DWR+DWB
-  val WB  = UInt(width=64)        //write dirty line back to memory
-  val F   = UInt(width=64)        //fetch the target cache line (from memory) // equals DWB
-}
-
-class TCMEMTrackerPerform extends Bundle {
+class TagCachePerform extends Bundle {
   val readTT           = Bool(INPUT)
   val readTT_miss      = Bool(INPUT)
   val writeTT          = Bool(INPUT)
@@ -88,7 +71,7 @@ class TCMEMTrackerPerform extends Bundle {
   val writeTM1_back    = Bool(INPUT)
 }
 
-class TCMEMTrackerPerformCounter extends Bundle {
+class TagCachePerformCounter extends Bundle {
   val  readTT          = UInt(width=64)
   val  readTT_miss     = UInt(width=64)
   val  writeTT         = UInt(width=64)
@@ -106,11 +89,6 @@ class TCMEMTrackerPerformCounter extends Bundle {
   val  writeTM1_back   = UInt(width=64)
 }
 
-class TAGCachePerform extends Bundle {
-  val tcttp = new TCTAGTrackerPerform()//
-  val tcmtp = new TCMEMTrackerPerform()
-}
-
 class PrivatePerform extends Bundle {
   val L1I = new L1ICachePerform()
   val L1D = new L1DCachePerform()
@@ -120,7 +98,7 @@ class PrivatePerform extends Bundle {
 //  val L2D = Vec(L2DBanks, new L2DCachePerform)
 class SharePerform(implicit val p: Parameters) extends Bundle {
   val L2D = Vec(p(PFCL2N), new L2CachePerform)
-  val TAG = new TAGCachePerform()
+  val TAG = new TagCachePerform()
 }
 
 class PFCReq extends Bundle {
@@ -221,146 +199,139 @@ class SharePFC(implicit val p: Parameters) extends Module {
   })
 
   //TC
-  val tcttpfc = Wire(new TCTAGTrackerPerformCounter)
-  val tcmtpfc = Wire(new TCMEMTrackerPerformCounter)
-  val Reg_tcttpfc = RegEnable(tcttpfc, acquire)
-  val Reg_tcmtpfc = RegEnable(tcmtpfc, acquire)
-  tcttpfc.MR          := PerFormanceCounter(io.update.TAG.tcttp.MR,          64)
-  tcttpfc.DR          := PerFormanceCounter(io.update.TAG.tcttp.DR,          64)
-  tcttpfc.DW          := PerFormanceCounter(io.update.TAG.tcttp.DW,          64)
-  tcttpfc.WB          := PerFormanceCounter(io.update.TAG.tcttp.WB,          64)
-  tcttpfc.F           := PerFormanceCounter(io.update.TAG.tcttp.F,           64)
-  tcmtpfc.readTT          := PerFormanceCounter(io.update.TAG.tcmtp.readTT,         64)
-  tcmtpfc.readTT_miss     := PerFormanceCounter(io.update.TAG.tcmtp.readTT_miss,    64)
-  tcmtpfc.writeTT         := PerFormanceCounter(io.update.TAG.tcmtp.writeTT,        64)
-  tcmtpfc.writeTT_miss    := PerFormanceCounter(io.update.TAG.tcmtp.writeTT_miss,   64)
-  tcmtpfc.writeTT_back    := PerFormanceCounter(io.update.TAG.tcmtp.writeTT_back,   64)
-  tcmtpfc.readTM0         := PerFormanceCounter(io.update.TAG.tcmtp.readTM0,        64)
-  tcmtpfc.readTM0_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM0_miss,   64)
-  tcmtpfc.writeTM0        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0,       64)
-  tcmtpfc.writeTM0_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0_miss,  64)
-  tcmtpfc.writeTM0_back   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM0_back,  64)
-  tcmtpfc.readTM1         := PerFormanceCounter(io.update.TAG.tcmtp.readTM1,        64)
-  tcmtpfc.readTM1_miss    := PerFormanceCounter(io.update.TAG.tcmtp.readTM1_miss,   64)
-  tcmtpfc.writeTM1        := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1,       64)
-  tcmtpfc.writeTM1_miss   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1_miss,  64)
-  tcmtpfc.writeTM1_back   := PerFormanceCounter(io.update.TAG.tcmtp.writeTM1_back,  64)
+  val tcpfc = Wire(new TagCachePerformCounter)
+  val Reg_tcpfc = RegEnable(tcpfc, acquire)
+  tcpfc.readTT          := PerFormanceCounter(io.update.TAG.readTT,         64)
+  tcpfc.readTT_miss     := PerFormanceCounter(io.update.TAG.readTT_miss,    64)
+  tcpfc.writeTT         := PerFormanceCounter(io.update.TAG.writeTT,        64)
+  tcpfc.writeTT_miss    := PerFormanceCounter(io.update.TAG.writeTT_miss,   64)
+  tcpfc.writeTT_back    := PerFormanceCounter(io.update.TAG.writeTT_back,   64)
+  tcpfc.readTM0         := PerFormanceCounter(io.update.TAG.readTM0,        64)
+  tcpfc.readTM0_miss    := PerFormanceCounter(io.update.TAG.readTM0_miss,   64)
+  tcpfc.writeTM0        := PerFormanceCounter(io.update.TAG.writeTM0,       64)
+  tcpfc.writeTM0_miss   := PerFormanceCounter(io.update.TAG.writeTM0_miss,  64)
+  tcpfc.writeTM0_back   := PerFormanceCounter(io.update.TAG.writeTM0_back,  64)
+  tcpfc.readTM1         := PerFormanceCounter(io.update.TAG.readTM1,        64)
+  tcpfc.readTM1_miss    := PerFormanceCounter(io.update.TAG.readTM1_miss,   64)
+  tcpfc.writeTM1        := PerFormanceCounter(io.update.TAG.writeTM1,       64)
+  tcpfc.writeTM1_miss   := PerFormanceCounter(io.update.TAG.writeTM1_miss,  64)
+  tcpfc.writeTM1_back   := PerFormanceCounter(io.update.TAG.writeTM1_back,  64)
 
-  val tcpfc = Reg_tcmtpfc.readTT
-  val l2pfc = if(L2Banks>0) Reg_l2pfcs(0).read else UInt(0)
+  val tcpfc_muxed = Reg_tcpfc.readTT
+  val l2pfc_muxed = if(L2Banks>0) Reg_l2pfcs(0).read else UInt(0)
   io.resp.valid  := read
-  io.resp.bits.data := Mux(groupisL2, l2pfc, tcpfc)
+  io.resp.bits.data := Mux(groupisL2, l2pfc_muxed, tcpfc_muxed)
   switch(io.req.bits.addr) {
     /*  is(UInt(0)) {
         tcpfc := Reg_tcmtpfc.readTT
         if(L2Banks>0) l2pfc := Reg_l2pfcs(0).read
      } */
     is(UInt(1)) {
-      tcpfc := Reg_tcmtpfc.readTT_miss
-      if (L2Banks > 0) l2pfc := Reg_l2pfcs(0).read_miss
+      tcpfc_muxed := Reg_tcpfc.readTT_miss
+      if (L2Banks > 0) l2pfc_muxed := Reg_l2pfcs(0).read_miss
     }
     is(UInt(2)) {
-      tcpfc := Reg_tcmtpfc.writeTT
-      if (L2Banks > 0) l2pfc := Reg_l2pfcs(0).write
+      tcpfc_muxed := Reg_tcpfc.writeTT
+      if (L2Banks > 0) l2pfc_muxed := Reg_l2pfcs(0).write
     }
     is(UInt(3)) {
-      tcpfc := Reg_tcmtpfc.writeTT_miss
-      if (L2Banks > 0) l2pfc := Reg_l2pfcs(0).write_back
+      tcpfc_muxed := Reg_tcpfc.writeTT_miss
+      if (L2Banks > 0) l2pfc_muxed := Reg_l2pfcs(0).write_back
     }
     is(UInt(4)) {
-      tcpfc := Reg_tcmtpfc.writeTT_back
-      if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).read
+      tcpfc_muxed := Reg_tcpfc.writeTT_back
+      if (L2Banks > 1) l2pfc_muxed := Reg_l2pfcs(1).read
     }
     is(UInt(5)) {
-      tcpfc := Reg_tcmtpfc.readTM0
-      if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).read_miss
+      tcpfc_muxed := Reg_tcpfc.readTM0
+      if (L2Banks > 1) l2pfc_muxed := Reg_l2pfcs(1).read_miss
     }
     is(UInt(6)) {
-      tcpfc := Reg_tcmtpfc.readTM0_miss
-      if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).write
+      tcpfc_muxed := Reg_tcpfc.readTM0_miss
+      if (L2Banks > 1) l2pfc_muxed := Reg_l2pfcs(1).write
     }
     is(UInt(7)) {
-      tcpfc := Reg_tcmtpfc.writeTM0
-      if (L2Banks > 1) l2pfc := Reg_l2pfcs(1).write_back
+      tcpfc_muxed := Reg_tcpfc.writeTM0
+      if (L2Banks > 1) l2pfc_muxed := Reg_l2pfcs(1).write_back
     }
     is(UInt(8)) {
-      tcpfc := Reg_tcmtpfc.writeTM0_miss
-      if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).read
+      tcpfc_muxed := Reg_tcpfc.writeTM0_miss
+      if (L2Banks > 2) l2pfc_muxed := Reg_l2pfcs(2).read
     }
     is(UInt(9)) {
-      tcpfc := Reg_tcmtpfc.writeTM0_back
-      if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).read_miss
+      tcpfc_muxed := Reg_tcpfc.writeTM0_back
+      if (L2Banks > 2) l2pfc_muxed := Reg_l2pfcs(2).read_miss
     }
     is(UInt(10)) {
-      tcpfc := Reg_tcmtpfc.readTM1
-      if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).write
+      tcpfc_muxed := Reg_tcpfc.readTM1
+      if (L2Banks > 2) l2pfc_muxed := Reg_l2pfcs(2).write
     }
     is(UInt(11)) {
-      tcpfc := Reg_tcmtpfc.readTM1_miss
-      if (L2Banks > 2) l2pfc := Reg_l2pfcs(2).write_back
+      tcpfc_muxed := Reg_tcpfc.readTM1_miss
+      if (L2Banks > 2) l2pfc_muxed := Reg_l2pfcs(2).write_back
     }
     is(UInt(12)) {
-      tcpfc := Reg_tcmtpfc.writeTM1
-      if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).read
+      tcpfc_muxed := Reg_tcpfc.writeTM1
+      if (L2Banks > 3) l2pfc_muxed := Reg_l2pfcs(3).read
     }
     is(UInt(13)) {
-      tcpfc := Reg_tcmtpfc.writeTM1_miss
-      if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).read_miss
+      tcpfc_muxed := Reg_tcpfc.writeTM1_miss
+      if (L2Banks > 3) l2pfc_muxed := Reg_l2pfcs(3).read_miss
     }
     is(UInt(14)) {
-      tcpfc := Reg_tcmtpfc.writeTM1_back
-      if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).write
+      tcpfc_muxed := Reg_tcpfc.writeTM1_back
+      if (L2Banks > 3) l2pfc_muxed := Reg_l2pfcs(3).write
     }
     is(UInt(15)) {
-      if (L2Banks > 3) l2pfc := Reg_l2pfcs(3).write_back
+      if (L2Banks > 3) l2pfc_muxed := Reg_l2pfcs(3).write_back
     }
     is(UInt(16)) {
-      if (L2Banks > 4) l2pfc := Reg_l2pfcs(4).read
+      if (L2Banks > 4) l2pfc_muxed := Reg_l2pfcs(4).read
     }
     is(UInt(17)) {
-      if (L2Banks > 4) l2pfc := Reg_l2pfcs(4).read_miss
+      if (L2Banks > 4) l2pfc_muxed := Reg_l2pfcs(4).read_miss
     }
     is(UInt(18)) {
-      if (L2Banks > 4) l2pfc := Reg_l2pfcs(4).write
+      if (L2Banks > 4) l2pfc_muxed := Reg_l2pfcs(4).write
     }
     is(UInt(19)) {
-      if (L2Banks > 4) l2pfc := Reg_l2pfcs(4).write_back
+      if (L2Banks > 4) l2pfc_muxed := Reg_l2pfcs(4).write_back
     }
     is(UInt(20)) {
-      if (L2Banks > 5) l2pfc := Reg_l2pfcs(5).read
+      if (L2Banks > 5) l2pfc_muxed := Reg_l2pfcs(5).read
     }
     is(UInt(21)) {
-      if (L2Banks > 5) l2pfc := Reg_l2pfcs(5).read_miss
+      if (L2Banks > 5) l2pfc_muxed := Reg_l2pfcs(5).read_miss
     }
     is(UInt(22)) {
-      if (L2Banks > 5) l2pfc := Reg_l2pfcs(5).write
+      if (L2Banks > 5) l2pfc_muxed := Reg_l2pfcs(5).write
     }
     is(UInt(23)) {
-      if (L2Banks > 5) l2pfc := Reg_l2pfcs(5).write_back
+      if (L2Banks > 5) l2pfc_muxed := Reg_l2pfcs(5).write_back
     }
     is(UInt(24)) {
-      if (L2Banks > 6) l2pfc := Reg_l2pfcs(6).read
+      if (L2Banks > 6) l2pfc_muxed := Reg_l2pfcs(6).read
     }
     is(UInt(25)) {
-      if (L2Banks > 6) l2pfc := Reg_l2pfcs(6).read_miss
+      if (L2Banks > 6) l2pfc_muxed := Reg_l2pfcs(6).read_miss
     }
     is(UInt(26)) {
-      if (L2Banks > 6) l2pfc := Reg_l2pfcs(6).write
+      if (L2Banks > 6) l2pfc_muxed := Reg_l2pfcs(6).write
     }
     is(UInt(27)) {
-      if (L2Banks > 6) l2pfc := Reg_l2pfcs(6).write_back
+      if (L2Banks > 6) l2pfc_muxed := Reg_l2pfcs(6).write_back
     }
     is(UInt(28)) {
-      if (L2Banks > 7) l2pfc := Reg_l2pfcs(7).read
+      if (L2Banks > 7) l2pfc_muxed := Reg_l2pfcs(7).read
     }
     is(UInt(29)) {
-      if (L2Banks > 7) l2pfc := Reg_l2pfcs(7).read_miss
+      if (L2Banks > 7) l2pfc_muxed := Reg_l2pfcs(7).read_miss
     }
     is(UInt(30)) {
-      if (L2Banks > 7) l2pfc := Reg_l2pfcs(7).write
+      if (L2Banks > 7) l2pfc_muxed := Reg_l2pfcs(7).write
     }
     is(UInt(31)) {
-      if (L2Banks > 7) l2pfc := Reg_l2pfcs(7).write_back
+      if (L2Banks > 7) l2pfc_muxed := Reg_l2pfcs(7).write_back
     }
   }
 }

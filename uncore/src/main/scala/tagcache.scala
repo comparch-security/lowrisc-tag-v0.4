@@ -81,7 +81,7 @@ trait HasTCData extends HasTCParameters { val data = UInt(width = rowBits) }
 trait HasTCByteMask extends HasTCParameters { val mask = UInt(width = rowBytes) }
 trait HasTCBitMask extends HasTCParameters { val mask = UInt(width = rowBits) }
 trait HasTCAddr extends HasTCParameters { val addr = UInt(width=p(PAddrBits)) }
-trait HasTCMEMPFCType extends HasTCParameters { val pfc = new TCMEMTrackerPerform() }
+trait HasTCMEMPFCType extends HasTCParameters { val pfc = new TagCachePerform() }
 
 class TCDataReadReq(implicit p: Parameters) extends TCBundle()(p) with HasTCId with HasTCRow
 {
@@ -298,7 +298,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     val wb   = new TCWBIO
     val tl   = new ClientUncachedTileLinkIO()
     val lock = Decoupled(new TCTagLock)
-    val pfc = new TAGCachePerform().flip()
+    val pfc = new TagCachePerform().flip()
   }
 
   // IDLE:      idle, ready for new request
@@ -355,32 +355,24 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
 
   //PFC
   val wbaddr = Cat(io.wb.req.bits.tag, io.wb.req.bits.idx, UInt(0, tgHelper.blockOffBits+cacheIdBits))
-  //tcttp: TCTAGTrackerPerform
   val writeTM1_back = tgHelper.is_top(wbaddr)
   val writeTM0_back = tgHelper.is_map(wbaddr) && !writeTM1_back
   val writeTT_back  = !(writeTM1_back || writeTM0_back)
-  io.pfc.tcttp.MR  := io.meta.read.fire()
-  io.pfc.tcttp.MW  := io.meta.write.fire()
-  io.pfc.tcttp.DR  := io.data.read.fire()
-  io.pfc.tcttp.DW  := io.data.write.valid && state_next === s_MW //not use io.data.write.fire() because refillCycles is more than one
-  io.pfc.tcttp.WB  := io.wb.req.fire()
-  io.pfc.tcttp.F   := io.tl.acquire.fire()
-  //tcmtp: TCMEMTrackerPerform
-  io.pfc.tcmtp.readTT          := io.meta.resp.valid && xact.pfc.readTT
-  io.pfc.tcmtp.writeTT         := io.meta.resp.valid && xact.pfc.writeTT
-  io.pfc.tcmtp.readTM0         := io.meta.resp.valid && xact.pfc.readTM0
-  io.pfc.tcmtp.writeTM0        := io.meta.resp.valid && xact.pfc.writeTM0
-  io.pfc.tcmtp.readTM1         := io.meta.resp.valid && xact.pfc.readTM1
-  io.pfc.tcmtp.writeTM1        := io.meta.resp.valid && xact.pfc.writeTM1
-  io.pfc.tcmtp.readTT_miss     := !io.meta.resp.bits.hit && io.pfc.tcmtp.readTT
-  io.pfc.tcmtp.writeTT_miss    := !io.meta.resp.bits.hit && io.pfc.tcmtp.writeTT
-  io.pfc.tcmtp.readTM0_miss    := !io.meta.resp.bits.hit && io.pfc.tcmtp.readTM0
-  io.pfc.tcmtp.writeTM0_miss   := !io.meta.resp.bits.hit && io.pfc.tcmtp.writeTM0
-  io.pfc.tcmtp.readTM1_miss    := !io.meta.resp.bits.hit && io.pfc.tcmtp.readTM1
-  io.pfc.tcmtp.writeTM1_miss   := !io.meta.resp.bits.hit && io.pfc.tcmtp.writeTM1
-  io.pfc.tcmtp.writeTT_back    := io.wb.req.fire() && writeTT_back
-  io.pfc.tcmtp.writeTM0_back   := io.wb.req.fire() && writeTM0_back
-  io.pfc.tcmtp.writeTM1_back   := io.wb.req.fire() && writeTM1_back
+  io.pfc.readTT          := io.meta.resp.valid && xact.pfc.readTT
+  io.pfc.writeTT         := io.meta.resp.valid && xact.pfc.writeTT
+  io.pfc.readTM0         := io.meta.resp.valid && xact.pfc.readTM0
+  io.pfc.writeTM0        := io.meta.resp.valid && xact.pfc.writeTM0
+  io.pfc.readTM1         := io.meta.resp.valid && xact.pfc.readTM1
+  io.pfc.writeTM1        := io.meta.resp.valid && xact.pfc.writeTM1
+  io.pfc.readTT_miss     := !io.meta.resp.bits.hit && io.pfc.readTT
+  io.pfc.writeTT_miss    := !io.meta.resp.bits.hit && io.pfc.writeTT
+  io.pfc.readTM0_miss    := !io.meta.resp.bits.hit && io.pfc.readTM0
+  io.pfc.writeTM0_miss   := !io.meta.resp.bits.hit && io.pfc.writeTM0
+  io.pfc.readTM1_miss    := !io.meta.resp.bits.hit && io.pfc.readTM1
+  io.pfc.writeTM1_miss   := !io.meta.resp.bits.hit && io.pfc.writeTM1
+  io.pfc.writeTT_back    := io.wb.req.fire() && writeTT_back
+  io.pfc.writeTM0_back   := io.wb.req.fire() && writeTM0_back
+  io.pfc.writeTM1_back   := io.wb.req.fire() && writeTM1_back
 
   // metadata read
   io.meta.read.bits.id := UInt(id)
@@ -1079,7 +1071,7 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
 
   val meta      = Module(new TCMetadataArray)
   val data      = Module(new TCDataArray)
-  val pfc       = Reg(new TAGCachePerform)
+  val pfc       = Reg(new TagCachePerform)
 
   val relTrackers =
     (0                      until nMemReleaseTransactors).map(id => Module(new TCMemReleaseTracker(id)))
@@ -1224,27 +1216,21 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
 
   //pfc
   io.pfc := pfc
-  pfc.tcttp.MR        := tagTrackers.map(_.io.pfc.tcttp.MR).reduce(_||_)
-  pfc.tcttp.MW        := tagTrackers.map(_.io.pfc.tcttp.MW).reduce(_||_)
-  pfc.tcttp.DR        := tagTrackers.map(_.io.pfc.tcttp.DR).reduce(_||_)
-  pfc.tcttp.DW        := tagTrackers.map(_.io.pfc.tcttp.DW).reduce(_||_)
-  pfc.tcttp.WB        := tagTrackers.map(_.io.pfc.tcttp.WB).reduce(_||_)
-  pfc.tcttp.F         := tagTrackers.map(_.io.pfc.tcttp.F).reduce(_||_)
-  pfc.tcmtp.readTT        := tagTrackers.map(_.io.pfc.tcmtp.readTT).reduce(_||_)
-  pfc.tcmtp.readTT_miss   := tagTrackers.map(_.io.pfc.tcmtp.readTT_miss).reduce(_||_)
-  pfc.tcmtp.writeTT       := tagTrackers.map(_.io.pfc.tcmtp.writeTT).reduce(_||_)
-  pfc.tcmtp.writeTT_miss  := tagTrackers.map(_.io.pfc.tcmtp.writeTT_miss).reduce(_||_)
-  pfc.tcmtp.writeTT_back  := tagTrackers.map(_.io.pfc.tcmtp.writeTT_back).reduce(_||_)
-  pfc.tcmtp.readTM0       := tagTrackers.map(_.io.pfc.tcmtp.readTM0).reduce(_||_)
-  pfc.tcmtp.readTM0_miss  := tagTrackers.map(_.io.pfc.tcmtp.readTM0_miss).reduce(_||_)
-  pfc.tcmtp.writeTM0      := tagTrackers.map(_.io.pfc.tcmtp.writeTM0).reduce(_||_)
-  pfc.tcmtp.writeTM0_miss := tagTrackers.map(_.io.pfc.tcmtp.writeTM0_miss).reduce(_||_)
-  pfc.tcmtp.writeTM0_back := tagTrackers.map(_.io.pfc.tcmtp.writeTM0_back).reduce(_||_)
-  pfc.tcmtp.readTM1       := tagTrackers.map(_.io.pfc.tcmtp.readTM1).reduce(_||_)
-  pfc.tcmtp.readTM1_miss  := tagTrackers.map(_.io.pfc.tcmtp.readTT_miss).reduce(_||_)
-  pfc.tcmtp.writeTM1      := tagTrackers.map(_.io.pfc.tcmtp.writeTM1).reduce(_||_)
-  pfc.tcmtp.writeTM1_miss := tagTrackers.map(_.io.pfc.tcmtp.writeTM1_miss).reduce(_||_)
-  pfc.tcmtp.writeTM1_back := tagTrackers.map(_.io.pfc.tcmtp.writeTM1_back).reduce(_||_)
+  pfc.readTT        := tagTrackers.map(_.io.pfc.readTT).reduce(_||_)
+  pfc.readTT_miss   := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
+  pfc.writeTT       := tagTrackers.map(_.io.pfc.writeTT).reduce(_||_)
+  pfc.writeTT_miss  := tagTrackers.map(_.io.pfc.writeTT_miss).reduce(_||_)
+  pfc.writeTT_back  := tagTrackers.map(_.io.pfc.writeTT_back).reduce(_||_)
+  pfc.readTM0       := tagTrackers.map(_.io.pfc.readTM0).reduce(_||_)
+  pfc.readTM0_miss  := tagTrackers.map(_.io.pfc.readTM0_miss).reduce(_||_)
+  pfc.writeTM0      := tagTrackers.map(_.io.pfc.writeTM0).reduce(_||_)
+  pfc.writeTM0_miss := tagTrackers.map(_.io.pfc.writeTM0_miss).reduce(_||_)
+  pfc.writeTM0_back := tagTrackers.map(_.io.pfc.writeTM0_back).reduce(_||_)
+  pfc.readTM1       := tagTrackers.map(_.io.pfc.readTM1).reduce(_||_)
+  pfc.readTM1_miss  := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
+  pfc.writeTM1      := tagTrackers.map(_.io.pfc.writeTM1).reduce(_||_)
+  pfc.writeTM1_miss := tagTrackers.map(_.io.pfc.writeTM1_miss).reduce(_||_)
+  pfc.writeTM1_back := tagTrackers.map(_.io.pfc.writeTM1_back).reduce(_||_)
 }
 
 
