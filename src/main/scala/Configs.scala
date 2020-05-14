@@ -242,6 +242,7 @@ class BaseConfig extends Config (
       //Uncore Paramters
       case RTCPeriod => 100 // gives 10 MHz RTC assuming 1 GHz uncore clock
       case NBanks => Knob("NBANKS")
+      case PFCL2N => Knob("NBANKS")
       case BankIdLSB => 0
       case LNEndpoints => site(TLKey(site(TLId))).nManagers + site(TLKey(site(TLId))).nClients
       case LNHeaderBits => log2Up(max(site(TLKey(site(TLId))).nManagers,

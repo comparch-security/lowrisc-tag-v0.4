@@ -100,7 +100,6 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   ////////////////////////////////////////////
   // local partial parameter overrides
 
-  val PFCParams = p.alterPartial({ case PFCL2N => nBanks })
   val rocketParams = p.alterPartial({ case TLId => l1tol2TLId })
   val coherentNetParams = p.alterPartial({ case TLId => l1tol2TLId })
   val memNetParams = if(p(UseTagMem)) p.alterPartial({ case TLId => l2totcTLId })
@@ -125,7 +124,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   println("Generated Configuration String")
   println(new String(p(ConfigString)))
 
-  val sharePFC = Module(new SharePFC()(PFCParams))
+  val sharePFC = Module(new SharePFC())
   ////////////////////////////////////////////
   // Rocket Tiles
   val tileList = (0 until nTiles) map ( i => Module(new RocketTile(i, reset || io.cpu_rst)(rocketParams)))

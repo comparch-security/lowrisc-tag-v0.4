@@ -4,16 +4,24 @@ package uncore
 
 import Chisel._
 import cde.{Parameters, Field}
+import junctions._
 
 case object PFCL2N extends Field[Int]
 
-trait HasPFCParameters extends HasTagParameters {
+trait HasPFCParameters {
   implicit val p: Parameters
-  val L2DBanks = p(PFCL2N)
+  val Tiles     = p(NTiles) //how many cores
+  val Csrs      = Tiles
+  val L1s       = Tiles
+  val L2Banks   = p(PFCL2N) //Can't use p(NBanks)
+  val TCBanks   = 1
+  val Clients   = Csrs
+  val Managers  = L1s+L2Banks+TCBanks //pfc are clients
+  val NetPorts  = if(Managers>Clients) Managers else Clients
 }
 
 abstract class PFCModule(implicit val p: Parameters) extends Module with HasPFCParameters
-abstract class PFCBundle(implicit val p: Parameters) extends Bundle with HasPFCParameters
+abstract class PFCBundle(implicit val p: Parameters) extends ParameterizedBundle()(p) with HasPFCParameters
 
 object PerFormanceCounter {
   def apply(op: UInt, n: Int): UInt = {
@@ -96,25 +104,31 @@ class PrivatePerform extends Bundle {
 
 //class SharePerform(implicit val p: Parameters) extends PFCBundle { //WRONG
 //  val L2D = Vec(L2DBanks, new L2DCachePerform)
-class SharePerform(implicit val p: Parameters) extends Bundle {
-  val L2D = Vec(p(PFCL2N), new L2CachePerform)
+class SharePerform(implicit p: Parameters) extends PFCBundle()(p) {
+  val L2D = Vec(L2Banks, new L2CachePerform)
   val TAG = new TagCachePerform()
 }
 
-class PFCReq extends Bundle {
+class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
+ val src      = UInt(width=log2Up(NetPorts))
+ val dst      = UInt(width=log2Up(NetPorts))
  val cmd      = Bits(width=2) //00:read 01:acquire
  val addr     = Bits(width=6)
  val groupID  = Bits(width=4) //0001:PrivatePFC 0010:SharePFC others:reserve
  val subGroID = Bits(width=4)
  //for PrivatePFC 0001:L1I 0010:L1D
  //for SharePFC   0001:L2  0010:TC
+ def hasMultibeatData(dummy: Int = 0): Bool = Bool(false)
 }
 
-class PFCResp extends Bundle {
-  val data = UInt(width=64)
+class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
+  val src     = UInt(width=log2Up(NetPorts))
+  val dst     = UInt(width=log2Up(NetPorts))
+  val data    = UInt(width=64)
+  def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
 
-class PrivatePFC extends Module {
+class PrivatePFC(implicit p: Parameters) extends PFCModule()(p) {
   val io = new Bundle {
     val req = Valid(new PFCReq()).flip() //req from csr
     val resp = Valid(new PFCResp()) //resp to csr
@@ -171,14 +185,13 @@ class PrivatePFC extends Module {
  }
 }
 
-class SharePFC(implicit val p: Parameters) extends Module {
+class SharePFC(implicit p: Parameters) extends PFCModule()(p) {
   val io = new Bundle {
     val req = Valid(new PFCReq()).flip() //req from csr
     val resp = Valid(new PFCResp()) //resp to csr
     val update = new SharePerform()
   }
 
-  val L2Banks = p(PFCL2N)
   require(L2Banks<=8)
 
   val groupMatch = io.req.valid && io.req.bits.groupID === UInt(2) //4'b0010
@@ -334,4 +347,52 @@ class SharePFC(implicit val p: Parameters) extends Module {
       if (L2Banks > 7) l2pfc_muxed := Reg_l2pfcs(7).write_back
     }
   }
+}
+
+class PFCClientIO(implicit p: Parameters) extends PFCBundle()(p) {
+  val req = Decoupled(new PFCReq()).flip()
+  val resp = Decoupled(new PFCResp())
+}
+
+class PFCManagerIO(implicit p: Parameters) extends PFCBundle()(p) {
+  val req = Decoupled(new PFCReq())
+  val resp = Decoupled(new PFCResp()).flip()
+}
+
+class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
+  val io  = new Bundle {
+    val clients  = Vec(Clients, new PFCClientIO())
+    val managers = Vec(Managers, new PFCManagerIO())
+  }
+  val reqNet  = Module(new BasicCrossbar(NetPorts, new PFCReq, count=1, Some((req: PhysicalNetworkIO[PFCReq]) => req.payload.hasMultibeatData())))
+  val respNet = Module(new BasicCrossbar(NetPorts, new PFCResp, count=1, Some((resp: PhysicalNetworkIO[PFCResp]) => resp.payload.hasMultibeatData())))
+
+  //csr <> Net
+  (0 until Clients).map(i =>{
+    //Csr.pfcreq to reqNet.in
+    reqNet.io.in(i).valid             := io.clients(i).req.valid
+    io.clients(i).req.ready           := reqNet.io.in(i).ready
+    reqNet.io.in(i).bits.payload      := io.clients(i).req.bits
+    reqNet.io.in(i).bits.header.src   := io.clients(i).req.bits.src
+    reqNet.io.in(i).bits.header.dst   := io.clients(i).req.bits.dst
+    //respNet.out to Csr.pfcresp
+    io.clients(i).resp.valid          := respNet.io.out(i).valid
+    respNet.io.out(i).ready           := io.clients(i).resp.ready
+    io.clients(i).resp.bits           := respNet.io.out(i).bits.payload
+  })
+
+  //pfc <> Net
+  (0 until Managers).map(i => {
+    //reqNet.out to pfc.req
+    io.managers(i).req.valid          := reqNet.io.out(i).valid
+    reqNet.io.out(i).ready             := io.managers(i).req.ready
+    io.managers(i).req.bits           := reqNet.io.out(i).bits.payload
+    //pfc.resp to respNet.in
+    respNet.io.in(i).valid            := io.managers(i).resp.valid
+    io.managers(i).resp.ready         := respNet.io.in(i).ready
+    respNet.io.in(i).bits.payload     := io.managers(i).resp.bits
+    respNet.io.in(i).bits.header.src  := io.managers(i).resp.bits.src
+    respNet.io.in(i).bits.header.dst  := io.managers(i).resp.bits.dst
+  })
+
 }
