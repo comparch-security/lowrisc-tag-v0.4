@@ -1069,9 +1069,9 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
 {
   val io = new TCManagerTLIOwithPFC
 
-  val meta      = Module(new TCMetadataArray)
-  val data      = Module(new TCDataArray)
-  val pfc       = Reg(new TagCachePerform)
+  val meta        = Module(new TCMetadataArray)
+  val data        = Module(new TCDataArray)
+  val pfc         = Module(new TCPFCManager)
 
   val relTrackers =
     (0                      until nMemReleaseTransactors).map(id => Module(new TCMemReleaseTracker(id)))
@@ -1215,22 +1215,22 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   doTcInputRouting(wb.io.xact.resp, tagTrackers.map(_.io.wb.resp), nMemTransactors)
 
   //pfc
-  io.pfc := pfc
-  pfc.readTT        := tagTrackers.map(_.io.pfc.readTT).reduce(_||_)
-  pfc.readTT_miss   := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
-  pfc.writeTT       := tagTrackers.map(_.io.pfc.writeTT).reduce(_||_)
-  pfc.writeTT_miss  := tagTrackers.map(_.io.pfc.writeTT_miss).reduce(_||_)
-  pfc.writeTT_back  := tagTrackers.map(_.io.pfc.writeTT_back).reduce(_||_)
-  pfc.readTM0       := tagTrackers.map(_.io.pfc.readTM0).reduce(_||_)
-  pfc.readTM0_miss  := tagTrackers.map(_.io.pfc.readTM0_miss).reduce(_||_)
-  pfc.writeTM0      := tagTrackers.map(_.io.pfc.writeTM0).reduce(_||_)
-  pfc.writeTM0_miss := tagTrackers.map(_.io.pfc.writeTM0_miss).reduce(_||_)
-  pfc.writeTM0_back := tagTrackers.map(_.io.pfc.writeTM0_back).reduce(_||_)
-  pfc.readTM1       := tagTrackers.map(_.io.pfc.readTM1).reduce(_||_)
-  pfc.readTM1_miss  := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
-  pfc.writeTM1      := tagTrackers.map(_.io.pfc.writeTM1).reduce(_||_)
-  pfc.writeTM1_miss := tagTrackers.map(_.io.pfc.writeTM1_miss).reduce(_||_)
-  pfc.writeTM1_back := tagTrackers.map(_.io.pfc.writeTM1_back).reduce(_||_)
+  io.pfcmanager <> pfc.io.manager
+  pfc.io.update.readTT        := tagTrackers.map(_.io.pfc.readTT).reduce(_||_)
+  pfc.io.update.readTT_miss   := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
+  pfc.io.update.writeTT       := tagTrackers.map(_.io.pfc.writeTT).reduce(_||_)
+  pfc.io.update.writeTT_miss  := tagTrackers.map(_.io.pfc.writeTT_miss).reduce(_||_)
+  pfc.io.update.writeTT_back  := tagTrackers.map(_.io.pfc.writeTT_back).reduce(_||_)
+  pfc.io.update.readTM0       := tagTrackers.map(_.io.pfc.readTM0).reduce(_||_)
+  pfc.io.update.readTM0_miss  := tagTrackers.map(_.io.pfc.readTM0_miss).reduce(_||_)
+  pfc.io.update.writeTM0      := tagTrackers.map(_.io.pfc.writeTM0).reduce(_||_)
+  pfc.io.update.writeTM0_miss := tagTrackers.map(_.io.pfc.writeTM0_miss).reduce(_||_)
+  pfc.io.update.writeTM0_back := tagTrackers.map(_.io.pfc.writeTM0_back).reduce(_||_)
+  pfc.io.update.readTM1       := tagTrackers.map(_.io.pfc.readTM1).reduce(_||_)
+  pfc.io.update.readTM1_miss  := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
+  pfc.io.update.writeTM1      := tagTrackers.map(_.io.pfc.writeTM1).reduce(_||_)
+  pfc.io.update.writeTM1_miss := tagTrackers.map(_.io.pfc.writeTM1_miss).reduce(_||_)
+  pfc.io.update.writeTM1_back := tagTrackers.map(_.io.pfc.writeTM1_back).reduce(_||_)
 }
 
 

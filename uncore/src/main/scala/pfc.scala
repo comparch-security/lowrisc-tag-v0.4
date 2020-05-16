@@ -466,6 +466,13 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   }
 
   val pfcManager = Module(new PFCManager(10))
+  io.manager <> pfcManager.io.manager
+  pfcManager.io.firstCouID := UInt(0)
+  pfcManager.io.lastCouID  := UInt(7)
+  when(io.manager.req.bits.subGroID === UInt(1)) {
+    pfcManager.io.firstCouID := UInt(8)
+    pfcManager.io.lastCouID  := UInt(9)
+  }
   pfcManager.io.update(0) := io.update.readTT
   pfcManager.io.update(1) := io.update.readTT_miss
   pfcManager.io.update(2) := io.update.writeTT

@@ -38,8 +38,8 @@ abstract class Tile(resetSignal: Bool = null)
     val prci = new PRCITileIO().flip
     val dma = new DmaIO
 
-    val sharepfc_req = Valid(new PFCReq())
-    val sharepfc_resp = Valid(new PFCResp()).flip()
+    val pfcclient  = new PFCClientIO()
+    val pfcmanager = new PFCManagerIO()
   }
 }
 
@@ -162,12 +162,8 @@ class RocketTile(id: Int = 0, resetSignal: Bool = null)(implicit p: Parameters) 
   io.dbgrst <> core.io.dbgrst
 
   //pfc
-  val privatePFC = Module(new PrivatePFC())
-  privatePFC.io.update.L1I := icache.io.pfc
-  privatePFC.io.update.L1D := dcache.io.pfc
-  privatePFC.io.req <> core.io.pfc_req(0)
-  core.io.pfc_resp(0) <> privatePFC.io.resp
-  io.sharepfc_req <> core.io.pfc_req(1)
-  core.io.pfc_resp(1) <> io.sharepfc_resp
-
+  val pfc = Module(new TilePFCManager())
+  io.pfcmanager <> pfc.io.manager
+  pfc.io.update.L1I := icache.io.pfc
+  pfc.io.update.L1D := dcache.io.pfc
 }

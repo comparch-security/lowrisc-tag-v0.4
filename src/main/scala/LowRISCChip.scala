@@ -124,7 +124,6 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   println("Generated Configuration String")
   println(new String(p(ConfigString)))
 
-  val sharePFC = Module(new SharePFC())
   ////////////////////////////////////////////
   // Rocket Tiles
   val tileList = (0 until nTiles) map ( i => Module(new RocketTile(i, reset || io.cpu_rst)(rocketParams)))
@@ -182,10 +181,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   coherent_net.io.managers <> managerEndpoints.map(_.innerTL) :+ mmioManager.io.inner
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
   if(p(UsePFC)) {
-    sharePFC.io.req <> tileList(0).io.sharepfc_req
-    tileList(0).io.sharepfc_resp <> sharePFC.io.resp
     if (p(UseL2Cache)) {
-      (0 until nBanks).map(i => sharePFC.io.update.L2D(i) := managerEndpoints(i).pfc)
     }
   }
 
@@ -205,7 +201,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
       case InnerTLId => memNetParams(TLId)
       case OuterTLId => memConvParams(TLId)
     })))
-    if(p(UsePFC)) { sharePFC.io.update.TAG := tc.io.pfc }
+    if(p(UsePFC)) {  }
     tc.io.inner <> mem_net.io.out(0)
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
   } else {
