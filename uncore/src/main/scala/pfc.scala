@@ -5,6 +5,7 @@ package uncore
 import Chisel._
 import cde.{Parameters, Field}
 import junctions._
+import scala.math.{min, max}
 
 case object PFCL2N extends Field[Int]
 
@@ -16,8 +17,10 @@ trait HasPFCParameters {
   val L2Banks   = p(PFCL2N) //Can't use p(NBanks)
   val TCBanks   = 1
   val Clients   = Csrs
-  val Managers  = L1s+L2Banks+TCBanks //pfc are clients
+  val Managers  = L1s+L2Banks+TCBanks //pfc managers
   val NetPorts  = if(Managers>Clients) Managers else Clients
+  val MaxBeats  = 8
+  val MaxCounters = 64
 }
 
 abstract class PFCModule(implicit val p: Parameters) extends Module with HasPFCParameters
@@ -98,6 +101,16 @@ class TagCachePerformCounter extends Bundle {
 }
 
 class PrivatePerform extends Bundle {
+  val L1I = new L1ICachePerform()
+  val L1D = new L1DCachePerform()
+}
+
+class TileCachePerformIO extends Bundle {
+  val L1I = new L1ICachePerform()
+  val L1D = new L1DCachePerform()
+}
+
+class TilePerform extends Bundle {
   val L1I = new L1ICachePerform()
   val L1D = new L1DCachePerform()
 }
@@ -350,19 +363,125 @@ class SharePFC(implicit p: Parameters) extends PFCModule()(p) {
 }
 
 class PFCClientIO(implicit p: Parameters) extends PFCBundle()(p) {
-  val req = Decoupled(new PFCReq()).flip()
-  val resp = Decoupled(new PFCResp())
-}
-
-class PFCManagerIO(implicit p: Parameters) extends PFCBundle()(p) {
   val req = Decoupled(new PFCReq())
   val resp = Decoupled(new PFCResp()).flip()
 }
 
+class PFCManagerIO(implicit p: Parameters) extends PFCBundle()(p) {
+  val req = Decoupled(new PFCReq()).flip()
+  val resp = Decoupled(new PFCResp())
+}
+
+class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) {
+  val io = new Bundle {
+    val manager = new PFCManagerIO()
+    val update = Vec(nCounters, UInt(width=2, dir=INPUT))
+    val firstCouID = UInt(width=log2Up(MaxCounters), dir=INPUT)
+    val lastCouID  = UInt(width=log2Up(MaxCounters), dir=INPUT)
+  }
+
+  val s_IDLE :: s_RESP :: Nil = Enum(UInt(), 2)
+  val req_reg = Reg(new PFCReq())
+  val state = Reg(init = s_IDLE)
+  val counterID     = Reg(UInt(width=log2Up(nCounters)))
+  val lastCouID     = Reg(UInt(width=log2Up(nCounters)))
+  val resp_done     = Reg(Bool())
+  val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
+
+  (0 until nCounters).map(i => {
+    pfcounters(i) := PerFormanceCounter(io.update(i), 64)
+  })
+
+  io.manager.req.ready       := state === s_IDLE
+  io.manager.resp.valid      := state === s_RESP && !resp_done
+  io.manager.resp.bits.dst   := req_reg.src
+  io.manager.resp.bits.data  := pfcounters(counterID)
+
+  when(io.manager.req.fire()) {
+    req_reg   := io.manager.req.bits
+    if(nCounters <= MaxBeats) {
+      counterID := UInt(0)
+      lastCouID := UInt(nCounters-1)
+    }
+    else {
+      counterID := io.firstCouID
+      lastCouID := io.lastCouID
+    }
+  }
+  when(io.manager.resp.fire()) {
+    counterID := counterID+UInt(1)
+    resp_done := counterID === lastCouID
+  }
+
+  when(state === s_IDLE && io.manager.req.fire()) {
+    state := s_RESP
+  }
+  when(state === s_RESP && resp_done) {
+    state := s_IDLE
+  }
+
+  if(nCounters > MaxBeats) {
+    assert(io.lastCouID > io.firstCouID && (io.lastCouID - io.firstCouID) <= UInt(MaxBeats)|| !io.manager.req.fire(),
+          s"Resp data need Beats more than MaxBeats=$MaxBeats!")
+  }
+}
+
+class TilePFCManager(implicit p: Parameters) extends PFCModule()(p) {
+  val io = new Bundle {
+    val manager = new PFCManagerIO()
+    val update  = new TilePerform()
+  }
+
+  val pfcManager = Module(new PFCManager(7))
+  io.manager <> pfcManager.io.manager
+  //L1I
+  pfcManager.io.update(0) := io.update.L1I.read
+  pfcManager.io.update(1) := io.update.L1I.read_miss
+  //L1D
+  pfcManager.io.update(2) := io.update.L1D.read
+  pfcManager.io.update(3) := io.update.L1D.read_miss
+  pfcManager.io.update(4) := io.update.L1D.write
+  pfcManager.io.update(5) := io.update.L1D.write_miss
+  pfcManager.io.update(6) := io.update.L1D.write_back
+}
+
+class L2BankPFCManager(implicit p: Parameters) extends PFCModule()(p) {
+  val io = new Bundle {
+    val manager = new PFCManagerIO()
+    val update  = new L2CachePerform()
+  }
+
+  val pfcManager = Module(new PFCManager(4))
+  io.manager <> pfcManager.io.manager
+  pfcManager.io.update(0) := io.update.read
+  pfcManager.io.update(1) := io.update.read_miss
+  pfcManager.io.update(2) := io.update.write
+  pfcManager.io.update(3) := io.update.write_back
+}
+
+class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
+  val io = new Bundle {
+    val manager = new PFCManagerIO()
+    val update  = new TagCachePerform()
+  }
+
+  val pfcManager = Module(new PFCManager(10))
+  pfcManager.io.update(0) := io.update.readTT
+  pfcManager.io.update(1) := io.update.readTT_miss
+  pfcManager.io.update(2) := io.update.writeTT
+  pfcManager.io.update(3) := io.update.writeTT_miss
+  pfcManager.io.update(4) := io.update.writeTT_back
+  pfcManager.io.update(5) := io.update.readTM0
+  pfcManager.io.update(6) := io.update.readTM0_miss
+  pfcManager.io.update(7) := io.update.writeTM0
+  pfcManager.io.update(8) := io.update.writeTM0_miss
+  pfcManager.io.update(9) := io.update.writeTM0_back
+}
+
 class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
   val io  = new Bundle {
-    val clients  = Vec(Clients, new PFCClientIO())
-    val managers = Vec(Managers, new PFCManagerIO())
+    val clients  = Vec(Clients, new PFCClientIO()).flip()
+    val managers = Vec(Managers, new PFCManagerIO()).flip()
   }
   val reqNet  = Module(new BasicCrossbar(NetPorts, new PFCReq, count=1, Some((req: PhysicalNetworkIO[PFCReq]) => req.payload.hasMultibeatData())))
   val respNet = Module(new BasicCrossbar(NetPorts, new PFCResp, count=1, Some((resp: PhysicalNetworkIO[PFCResp]) => resp.payload.hasMultibeatData())))
@@ -385,7 +504,7 @@ class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
   (0 until Managers).map(i => {
     //reqNet.out to pfc.req
     io.managers(i).req.valid          := reqNet.io.out(i).valid
-    reqNet.io.out(i).ready             := io.managers(i).req.ready
+    reqNet.io.out(i).ready            := io.managers(i).req.ready
     io.managers(i).req.bits           := reqNet.io.out(i).bits.payload
     //pfc.resp to respNet.in
     respNet.io.in(i).valid            := io.managers(i).resp.valid

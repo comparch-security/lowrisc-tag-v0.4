@@ -693,12 +693,6 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   io.rocc.cmd.bits.rs1 := wb_reg_wdata
   io.rocc.cmd.bits.rs2 := wb_reg_rs2
 
-  //PFC
-  (0 until 2).foreach(i => {
-    io.pfc_req(i) <> csr.io.pfc_req(i)
-    csr.io.pfc_resp(i) <> io.pfc_resp(i)
-  })
-
   if (emitLog) {
     if (enableCommitLog) {
       val pc = Wire(SInt(width=xLen))

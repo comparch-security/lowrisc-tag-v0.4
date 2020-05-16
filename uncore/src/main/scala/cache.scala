@@ -407,19 +407,21 @@ class L2HellaCacheBank(implicit p: Parameters) extends HierarchicalCoherenceAgen
   val cache_writeback   =  RegNext(next = io.outer.release.fire() && io.outer.release.bits.addr_beat === UInt(0))
   val uncache_writeback =  RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.addr_beat === UInt(0) &&
                                   io.outer.acquire.bits.hasData() && !io.outer.acquire.bits.allocate())
-  io.pfc.read        := RegNext(next = io.inner.acquire.fire() && !io.inner.acquire.bits.hasData())
-  io.pfc.read_miss   := RegNext(next = io.outer.acquire.fire() && !io.outer.acquire.bits.hasData())
-  io.pfc.write       := RegNext(next = Cat(UInt(0),cache_write) + uncache_write)
-  io.pfc.write_back  := RegNext(next = Cat(UInt(0),cache_writeback) + uncache_writeback)
 
   val meta = Module(new L2MetadataArray) // TODO: add delay knob
   val data = Module(new L2DataArray(1))
   val tshrfile = Module(new TSHRFile)
+  val l2bankpfc = Module(new L2BankPFCManager())
   io.inner <> tshrfile.io.inner
   io.outer <> tshrfile.io.outer
   tshrfile.io.incoherent <> io.incoherent
   meta.io <> tshrfile.io.meta
   data.io <> tshrfile.io.data
+
+  l2bankpfc.io.update.read        := RegNext(next = io.inner.acquire.fire() && !io.inner.acquire.bits.hasData())
+  l2bankpfc.io.update.read_miss   := RegNext(next = io.outer.acquire.fire() && !io.outer.acquire.bits.hasData())
+  l2bankpfc.io.update.write       := RegNext(next = Cat(UInt(0),cache_write) + uncache_write)
+  l2bankpfc.io.update.write_back  := RegNext(next = Cat(UInt(0),cache_writeback) + uncache_writeback)
 }
 
 class TSHRFileIO(implicit p: Parameters) extends HierarchicalTLIO()(p) {

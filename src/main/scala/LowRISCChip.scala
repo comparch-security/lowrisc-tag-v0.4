@@ -138,6 +138,8 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   }
   val preBuffering = TileLinkDepths(0,0,1,0,1)
   val coherent_net = Module(new PortedTileLinkCrossbar(addrToBank, sharerToClientId, preBuffering)(coherentNetParams))
+  val performc_net = Module(new PFCCrossbar())
+  performc_net.io.managers(0).resp.valid := Bool(false)
 
   coherent_net.io.clients_cached <> tileList.map(_.io.cached).flatten
   if(p(UseDebug)) {
