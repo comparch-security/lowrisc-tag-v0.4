@@ -131,7 +131,7 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle {
 
   val tag_ctrl = new TagCtrlSig().asOutput
 
-  val pfc  = new PFCClientIO()
+  val pfcclient  = new PFCClientIO()
 }
 
 class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)

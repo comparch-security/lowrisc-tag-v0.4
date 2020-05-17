@@ -166,4 +166,5 @@ class RocketTile(id: Int = 0, resetSignal: Bool = null)(implicit p: Parameters) 
   io.pfcmanager <> pfc.io.manager
   pfc.io.update.L1I := icache.io.pfc
   pfc.io.update.L1D := dcache.io.pfc
+  io.pfcclient <> core.io.pfcclient
 }

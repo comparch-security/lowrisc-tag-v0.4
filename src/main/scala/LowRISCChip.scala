@@ -181,7 +181,19 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   coherent_net.io.managers <> managerEndpoints.map(_.innerTL) :+ mmioManager.io.inner
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
   if(p(UsePFC)) {
+    (0 until nTiles).map(i => {
+      performc_net.io.clients(i)  <> tileList(i).io.pfcclient
+      performc_net.io.managers(i).req  <> tileList(i).io.pfcmanager.req
+      //performc_net.io.managers(i).resp <> tileList(i).io.pfcmanager.resp
+      //tileList(i).io.pfcmanager.resp <> performc_net.io.managers(i).resp
+      performc_net.io.managers(i).resp.bits  :=  tileList(i).io.pfcmanager.resp.bits
+      performc_net.io.managers(i).resp.valid :=  tileList(i).io.pfcmanager.resp.valid
+      tileList(i).io.pfcmanager.resp.ready   := performc_net.io.managers(i).resp.ready
+    })
     if (p(UseL2Cache)) {
+      (0 until nBanks).map(i => {
+        performc_net.io.managers(i+nTiles) <> managerEndpoints(i).pfcmanager
+      })
     }
   }
 
@@ -201,7 +213,10 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
       case InnerTLId => memNetParams(TLId)
       case OuterTLId => memConvParams(TLId)
     })))
-    if(p(UsePFC)) {  }
+    if(p(UsePFC)) {
+      if (p(UseL2Cache)) { performc_net.io.managers(nTiles + nBanks) <> tc.io.pfcmanager }
+      else { performc_net.io.managers(nTiles) <> tc.io.pfcmanager }
+    }
     tc.io.inner <> mem_net.io.out(0)
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
   } else {
