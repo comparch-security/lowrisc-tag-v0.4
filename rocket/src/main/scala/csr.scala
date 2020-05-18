@@ -564,6 +564,33 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     io.tag_ctrl := new TagCtrlSig().fromBits(UInt(0,xLen))
   }
   if (usingPFC) {
+    val read_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
+    val resp_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
+    val resp_data  = Reg(Vec(log2Up(io.pfcclient.req.bits.MaxBeats), UInt(width=64)))
+    val resp_done  = Reg(Bool())
+    io.pfcclient.req.valid     := reg_pfcc(63)
+    io.pfcclient.req.bits.src  := UInt(id)
+    io.pfcclient.req.bits.dst  := reg_pfcc(4,0)
+    io.pfcclient.req.bits.subGroID := reg_pfcc(9,5)
+    io.pfcclient.resp.ready := Bool(false)
+   when(io.pfcclient.req.fire()) {
+     read_coun := UInt(0)
+     resp_coun := UInt(0)
+     resp_done := Bool(false)
+     reg_pfcc  := Cat(UInt(63), reg_pfcc(62,0))
+   }
+    when(io.pfcclient.resp.valid) {
+      resp_coun := read_coun+UInt(1)
+      resp_data(read_coun) := io.pfcclient.resp.bits.data
+      resp_done := io.pfcclient.resp.bits.last
+      reg_pfcr  := Cat(io.pfcclient.resp.bits.last, reg_pfcr(62,resp_coun.getWidth()), resp_coun)
+    }
+    when(resp_done) {
+      when(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R) {
+        read_coun := read_coun+UInt(1)
+        reg_pfcr  := resp_data(read_coun)
+      }
+    }
   }
 
   def writeCounter(lo: Int, ctr: WideCounter, wdata: UInt) = {

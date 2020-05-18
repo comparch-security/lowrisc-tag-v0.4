@@ -138,7 +138,6 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   val preBuffering = TileLinkDepths(0,0,1,0,1)
   val coherent_net = Module(new PortedTileLinkCrossbar(addrToBank, sharerToClientId, preBuffering)(coherentNetParams))
   val performc_net = Module(new PFCCrossbar())
-  performc_net.io.managers(0).resp.valid := Bool(false)
 
   coherent_net.io.clients_cached <> tileList.map(_.io.cached).flatten
   if(p(UseDebug)) {
@@ -183,12 +182,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   if(p(UsePFC)) {
     (0 until nTiles).map(i => {
       performc_net.io.clients(i)  <> tileList(i).io.pfcclient
-      performc_net.io.managers(i).req  <> tileList(i).io.pfcmanager.req
-      //performc_net.io.managers(i).resp <> tileList(i).io.pfcmanager.resp
-      //tileList(i).io.pfcmanager.resp <> performc_net.io.managers(i).resp
-      performc_net.io.managers(i).resp.bits  :=  tileList(i).io.pfcmanager.resp.bits
-      performc_net.io.managers(i).resp.valid :=  tileList(i).io.pfcmanager.resp.valid
-      tileList(i).io.pfcmanager.resp.ready   := performc_net.io.managers(i).resp.ready
+      performc_net.io.managers(i)  <> tileList(i).io.pfcmanager
     })
     if (p(UseL2Cache)) {
       (0 until nBanks).map(i => {

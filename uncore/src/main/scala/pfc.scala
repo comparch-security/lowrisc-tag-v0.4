@@ -137,6 +137,7 @@ class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
 class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
   val src     = UInt(width=log2Up(NetPorts))
   val dst     = UInt(width=log2Up(NetPorts))
+  val last    = Bool()
   val data    = UInt(width=64)
   def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
@@ -385,7 +386,7 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   val state = Reg(init = s_IDLE)
   val counterID     = Reg(UInt(width=log2Up(nCounters)))
   val lastCouID     = Reg(UInt(width=log2Up(nCounters)))
-  val resp_done     = Reg(Bool())
+  val resp_done     = Reg(Bool(false))
   val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
 
   (0 until nCounters).map(i => {
@@ -396,6 +397,7 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   io.manager.resp.valid      := state === s_RESP && !resp_done
   io.manager.resp.bits.dst   := req_reg.src
   io.manager.resp.bits.data  := pfcounters(counterID)
+  io.manager.resp.bits.last  := counterID === lastCouID
 
   when(io.manager.req.fire()) {
     req_reg   := io.manager.req.bits
@@ -465,13 +467,13 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
     val update  = new TagCachePerform()
   }
 
-  val pfcManager = Module(new PFCManager(10))
+  val pfcManager = Module(new PFCManager(15))
   io.manager <> pfcManager.io.manager
   pfcManager.io.firstCouID := UInt(0)
   pfcManager.io.lastCouID  := UInt(7)
   when(io.manager.req.bits.subGroID === UInt(1)) {
     pfcManager.io.firstCouID := UInt(8)
-    pfcManager.io.lastCouID  := UInt(9)
+    pfcManager.io.lastCouID  := UInt(14)
   }
   pfcManager.io.update(0) := io.update.readTT
   pfcManager.io.update(1) := io.update.readTT_miss
@@ -483,6 +485,11 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(7) := io.update.writeTM0
   pfcManager.io.update(8) := io.update.writeTM0_miss
   pfcManager.io.update(9) := io.update.writeTM0_back
+  pfcManager.io.update(10) := io.update.readTM1
+  pfcManager.io.update(11) := io.update.readTM1_miss
+  pfcManager.io.update(12) := io.update.writeTM1
+  pfcManager.io.update(13) := io.update.writeTM1_miss
+  pfcManager.io.update(14) := io.update.writeTM1_back
 }
 
 class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
