@@ -572,18 +572,18 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := reg_pfcc(4,0)
     io.pfcclient.req.bits.subGroID := reg_pfcc(9,5)
-    io.pfcclient.resp.ready := Bool(false)
+    io.pfcclient.resp.ready := Bool(true)
    when(io.pfcclient.req.fire()) {
      read_coun := UInt(0)
      resp_coun := UInt(0)
      resp_done := Bool(false)
-     reg_pfcc  := Cat(UInt(63), reg_pfcc(62,0))
    }
     when(io.pfcclient.resp.valid) {
       resp_coun := read_coun+UInt(1)
       resp_data(read_coun) := io.pfcclient.resp.bits.data
       resp_done := io.pfcclient.resp.bits.last
-      reg_pfcr  := Cat(io.pfcclient.resp.bits.last, reg_pfcr(62,resp_coun.getWidth()), resp_coun)
+      reg_pfcc  := Cat(UInt(0, width=(62-resp_coun.getWidth())),
+                       io.pfcclient.resp.bits.last, resp_coun)
     }
     when(resp_done) {
       when(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R) {
