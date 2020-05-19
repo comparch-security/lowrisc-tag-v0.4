@@ -567,18 +567,17 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val read_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
     val resp_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
     val resp_data  = Reg(Vec(io.pfcclient.req.bits.MaxBeats, UInt(width=io.pfcclient.resp.bits.data.getWidth())))
-    val resp_done  = Reg(Bool())
+    val resp_done  = reg_pfcc(36)
     io.pfcclient.req.valid     := reg_pfcc(63)
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := reg_pfcc(4,0)
     io.pfcclient.req.bits.subGroID := reg_pfcc(9,5)
     io.pfcclient.resp.ready := Bool(true)
-   when(io.pfcclient.req.fire()) {
-     read_coun := UInt(0)
-     resp_coun := UInt(0)
-     resp_done := Bool(false)
-   }
+    when(io.pfcclient.req.fire()) {
+      resp_coun := UInt(0)
+    }
     when(io.pfcclient.resp.valid) {
+      read_coun := UInt(0)
       resp_coun := read_coun+UInt(1)
       resp_data(read_coun) := io.pfcclient.resp.bits.data
       resp_done := io.pfcclient.resp.bits.last
