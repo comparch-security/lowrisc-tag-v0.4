@@ -121,7 +121,6 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   val state = Reg(init = s_IDLE)
   val counterID     = Reg(UInt(width=log2Up(nCounters)))
   val lastCouID     = Reg(UInt(width=log2Up(nCounters)))
-  val resp_done     = Reg(Bool(false))
   val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
 
   (0 until nCounters).map(i => {
@@ -129,7 +128,7 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   })
 
   io.manager.req.ready       := state === s_IDLE
-  io.manager.resp.valid      := state === s_RESP && !resp_done
+  io.manager.resp.valid      := state === s_RESP
   io.manager.resp.bits.dst   := req_reg.src
   io.manager.resp.bits.data  := pfcounters(counterID)
   io.manager.resp.bits.last  := counterID === lastCouID
@@ -147,13 +146,12 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   }
   when(io.manager.resp.fire()) {
     counterID := counterID+UInt(1)
-    resp_done := counterID === lastCouID
   }
 
   when(state === s_IDLE && io.manager.req.fire()) {
     state := s_RESP
   }
-  when(state === s_RESP && resp_done) {
+  when(state === s_RESP && io.manager.resp.fire() && io.manager.resp.bits.last) {
     state := s_IDLE
   }
 
