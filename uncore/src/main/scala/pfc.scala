@@ -128,15 +128,12 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   val io = new Bundle {
     val manager = new PFCManagerIO()
     val update = Vec(nCounters, UInt(width=2, dir=INPUT))
-    val firstCouID = UInt(width=log2Up(MaxCounters), dir=INPUT)
-    val lastCouID  = UInt(width=log2Up(MaxCounters), dir=INPUT)
   }
 
   val s_IDLE :: s_RESP :: Nil = Enum(UInt(), 2)
   val req_reg = Reg(new PFCReq())
   val state = Reg(init = s_IDLE)
   val counterID     = Reg(UInt(width=log2Up(nCounters)))
-  val lastCouID     = Reg(UInt(width=log2Up(nCounters)))
   val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
   val bitmap        = Reg(UInt(width=nCounters))
   val rmleastO      = Wire(UInt(width=nCounters)) //remove least one in bitmap
@@ -150,8 +147,9 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   io.manager.req.ready       := state === s_IDLE
   io.manager.resp.valid      := state === s_RESP
   io.manager.resp.bits.dst   := req_reg.src
-  io.manager.resp.bits.data  := pfcounters(raddr)
-  io.manager.resp.bits.last  := counterID === UInt(MaxBeats)
+  io.manager.resp.bits.data  := Mux(io.manager.resp.bits.last, bitmap, pfcounters(raddr))
+  io.manager.resp.bits.last  := raddr === UInt(nCounters)
+  if(nCounters>MaxBeats) io.manager.resp.bits.last  := raddr === UInt(nCounters) || counterID === UInt(MaxBeats)
   io.manager.resp.bits.programID  := req_reg.programID
 
   when(io.manager.req.fire()) {
@@ -171,10 +169,6 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
     state := s_IDLE
   }
 
-  if(nCounters > MaxBeats) {
-    assert(io.lastCouID > io.firstCouID && (io.lastCouID - io.firstCouID) <= UInt(MaxBeats)|| !io.manager.req.fire(),
-          s"Resp data need Beats more than MaxBeats=$MaxBeats!")
-  }
 }
 
 class TilePFCManager(implicit p: Parameters) extends PFCModule()(p) {
@@ -218,8 +212,6 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
 
   val pfcManager = Module(new PFCManager(15))
   io.manager <> pfcManager.io.manager
-  pfcManager.io.firstCouID := UInt(0)
-  pfcManager.io.lastCouID  := UInt(7)
   pfcManager.io.update(0) := io.update.readTT
   pfcManager.io.update(1) := io.update.readTT_miss
   pfcManager.io.update(2) := io.update.writeTT
