@@ -84,17 +84,20 @@ class TilePerform extends Bundle {
 }
 
 class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
- val src      = UInt(width=log2Up(NetPorts))
- val dst      = UInt(width=log2Up(NetPorts))
- val subGroID = Bits(width=4)
+ val src      = UInt(width=log2Up(Clients))
+ val dst      = UInt(width=log2Up(Managers)) //groupID
+ val map      = Bits(width=64)
+ val groupID    = Bits(width=4)
+ val programID  = Bits(width=4)
  def hasMultibeatData(dummy: Int = 0): Bool = Bool(false)
 }
 
 class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
-  val src     = UInt(width=log2Up(NetPorts))
-  val dst     = UInt(width=log2Up(NetPorts))
-  val last    = Bool() //indicate the last resp beats
-  val data    = UInt(width=64)
+  val src     = UInt(width=log2Up(Managers)) //groupID
+  val dst     = UInt(width=log2Up(Clients))
+  val first   = Bool() //indicate the first resp beat
+  val last    = Bool() //indicate the last resp beat
+  val data    = UInt(width=64) //pfc_data or map
   def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
 
@@ -204,10 +207,6 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   io.manager <> pfcManager.io.manager
   pfcManager.io.firstCouID := UInt(0)
   pfcManager.io.lastCouID  := UInt(7)
-  when(io.manager.req.bits.subGroID === UInt(1)) {
-    pfcManager.io.firstCouID := UInt(8)
-    pfcManager.io.lastCouID  := UInt(14)
-  }
   pfcManager.io.update(0) := io.update.readTT
   pfcManager.io.update(1) := io.update.readTT_miss
   pfcManager.io.update(2) := io.update.writeTT

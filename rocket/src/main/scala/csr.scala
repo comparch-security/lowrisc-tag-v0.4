@@ -572,7 +572,6 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     io.pfcclient.req.valid     := reg_pfcc(63)
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := reg_pfcc(4,0)
-    io.pfcclient.req.bits.subGroID := reg_pfcc(9,5)
     io.pfcclient.resp.ready := Bool(true)
     when(io.pfcclient.resp.valid) {
       read_coun := UInt(0)
