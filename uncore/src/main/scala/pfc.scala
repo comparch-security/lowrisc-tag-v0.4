@@ -34,6 +34,18 @@ object PerFormanceCounter {
   }
 }
 
+/**e.g. 0001 => 0 0110 => 1 1000 => 3 0000 => 4 */
+object LeastOnePosition {
+  def apply(op: UInt, width: Int): UInt = {
+    val pos=Wire(UInt())
+    pos := UInt(op.getWidth())
+    (0 until width).map(i =>{
+      when(op(i, 0) === UInt(x=1<<i)) { pos:=UInt(i) }
+    })
+    pos
+  }
+}
+
 class L1ICachePerform extends Bundle {
   val read = Bool(INPUT)
   val read_miss = Bool(INPUT)
@@ -86,7 +98,7 @@ class TilePerform extends Bundle {
 class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
  val src      = UInt(width=log2Up(Clients))
  val dst      = UInt(width=log2Up(Managers)) //groupID
- val map      = Bits(width=64)
+ val bitmap     = Bits(width=64)
  val groupID    = Bits(width=4)
  val programID  = Bits(width=4)
  def hasMultibeatData(dummy: Int = 0): Bool = Bool(false)
@@ -98,6 +110,7 @@ class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
   val first   = Bool() //indicate the first resp beat
   val last    = Bool() //indicate the last resp beat
   val data    = UInt(width=64) //pfc_data or map
+  val programID  = Bits(width=4)
   def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
 
@@ -125,6 +138,10 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   val counterID     = Reg(UInt(width=log2Up(nCounters)))
   val lastCouID     = Reg(UInt(width=log2Up(nCounters)))
   val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
+  val bitmap        = Reg(UInt(width=nCounters))
+  val rmleastO      = Wire(UInt(width=nCounters)) //remove least one in bitmap
+  val raddr         = LeastOnePosition(bitmap, nCounters)
+  rmleastO := (bitmap(nCounters-1, 1) >> raddr) << raddr
 
   (0 until nCounters).map(i => {
     pfcounters(i) := PerFormanceCounter(io.update(i), 64)
@@ -133,22 +150,18 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   io.manager.req.ready       := state === s_IDLE
   io.manager.resp.valid      := state === s_RESP
   io.manager.resp.bits.dst   := req_reg.src
-  io.manager.resp.bits.data  := pfcounters(counterID)
-  io.manager.resp.bits.last  := counterID === lastCouID
+  io.manager.resp.bits.data  := pfcounters(raddr)
+  io.manager.resp.bits.last  := counterID === UInt(MaxBeats)
+  io.manager.resp.bits.programID  := req_reg.programID
 
   when(io.manager.req.fire()) {
     req_reg   := io.manager.req.bits
-    if(nCounters <= MaxBeats) {
-      counterID := UInt(0)
-      lastCouID := UInt(nCounters-1)
-    }
-    else {
-      counterID := io.firstCouID
-      lastCouID := io.lastCouID
-    }
+    bitmap    := io.manager.req.bits.bitmap(nCounters-1,0)
+    counterID := UInt(0)
   }
   when(io.manager.resp.fire()) {
     counterID := counterID+UInt(1)
+    bitmap := rmleastO
   }
 
   when(state === s_IDLE && io.manager.req.fire()) {
