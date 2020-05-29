@@ -578,7 +578,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val programID  = reg_pfcc(4, 1)
     io.pfcclient.req.valid     := reg_pfcc(0)
     io.pfcclient.req.bits.src  := UInt(id)
-    io.pfcclient.req.bits.dst  := reg_pfcc(59,11)
+    io.pfcclient.req.bits.dst  := reg_pfcc(59,8)
     io.pfcclient.req.bits.bitmap   := reg_pfcm
     io.pfcclient.resp.ready := Bool(true)
     when(io.pfcclient.resp.valid && io.pfcclient.resp.bits.programID === programID) {
