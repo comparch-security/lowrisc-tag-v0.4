@@ -209,6 +209,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
 
   val reg_pfcr = Reg(init=UInt(x=0, width=64)) //pfc_read
   val reg_pfcc = Reg(init=UInt(x=0, width=64)) //pfc_config
+  val reg_pfcm = Reg(init=UInt(x=0, width=64)) //pfc_map
 
   val mip = Wire(init=reg_mip)
   mip.irq := io.irq
@@ -314,6 +315,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   if(usingPFC) {
     read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
     read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
+    read_mapping += CSRs.pfcm -> (reg_pfcm,                          UInt(0)          )
   }
 
   if (xLen == 32) {
@@ -548,7 +550,10 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       when (decoded_addr(CSRs.mstagctrlen)) { reg_mstagctrlen := wdata }
     }
     if (usingPFC) {
-      when (decoded_addr(CSRs.pfcc)) { reg_pfcc := wdata }
+      when (decoded_addr(CSRs.pfcm)) { reg_pfcm := wdata }
+      when (decoded_addr(CSRs.pfcc)) {
+        reg_pfcc := Cat(wdata(63, 8), reg_pfcc(7, 4)+wdata(0), reg_pfcc(3, 0))
+      }
     }
   }
 

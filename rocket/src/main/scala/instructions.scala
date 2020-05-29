@@ -313,6 +313,7 @@ object CSRs {
   val swtrace = 0x8ff
   val pfcr = 0x402 //pfc_read
   val pfcc = 0x403 //pfc_config
+  val pfcm = 0x404 //pfc_map
   val all = {
     val res = collection.mutable.ArrayBuffer[Int]()
     res += fflags
@@ -370,6 +371,7 @@ object CSRs {
     res += swtrace
     res += pfcr
     res += pfcc
+    res += pfcm
     res.toArray
   }
   val all32 = {
