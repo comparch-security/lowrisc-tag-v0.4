@@ -552,7 +552,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     if (usingPFC) {
       when (decoded_addr(CSRs.pfcm)) { reg_pfcm := wdata }
       when (decoded_addr(CSRs.pfcc)) {
-        reg_pfcc := Cat(wdata(63, 8), reg_pfcc(7, 4)+wdata(0), reg_pfcc(3, 0))
+        reg_pfcc := Cat(wdata(63, 5), reg_pfcc(4, 1)+wdata(0), wdata(0))
       }
     }
   }
@@ -568,27 +568,34 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   } else {
     io.tag_ctrl := new TagCtrlSig().fromBits(UInt(0,xLen))
   }
-  if (usingPFC) {
+  if (usingPFC) { //pfcClient stateMachine
     require(io.pfcclient.resp.bits.MaxBeats <= 8)
     val read_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
-    val resp_coun  = reg_pfcc(34,32) //at most 8 beats for pfc resp
-    val resp_done  = reg_pfcc(35)
+    val resp_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
+    val resp_wait  = reg_pfcc(0)  //wait for all resps finished
     val resp_data  = Reg(Vec(io.pfcclient.req.bits.MaxBeats, UInt(width=io.pfcclient.resp.bits.data.getWidth())))
-    io.pfcclient.req.valid     := reg_pfcc(63)
+    //resp_data(0) store the second resp beat; resp(last_resp) store te bitmap
+    val programID  = reg_pfcc(4, 1)
+    io.pfcclient.req.valid     := reg_pfcc(0)
     io.pfcclient.req.bits.src  := UInt(id)
-    io.pfcclient.req.bits.dst  := reg_pfcc(4,0)
+    io.pfcclient.req.bits.dst  := reg_pfcc(59,11)
+    io.pfcclient.req.bits.bitmap   := reg_pfcm
     io.pfcclient.resp.ready := Bool(true)
-    when(io.pfcclient.resp.valid) {
+    when(io.pfcclient.resp.valid && io.pfcclient.resp.bits.programID === programID) {
       read_coun := UInt(0)
+      resp_coun := resp_coun+UInt(1)
       resp_data(resp_coun) := io.pfcclient.resp.bits.data
-      reg_pfcc  := Cat(UInt(0, width=29), io.pfcclient.resp.bits.last, resp_coun+UInt(1), reg_pfcc(31,0))
+      when(io.pfcclient.resp.bits.first) {
+        resp_coun := UInt(0)
+        reg_pfcr  := io.pfcclient.resp.bits.data
+      }
     }
-    when(resp_done) {
-      when(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R) {
+    when(resp_wait) { //when resp software can only read reg_pfcc CSR.W/CSR.R can not write data in reg_pfcc
+      reg_pfcc  := Cat(reg_pfcc(63, 1), Mux(io.pfcclient.resp.bits.last, UInt(0), UInt(1))) //the last beat is bitmap
+    }.elsewhen(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R) {
         read_coun := read_coun+UInt(1)
         reg_pfcr  := resp_data(read_coun)
       }
-    }
   }
 
   def writeCounter(lo: Int, ctr: WideCounter, wdata: UInt) = {
