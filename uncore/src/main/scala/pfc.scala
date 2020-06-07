@@ -34,17 +34,6 @@ object PerFormanceCounter {
   }
 }
 
-/**e.g. 0001 => 0 0110 => 1 1000 => 3 0000 => 4 */
-object LeastOnePosition {
-  def apply(op: UInt, width: Int): UInt = {
-    val pos=Wire(UInt())
-    pos := UInt(op.getWidth())
-    (0 until width).map(i =>{
-      when(op(i, 0) === UInt(x=1<<i)) { pos:=UInt(i) }
-    })
-    pos
-  }
-}
 
 class L1ICachePerform extends Bundle {
   val read = Bool(INPUT)
@@ -137,8 +126,12 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
   val bitmap        = Reg(UInt(width=nCounters))
   val rmleastO      = Wire(UInt(width=nCounters)) //remove least one in bitmap
-  val raddr         = LeastOnePosition(bitmap, nCounters)
-  rmleastO := (bitmap(nCounters-1, 1) >> raddr) << raddr
+  val raddr         = Wire(UInt(width=log2Up(nCounters)+1))
+  /**e.g. 0001=>0  0110=>1  1000=>3  0000=>4 */
+  raddr    := PriorityMux(Cat(UInt(0), bitmap), (0 until nCounters+1).map(UInt(_)))
+  /**e.g. 0101=>0100  0110=>0100  1000=>0000  0000=>0000 */
+  if(nCounters==1) rmleastO := UInt(0)
+  else rmleastO := bitmap & (UInt((1<<nCounters)-2) << raddr(log2Up(nCounters)-1,0))
 
   (0 until nCounters).map(i => {
     pfcounters(i) := PerFormanceCounter(io.update(i), 64)
