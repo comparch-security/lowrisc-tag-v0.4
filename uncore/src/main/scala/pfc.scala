@@ -87,10 +87,11 @@ class TilePerform extends Bundle {
 class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
  val src      = UInt(width=log2Up(Clients))
  val dst      = UInt(width=log2Up(Managers)) //groupID
+ val cmd        = Bits(width=4)
  val bitmap     = Bits(width=64)
  val groupID    = Bits(width=4)
  val programID  = Bits(width=4)
- def hasMultibeatData(dummy: Int = 0): Bool = Bool(false)
+ def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
 
 class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
@@ -137,7 +138,7 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
     pfcounters(i) := PerFormanceCounter(io.update(i), 64)
   })
 
-  io.manager.req.ready       := state === s_IDLE
+  io.manager.req.ready       := Bool(true)
   io.manager.resp.valid      := state === s_RESP
   io.manager.resp.bits.dst   := req_reg.src
   io.manager.resp.bits.data  := Mux(io.manager.resp.bits.last, bitmap, pfcounters(raddr))
@@ -160,6 +161,11 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   }
   when(state === s_RESP && io.manager.resp.fire() && io.manager.resp.bits.last) {
     state := s_IDLE
+  }
+  when(req_reg.cmd(0)) { //finish or cancel
+    state := s_IDLE
+    req_reg.cmd          := UInt(0)
+    io.manager.req.ready := Bool(false)
   }
 
 }
@@ -227,7 +233,7 @@ class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
     val clients  = Vec(Clients, new PFCClientIO()).flip()
     val managers = Vec(Managers, new PFCManagerIO()).flip()
   }
-  val reqNet  = Module(new BasicCrossbar(NetPorts, new PFCReq, count=1, Some((req: PhysicalNetworkIO[PFCReq]) => req.payload.hasMultibeatData())))
+  val reqNet  = Module(new BasicCrossbar(NetPorts, new PFCReq, count=2, Some((req: PhysicalNetworkIO[PFCReq]) => req.payload.hasMultibeatData())))
   val respNet = Module(new BasicCrossbar(NetPorts, new PFCResp, count=1, Some((resp: PhysicalNetworkIO[PFCResp]) => resp.payload.hasMultibeatData())))
 
   //csr <> Net
