@@ -87,7 +87,7 @@ class TilePerform extends Bundle {
 class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
  val src      = UInt(width=log2Up(Clients))
  val dst      = UInt(width=log2Up(Managers)) //groupID
- val cmd        = Bits(width=4)
+ val cmd        = Bits(width=4)   //UInt(1) finish cancel
  val bitmap     = Bits(width=64)
  val groupID    = Bits(width=4)
  val programID  = Bits(width=4)
@@ -99,7 +99,8 @@ class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
   val dst     = UInt(width=log2Up(Clients))
   val first   = Bool() //indicate the first resp beat
   val last    = Bool() //indicate the last resp beat
-  val data    = UInt(width=64) //pfc_data or map
+  val data    = UInt(width=64) //pfc_data
+  val bitmapUI   = UInt(width=6) //bit map UInt
   val programID  = Bits(width=4)
   def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
@@ -141,9 +142,9 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   io.manager.req.ready       := Bool(true)
   io.manager.resp.valid      := state === s_RESP
   io.manager.resp.bits.dst   := req_reg.src
-  io.manager.resp.bits.data  := Mux(io.manager.resp.bits.last, bitmap, pfcounters(raddr))
-  io.manager.resp.bits.last  := raddr === UInt(nCounters)
-  if(nCounters>MaxBeats) io.manager.resp.bits.last  := raddr === UInt(nCounters) || counterID === UInt(MaxBeats)
+  io.manager.resp.bits.data  := pfcounters(raddr)
+  io.manager.resp.bits.last  := PopCount(bitmap) === UInt(1)
+  io.manager.resp.bits.bitmapUI   := raddr(log2Up(nCounters)-1,0)
   io.manager.resp.bits.programID  := req_reg.programID
 
   when(io.manager.req.fire()) {
@@ -164,8 +165,9 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   }
   when(req_reg.cmd(0)) { //finish or cancel
     state := s_IDLE
-    req_reg.cmd          := UInt(0)
-    io.manager.req.ready := Bool(false)
+    req_reg.cmd           := UInt(0)
+    io.manager.req.ready  := Bool(false)
+    io.manager.resp.valid := Bool(false)
   }
 
 }
