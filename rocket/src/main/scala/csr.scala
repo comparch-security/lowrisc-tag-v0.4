@@ -209,7 +209,9 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
 
   val reg_pfcr = Reg(init=UInt(x=0, width=64)) //pfc_read
   val reg_pfcc = Reg(init=UInt(x=0, width=64)) //pfc_config
-  val reg_pfcm = Reg(init=UInt(x=0, width=64)) //pfc_map
+  val reg_pfcmr = Reg(init=UInt(x=0, width=64)) //pfc_bitmap for read
+  val reg_pfcmw = Reg(init=UInt(x=0, width=64)) //pfc_bitmap for write
+  val pfc_acqbsof = Wire(init=Bool(false)) //pfc acquired by software
 
   val mip = Wire(init=reg_mip)
   mip.irq := io.irq
@@ -315,7 +317,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   if(usingPFC) {
     read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
     read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
-    read_mapping += CSRs.pfcm -> (reg_pfcm,                          UInt(0)          )
+    read_mapping += CSRs.pfcm -> (reg_pfcmr,                         UInt(0)          )
   }
 
   if (xLen == 32) {
@@ -550,9 +552,10 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       when (decoded_addr(CSRs.mstagctrlen)) { reg_mstagctrlen := wdata }
     }
     if (usingPFC) {
-      when (decoded_addr(CSRs.pfcm)) { reg_pfcm := wdata }
-      when (decoded_addr(CSRs.pfcc)) {
-        reg_pfcc := Cat(wdata(63, 5), reg_pfcc(4, 1)+wdata(0), wdata(0))
+      when (decoded_addr(CSRs.pfcm)) { reg_pfcmw := wdata }
+      when (decoded_addr(CSRs.pfcc) && wdata(0)) {
+        reg_pfcc     := wdata
+        pfc_acqbsof  := Bool(true)
       }
     }
   }
@@ -579,7 +582,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     io.pfcclient.req.valid     := reg_pfcc(0)
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := reg_pfcc(59,8)
-    io.pfcclient.req.bits.bitmap   := reg_pfcm
+    io.pfcclient.req.bits.bitmap   := reg_pfcmw
     io.pfcclient.resp.ready := Bool(true)
     when(io.pfcclient.resp.valid && io.pfcclient.resp.bits.programID === programID) {
       read_coun := UInt(0)
