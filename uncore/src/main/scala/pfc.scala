@@ -19,7 +19,6 @@ trait HasPFCParameters {
   val Clients   = Csrs
   val Managers  = L1s+L2Banks+TCBanks //pfc managers
   val NetPorts  = if(Managers>Clients) Managers else Clients
-  val MaxBeats  = 8
   val MaxCounters = 64
 }
 

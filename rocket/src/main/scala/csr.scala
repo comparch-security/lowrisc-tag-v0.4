@@ -571,34 +571,63 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   } else {
     io.tag_ctrl := new TagCtrlSig().fromBits(UInt(0,xLen))
   }
-  if (usingPFC) { //pfcClient stateMachine
-    require(io.pfcclient.resp.bits.MaxBeats <= 8)
-    val read_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
-    val resp_coun  = Reg(UInt(width=log2Up(io.pfcclient.resp.bits.MaxBeats)))
-    val resp_wait  = reg_pfcc(0)  //wait for all resps finished
-    val resp_data  = Reg(Vec(io.pfcclient.req.bits.MaxBeats, UInt(width=io.pfcclient.resp.bits.data.getWidth())))
-    //resp_data(0) store the second resp beat; resp(last_resp) store te bitmap
-    val programID  = reg_pfcc(4, 1)
-    io.pfcclient.req.valid     := reg_pfcc(0)
+  if (usingPFC) { //pfcClient ControlMachine
+    val read_coun  = Reg(UInt(width=6))
+    val resp_coun  = Reg(UInt(width=6))
+    val resp_data  = Reg(Vec(16, UInt(width=64)))
+    val reqfired   = Reg(init=Bool(false))
+    val respfired  = Reg(init=Bool(false))
+    val finished   = Reg(init=Bool(false))
+    val reqcancel  = Reg(init=Bool(false))
+    val programID  = Reg(UInt(width=4))
+    val reqaddr    = reg_pfcc(59,8)
+    val canceladdr = Reg(UInt())
+    io.pfcclient.req.valid     := (reg_pfcc(0) && !reqfired) || reqcancel || finished
     io.pfcclient.req.bits.src  := UInt(id)
-    io.pfcclient.req.bits.dst  := reg_pfcc(59,8)
+    io.pfcclient.req.bits.dst  := Mux(reqcancel, canceladdr, reqaddr)
+    io.pfcclient.req.bits.cmd  := Mux(reqcancel || finished, UInt(1), UInt(0))
     io.pfcclient.req.bits.bitmap   := reg_pfcmw
     io.pfcclient.resp.ready := Bool(true)
-    when(io.pfcclient.resp.valid && io.pfcclient.resp.bits.programID === programID) {
-      read_coun := UInt(0)
-      resp_coun := resp_coun+UInt(1)
-      resp_data(resp_coun) := io.pfcclient.resp.bits.data
-      when(io.pfcclient.resp.bits.first) {
-        resp_coun := UInt(0)
-        reg_pfcr  := io.pfcclient.resp.bits.data
+    when(pfc_acqbsof) {
+      reqfired   := Bool(false)
+      respfired  := Bool(false)
+      finished   := Bool(false)
+      reqcancel  := Bool(false)
+      programID  := programID + UInt(1)
+      reg_pfcmr  := UInt(0)
+      io.pfcclient.req.valid := reqcancel || finished
+      when(reqfired && !reqcancel && !finished) {
+        reqcancel  := Bool(true)
+        canceladdr := reqaddr
       }
+    }.otherwise {
+      when(io.pfcclient.resp.valid && io.pfcclient.resp.bits.programID === programID && !reqcancel) {
+        respfired := Bool(true)
+        resp_coun := resp_coun + UInt(1)
+        resp_data(resp_coun) := io.pfcclient.resp.bits.data
+        finished := io.pfcclient.resp.bits.last
+        reg_pfcmr := reg_pfcmr | (UInt(1) << io.pfcclient.resp.bits.bitmapUI)
+        when(io.pfcclient.resp.bits.first) {
+          read_coun := UInt(0)
+          resp_coun := UInt(0)
+          reg_pfcr := io.pfcclient.resp.bits.data
+        }
+      }
+      when(io.pfcclient.req.fire()) {
+        when(reqcancel) {
+          reqcancel := Bool(false)
+        }.otherwise {
+          reqfired := Bool(true)
+        }
+      }
+      when(finished) {
+        reg_pfcc := Cat(reg_pfcc(63, 1), UInt(0))
+      }
+    }  //end when(pfc_acqbsof) { }.otherwise { }
+    when(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R && respfired) {
+      read_coun := read_coun + UInt(1)
+      reg_pfcr  := resp_data(read_coun)
     }
-    when(resp_wait) { //when resp software can only read reg_pfcc CSR.W/CSR.R can not write data in reg_pfcc
-      reg_pfcc  := Cat(reg_pfcc(63, 1), Mux(io.pfcclient.resp.bits.last, UInt(0), UInt(1))) //the last beat is bitmap
-    }.elsewhen(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R) {
-        read_coun := read_coun+UInt(1)
-        reg_pfcr  := resp_data(read_coun)
-      }
   }
 
   def writeCounter(lo: Int, ctr: WideCounter, wdata: UInt) = {
