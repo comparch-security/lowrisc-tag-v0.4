@@ -105,6 +105,9 @@ public:
   void update_insn_trace(reg_t pc,insn_t insn);
   void set_nc_insn_trace(size_t value);
 
+  void set_pfc_skip(size_t value);
+  void set_pfc_nc(size_t value);
+
   void register_insn(insn_desc_t);
   void register_extension(extension_t*);
 
@@ -129,6 +132,8 @@ private:
   uint32_t tagsz;
   bool insn_trace_enabled;
   size_t nc_insn_trace;
+  size_t pfc_skip;
+  size_t pfc_nc;
 
   std::vector<insn_desc_t> instructions;
   std::map<word_t,uint64_t> pc_histogram;

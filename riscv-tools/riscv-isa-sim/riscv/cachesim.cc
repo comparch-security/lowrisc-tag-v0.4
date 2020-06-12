@@ -100,6 +100,19 @@ void cache_sim_t::print_stats()
   std::cout << "Miss Rate:             " << mr << '%' << std::endl;
 }
 
+void cache_sim_t::clear_stats(void)
+{
+  bytes_read = 0;
+  bytes_written = 0;
+  read_accesses = 0;
+  read_misses = 0;
+  write_accesses = 0;
+  write_misses = 0;
+  writebacks = 0;
+
+  if(miss_handler) miss_handler->clear_stats();
+}
+
 uint64_t* cache_sim_t::check_tag(uint64_t addr)
 {
   size_t idx = (addr >> idx_shift) & (sets-1);

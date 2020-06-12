@@ -21,6 +21,7 @@ class memtracer_t
 
   virtual bool interested_in_range(uint64_t begin, uint64_t end, access_type type) = 0;
   virtual void trace(uint64_t addr, size_t bytes, access_type type) = 0;
+  virtual void clear_stats(void){}
 };
 
 class memtracer_list_t : public memtracer_t
@@ -42,6 +43,11 @@ class memtracer_list_t : public memtracer_t
   void hook(memtracer_t* h)
   {
     list.push_back(h);
+  }
+  void clear()
+  {
+    for (std::vector<memtracer_t*>::iterator it = list.begin(); it != list.end(); ++it)
+      (*it)->clear_stats();
   }
  private:
   std::vector<memtracer_t*> list;

@@ -29,6 +29,7 @@ class cache_sim_t
   virtual uint64_t access(uint64_t addr, size_t bytes, bool store);
   void print_stats();
   void set_miss_handler(cache_sim_t* mh) { miss_handler = mh; }
+  virtual void clear_stats();
 
   static cache_sim_t* construct(const char* config, const char* name);
 
@@ -87,6 +88,10 @@ class cache_memtracer_t : public memtracer_t
   void set_miss_handler(cache_sim_t* mh)
   {
     cache->set_miss_handler(mh);
+  }
+  void clear_stats()
+  {
+    cache->clear_stats();
   }
 
  protected:

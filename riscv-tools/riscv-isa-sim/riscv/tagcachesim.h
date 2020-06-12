@@ -16,6 +16,7 @@ class tag_cache_sim_t : public cache_sim_t
   virtual ~tag_cache_sim_t();
   virtual uint64_t access(uint64_t addr, size_t bytes, bool store) = 0;
   void set_tag_map(tag_cache_sim_t * tm) { tag_map = tm; }
+  virtual void clear_stats();
 
  protected:
   int level;

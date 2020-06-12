@@ -137,6 +137,20 @@ void sim_t::set_nc_insn_trace(size_t value)
   }
 }
 
+void sim_t::set_pfc_skip(size_t value)
+{
+  for (size_t i = 0; i < procs.size(); i++) {
+    procs[i]->set_pfc_skip(value);
+  }
+}
+
+void sim_t::set_pfc_nc(size_t value)
+{
+  for (size_t i = 0; i < procs.size(); i++) {
+    procs[i]->set_pfc_nc(value);
+  }
+}
+
 void sim_t::set_procs_debug(bool value)
 {
   for (size_t i=0; i< procs.size(); i++)

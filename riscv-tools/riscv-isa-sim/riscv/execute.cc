@@ -68,6 +68,7 @@ void processor_t::step(size_t n)
     size_t instret = 0;
     reg_t pc = state.pc;
     mmu_t* _mmu = mmu;
+    bool halt = false;
 
     #define advance_pc() \
      if (unlikely(invalid_pc(pc))) { \
@@ -91,6 +92,13 @@ void processor_t::step(size_t n)
       {
         while (instret < n)
         {
+          if (state.minstret + instret == pfc_skip)
+            _mmu->clear_stats();
+          // if(pfc_nc) printf("pfc_nc: %d\n",pfc_nc);
+          if (pfc_nc && state.minstret + instret >= pfc_skip + pfc_nc){
+            halt = true;
+            break;
+          }
           insn_fetch_t fetch = mmu->load_insn(pc.data);
           if (!state.serialized)
             disasm(fetch.insn);
@@ -100,6 +108,14 @@ void processor_t::step(size_t n)
       }
       else while (instret < n)
       {
+        if (state.minstret + instret == pfc_skip)
+          _mmu->clear_stats();
+        
+        // if(pfc_nc) printf("pfc_nc: %d\n",pfc_nc);
+        if (pfc_nc && state.minstret + instret >= pfc_skip + pfc_nc){
+          halt = true;
+          break;
+        }
         size_t idx = _mmu->icache_index(pc.data);
         auto ic_entry = _mmu->access_icache(pc.data);
 
@@ -136,5 +152,12 @@ miss:
 
     state.minstret += instret;
     n -= instret;
+
+    if(halt){
+      run = false;
+      printf("Proc halted.\n");
+      printf("cycle = %llu\ninstret = %llu\n",this->get_csr(CSR_MCYCLE),state.minstret);
+      break;
+    }
   }
 }

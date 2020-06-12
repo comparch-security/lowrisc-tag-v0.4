@@ -40,6 +40,18 @@ tag_cache_sim_t::~tag_cache_sim_t() {
   delete [] created;
 }
 
+void tag_cache_sim_t::clear_stats(void) {
+  read_accesses = 0;
+  read_misses = 0;
+  bytes_read = 0;
+  write_accesses = 0;
+  write_misses = 0;
+  bytes_written = 0;
+  writebacks = 0;
+
+  if(tag_map) tag_map->clear_stats();
+}
+
 void tag_cache_sim_t::init() {
   datas = new uint8_t[sets*ways*linesz]();
   created = new uint8_t[sets*ways]();

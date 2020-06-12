@@ -28,6 +28,8 @@ static void help()
   fprintf(stderr, "  -g                     Track histogram of PCs\n");
   fprintf(stderr, "  -l                     Generate a log of execution\n");
   fprintf(stderr, "  -h                     Print this help message\n");
+  fprintf(stderr, "  --pfcs=<n>             Skip <n> instructions to warm up cache before enabling performance counter\n");
+  fprintf(stderr, "  --pfcn=<n>             Total number of instructions spike will execute after cache warming up\n");
   fprintf(stderr, "  --isa=<name>           RISC-V ISA string [default %s]\n", DEFAULT_ISA);
   fprintf(stderr, "  --ic=<S>:<W>:<B>       Instantiate a cache model with S sets,\n");
   fprintf(stderr, "  --dc=<S>:<W>:<B>         W ways, and B-byte blocks (with S and\n");
@@ -48,6 +50,8 @@ int main(int argc, char** argv)
   bool histogram = false;
   bool log = false;
   size_t nc_insn_trace = 0; //record 0 insn as default
+  size_t pfc_skip = 0;
+  size_t pfc_nc = 0;
   bool dump_config_string = false;
   size_t nprocs = 1;
   size_t mem_mb = 0;
@@ -70,6 +74,8 @@ int main(int argc, char** argv)
   parser.option('m', 0, 1, [&](const char* s){mem_mb = atoi(s);});
   parser.option('t', 0, 1, [&](const char* s){tagsz = atoi(s);});
   parser.option('r',0,1,[&](const char* s){nc_insn_trace=atoi(s);});
+  parser.option(0,"pfcs",1, [&](const char* s){pfc_skip=atoi(s);});
+  parser.option(0,"pfcn",1, [&](const char* s){pfc_nc=atoi(s);});
   parser.option(0, "ic", 1, [&](const char* s){ic.reset(new icache_sim_t(s));});
   parser.option(0, "dc", 1, [&](const char* s){dc.reset(new dcache_sim_t(s));});
   parser.option(0, "l2", 1, [&](const char* s){l2.reset(cache_sim_t::construct(s, "L2$"));});
@@ -138,5 +144,7 @@ int main(int argc, char** argv)
   s.set_log(log);
   s.set_histogram(histogram);
   s.set_nc_insn_trace(nc_insn_trace);
+  s.set_pfc_skip(pfc_skip);
+  s.set_pfc_nc(pfc_nc);
   return s.run();
 }

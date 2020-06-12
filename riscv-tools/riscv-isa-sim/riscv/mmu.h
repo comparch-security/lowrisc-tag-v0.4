@@ -218,6 +218,11 @@ private:
     tag = (tag & ~mask) | ((wtag << tg::tag_offset(0, addr)) & mask);
     *(uint64_t *)(sim->addr_to_mem(tg::addr_conv(0, addr))) = tag;
   }
+
+  void clear_stats()
+  {
+    tracer.clear();
+  }
   
   friend class processor_t;
 };

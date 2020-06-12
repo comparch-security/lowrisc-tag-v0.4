@@ -25,6 +25,8 @@ processor_t::processor_t(const char* isa, sim_t* sim, uint32_t id, uint32_t tags
     id(id), run(false), debug(false), tagsz(tagsz)
 {
   i_insn_trace = 0;
+  pfc_skip = 0;
+  pfc_nc = 0;
 
   parse_isa_string(isa);
 
@@ -159,6 +161,18 @@ void processor_t::set_nc_insn_trace(size_t value)
   insn_trace_enabled = value != 0;
   nc_insn_trace = value;
   insn_trace.resize(nc_insn_trace);
+}
+
+void processor_t::set_pfc_skip(size_t value)
+{
+  pfc_skip = value;
+  printf("Proc pfc skip set to %llu\n",pfc_skip);
+}
+
+void processor_t::set_pfc_nc(size_t value)
+{
+  pfc_nc = value;
+  printf("Proc pfc nc set to %llu\n",pfc_nc);
 }
 
 void processor_t::reset(bool value)
