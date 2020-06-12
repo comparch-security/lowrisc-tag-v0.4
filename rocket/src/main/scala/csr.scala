@@ -554,7 +554,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     if (usingPFC) {
       when (decoded_addr(CSRs.pfcm)) { reg_pfcmw := wdata }
       when (decoded_addr(CSRs.pfcc) && wdata(0)) {
-        reg_pfcc     := wdata
+        reg_pfcc     := Cat(wdata(63,2), Bool(false), Bool(true))
+        //reg_pfcc   := Cat(           , interrupted, trigger)
         pfc_acqbsof  := Bool(true)
       }
     }
@@ -575,13 +576,15 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val read_coun  = Reg(UInt(width=6))
     val resp_coun  = Reg(UInt(width=6))
     val resp_data  = Reg(Vec(16, UInt(width=64)))
-    val reqfired   = Reg(init=Bool(false))
-    val respfired  = Reg(init=Bool(false))
-    val finished   = Reg(init=Bool(false))
-    val reqcancel  = Reg(init=Bool(false))
-    val programID  = Reg(UInt(width=4))
-    val reqaddr    = reg_pfcc(59,8)
-    val canceladdr = Reg(UInt())
+    val reqfired   = Reg(init=Bool(false))  //pfc_req has fired
+    val respfired  = Reg(init=Bool(false))  //pfc_resp(first) has fired
+    val finished   = Reg(init=Bool(false))  //pfc_resp(all) has finished
+    val interrupted = Wire(Bool())          //pfc_req or pfc_resp or software_read_pfcr has interrupted by call
+    val reqcancel   = Reg(init=Bool(false)) //software cancel the current pfcreq
+    val programID   = Reg(UInt(width=4))
+    val reqaddr     = reg_pfcc(59,8)
+    val canceladdr  = Reg(UInt()) //address of pfcManager for cancel
+    interrupted := insn_call
     io.pfcclient.req.valid     := (reg_pfcc(0) && !reqfired) || reqcancel || finished
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := Mux(reqcancel, canceladdr, reqaddr)
@@ -620,9 +623,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
           reqfired := Bool(true)
         }
       }
-      when(finished) {
-        reg_pfcc := Cat(reg_pfcc(63, 1), UInt(0))
-      }
+      reg_pfcc  := Cat(reg_pfcc(63, 2), interrupted, finished)
     }  //end when(pfc_acqbsof) { }.otherwise { }
     when(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R && respfired) {
       read_coun := read_coun + UInt(1)
