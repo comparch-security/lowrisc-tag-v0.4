@@ -554,8 +554,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     if (usingPFC) {
       when (decoded_addr(CSRs.pfcm)) { reg_pfcmw := wdata }
       when (decoded_addr(CSRs.pfcc) && wdata(0)) {
-        reg_pfcc     := Cat(wdata(63,2), Bool(false), Bool(true))
-        //reg_pfcc   := Cat(           , interrupted, trigger)
+        reg_pfcc     := Cat(wdata(63,60), wdata(59,9), wdata(8,4), Bool(false), Bool(false), Bool(false), Bool(true))
+        //reg_pfcc   := Cat(mode,         groupID,     reserved,   read_error,  empty,       interrupted, trigger)
         pfc_acqbsof  := Bool(true)
       }
     }
@@ -584,7 +584,13 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val programID   = Reg(UInt(width=4))
     val reqaddr     = reg_pfcc(59,8)
     val canceladdr  = Reg(UInt()) //address of pfcManager for cancel
+    val empty       = Wire(Bool())
+    val read_en     = Wire(Bool())
+    val read_error  = Wire(Bool())
     interrupted := insn_call
+    empty       := !respfired || (read_coun > resp_coun)
+    read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R
+    read_error  := (empty && read_en) || reg_pfcc(3)
     io.pfcclient.req.valid     := (reg_pfcc(0) && !reqfired) || reqcancel || finished
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := Mux(reqcancel, canceladdr, reqaddr)
@@ -623,9 +629,9 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
           reqfired := Bool(true)
         }
       }
-      reg_pfcc  := Cat(reg_pfcc(63, 2), interrupted, finished)
+      reg_pfcc  := Cat(reg_pfcc(63, 4), read_error, empty, interrupted, finished)
     }  //end when(pfc_acqbsof) { }.otherwise { }
-    when(decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R && respfired) {
+    when(read_en) {
       read_coun := read_coun + UInt(1)
       reg_pfcr  := resp_data(read_coun)
     }
