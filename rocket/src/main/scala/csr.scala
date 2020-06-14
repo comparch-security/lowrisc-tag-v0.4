@@ -209,8 +209,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
 
   val reg_pfcr = Reg(init=UInt(x=0, width=64)) //pfc_read
   val reg_pfcc = Reg(init=UInt(x=0, width=64)) //pfc_config
-  val reg_pfcmr = Reg(init=UInt(x=0, width=64)) //pfc_bitmap for read
-  val reg_pfcmw = Reg(init=UInt(x=0, width=64)) //pfc_bitmap for write
+  val reg_pfcm = Reg(init=UInt(x=0, width=64)) //pfc_bitmap
   val pfc_acqbsof = Wire(init=Bool(false)) //pfc acquired by software
 
   val mip = Wire(init=reg_mip)
@@ -317,7 +316,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   if(usingPFC) {
     read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
     read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
-    read_mapping += CSRs.pfcm -> (reg_pfcmr,                         UInt(0)          )
+    read_mapping += CSRs.pfcm -> (reg_pfcm,                         UInt(0)          )
   }
 
   if (xLen == 32) {
@@ -552,9 +551,9 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       when (decoded_addr(CSRs.mstagctrlen)) { reg_mstagctrlen := wdata }
     }
     if (usingPFC) {
-      when (decoded_addr(CSRs.pfcm)) { reg_pfcmw := wdata }
-      when (decoded_addr(CSRs.pfcc) && wdata(0)) {
-        reg_pfcc     := Cat(wdata(63,60), wdata(59,9), wdata(8,4), Bool(false), Bool(false), Bool(false), Bool(true))
+      when (decoded_addr(CSRs.pfcm)) { reg_pfcm := wdata }
+      when (decoded_addr(CSRs.pfcc)) {
+        reg_pfcc     := Cat(wdata(63,60), wdata(59,9), wdata(8,4), Bool(false), Bool(true), Bool(false), wdata(0))
         //reg_pfcc   := Cat(mode,         groupID,     reserved,   read_error,  empty,       interrupted, trigger)
         pfc_acqbsof  := Bool(true)
       }
@@ -576,61 +575,71 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val read_coun  = Reg(UInt(width=6))
     val resp_coun  = Reg(UInt(width=6))
     val resp_data  = Reg(Vec(16, UInt(width=64)))
+    val resp_bitm  = Wire(Bits(width=64))   //resp bit map
     val reqfired   = Reg(init=Bool(false))  //pfc_req has fired
     val respfired  = Reg(init=Bool(false))  //pfc_resp(first) has fired
-    val finished   = Reg(init=Bool(false))  //pfc_resp(all) has finished
-    val interrupted = Wire(Bool())          //pfc_req or pfc_resp or software_read_pfcr has interrupted by call
-    val reqcancel   = Reg(init=Bool(false)) //software cancel the current pfcreq
+    val respdone    = Wire(Bool())  //pfc_resp(all) has been received
+    val interrupted = Wire(Bool())          //pfc_req or pfc_resp has interrupted by call
+    val reqfinish   = Reg(init=Bool(false))  //sent finish or cancel signal to pfcManager
     val programID   = Reg(UInt(width=4))
-    val reqaddr     = reg_pfcc(59,8)
-    val canceladdr  = Reg(UInt()) //address of pfcManager for cancel
+    val PIDMatch    = Wire(Bool())
+    val reqdst      = reg_pfcc(59,8)   //address of pfcManager for req
+    val findst      = Reg(UInt())      //address of pfcManager for finish or cancel
+    val trigger     = Wire(Bool())
     val empty       = Wire(Bool())
     val read_en     = Wire(Bool())
     val read_error  = Wire(Bool())
+    respdone    := io.pfcclient.resp.fire() && io.pfcclient.resp.bits.last && PIDMatch
     interrupted := insn_call
+    PIDMatch    := io.pfcclient.resp.bits.programID === programID
+    trigger     := reg_pfcc(0)
     empty       := !respfired || (read_coun > resp_coun)
     read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R
     read_error  := (empty && read_en) || reg_pfcc(3)
-    io.pfcclient.req.valid     := (reg_pfcc(0) && !reqfired) || reqcancel || finished
+    resp_bitm   := UInt(1) << io.pfcclient.resp.bits.bitmapUI(5,0)
+    io.pfcclient.req.valid     := (trigger && !reqfired) || reqfinish
     io.pfcclient.req.bits.src  := UInt(id)
-    io.pfcclient.req.bits.dst  := Mux(reqcancel, canceladdr, reqaddr)
-    io.pfcclient.req.bits.cmd  := Mux(reqcancel || finished, UInt(1), UInt(0))
-    io.pfcclient.req.bits.bitmap   := reg_pfcmw
-    io.pfcclient.resp.ready := Bool(true)
+    io.pfcclient.req.bits.dst  := Mux(reqfinish, findst, reqdst)
+    io.pfcclient.req.bits.cmd  := Mux(reqfinish, UInt(1), UInt(0))
+    io.pfcclient.req.bits.bitmap     := reg_pfcm
+    io.pfcclient.req.bits.programID  := programID
+    io.pfcclient.resp.ready          := !reqfinish
     when(pfc_acqbsof) {
-      reqfired   := Bool(false)
-      respfired  := Bool(false)
-      finished   := Bool(false)
-      reqcancel  := Bool(false)
-      programID  := programID + UInt(1)
-      reg_pfcmr  := UInt(0)
-      io.pfcclient.req.valid := reqcancel || finished
-      when(reqfired && !reqcancel && !finished) {
-        reqcancel  := Bool(true)
-        canceladdr := reqaddr
+      respfired                 := Bool(false) //set empty
+      io.pfcclient.req.valid    := reqfinish
+      io.pfcclient.resp.ready   := Bool(false)
+      when(trigger && reqfired && !reqfinish) {
+        reqfinish  := Bool(true)
       }
     }.otherwise {
-      when(io.pfcclient.resp.valid && io.pfcclient.resp.bits.programID === programID && !reqcancel) {
-        respfired := Bool(true)
-        resp_coun := resp_coun + UInt(1)
-        resp_data(resp_coun) := io.pfcclient.resp.bits.data
-        finished := io.pfcclient.resp.bits.last
-        reg_pfcmr := reg_pfcmr | (UInt(1) << io.pfcclient.resp.bits.bitmapUI)
-        when(io.pfcclient.resp.bits.first) {
-          read_coun := UInt(0)
-          resp_coun := UInt(0)
-          reg_pfcr := io.pfcclient.resp.bits.data
-        }
+      reg_pfcc := Cat(reg_pfcc(63, 4), read_error, empty, interrupted, Mux(respdone, Bool(false), trigger))
+    }
+    when(io.pfcclient.resp.fire() && PIDMatch) {
+      respfired := Bool(true)
+      resp_coun := resp_coun + UInt(1)
+      resp_data(resp_coun) := io.pfcclient.resp.bits.data
+      reg_pfcm  := reg_pfcm & resp_bitm
+      when(io.pfcclient.resp.bits.first) {
+        read_coun := UInt(0)
+        resp_coun := UInt(0)
+        reg_pfcr  := io.pfcclient.resp.bits.data
       }
-      when(io.pfcclient.req.fire()) {
-        when(reqcancel) {
-          reqcancel := Bool(false)
-        }.otherwise {
-          reqfired := Bool(true)
-        }
+      when(io.pfcclient.resp.bits.last) {
+        reqfinish := Bool(true)
       }
-      reg_pfcc  := Cat(reg_pfcc(63, 4), read_error, empty, interrupted, finished)
-    }  //end when(pfc_acqbsof) { }.otherwise { }
+    }
+    when(io.pfcclient.req.fire()) {
+      when(reqfinish) {
+        reqfired  := Bool(false)
+        reqfinish := Bool(false)
+        programID := programID + UInt(1)
+      }.otherwise {
+        reqfired  := Bool(true)
+        respfired := Bool(false)
+        findst    := reqdst
+        reg_pfcm  := UInt(0)
+      }
+    }
     when(read_en) {
       read_coun := read_coun + UInt(1)
       reg_pfcr  := resp_data(read_coun)
