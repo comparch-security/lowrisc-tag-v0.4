@@ -578,17 +578,20 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val resp_bitm  = Wire(Bits(width=64))   //resp bit map
     val reqfired   = Reg(init=Bool(false))  //pfc_req has fired
     val respfired  = Reg(init=Bool(false))  //pfc_resp(first) has fired
-    val respdone    = Wire(Bool())  //pfc_resp(all) has been received
+    val respdone    = Wire(Bool())          //pfc_resp(all) has been received
     val interrupted = Wire(Bool())          //pfc_req or pfc_resp has interrupted by call
-    val reqfinish   = Reg(init=Bool(false))  //sent finish or cancel signal to pfcManager
+    val reqfinish   = Reg(init=Bool(false)) //send finish or cancel signal to pfcManager
     val programID   = Reg(UInt(width=4))
     val PIDMatch    = Wire(Bool())
     val reqdst      = reg_pfcc(59,8)   //address of pfcManager for req
     val findst      = Reg(UInt())      //address of pfcManager for finish or cancel
     val trigger     = Wire(Bool())
-    val empty       = Wire(Bool())
-    val read_en     = Wire(Bool())
-    val read_error  = Wire(Bool())
+    //software reset to cancel old pfcreq;
+    //software set to start a new pfcreq;
+    //hardware reset means respdone(all resp fired)
+    val empty       = Wire(Bool())     //reg_pfcr and fifo(resp_data) are empty
+    val read_en     = Wire(Bool())     //software read reg_pfcr
+    val read_error  = Wire(Bool())     //software read reg_pfcr however empty
     respdone    := io.pfcclient.resp.fire() && io.pfcclient.resp.bits.last && PIDMatch
     interrupted := insn_call
     PIDMatch    := io.pfcclient.resp.bits.programID === programID
@@ -598,20 +601,25 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     read_error  := (empty && read_en) || reg_pfcc(3)
     resp_bitm   := UInt(1) << io.pfcclient.resp.bits.bitmapUI(5,0)
     io.pfcclient.req.valid     := (trigger && !reqfired) || reqfinish
+    //trigger && !reqfired means send start signal to pfcmanager
+    //reqfinish means send finish or cancel siganl to pfcmanager
     io.pfcclient.req.bits.src  := UInt(id)
     io.pfcclient.req.bits.dst  := Mux(reqfinish, findst, reqdst)
     io.pfcclient.req.bits.cmd  := Mux(reqfinish, UInt(1), UInt(0))
     io.pfcclient.req.bits.bitmap     := reg_pfcm
     io.pfcclient.req.bits.programID  := programID
-    io.pfcclient.resp.ready          := !reqfinish
+    io.pfcclient.resp.ready          := !reqfinish //when finish or cancel disable to receive pfcresp
     when(pfc_acqbsof) {
-      respfired                 := Bool(false) //set empty
-      io.pfcclient.req.valid    := reqfinish
-      io.pfcclient.resp.ready   := Bool(false)
+      respfired                 := Bool(false)  //set empty
+      io.pfcclient.req.valid    := reqfinish    //only allow sending finish or cancel signal to pfcmanager
+      io.pfcclient.resp.ready   := Bool(false)  //not allow receiving pfcresp
       when(trigger && reqfired && !reqfinish) {
-        reqfinish  := Bool(true)
+        //trigger=1 means not respdone;
+        //reqfired=1 means pfcclient has sent req signal to pfcmanager
+        //reqfinish=0 means in this cycle pfcclient doesn't try to send cancel to pfcmanager
+        reqfinish  := Bool(true) //set by software means cancel
       }
-    }.otherwise {
+    }.otherwise { //when software write reg_pfcc, hardware can't update reg_pfcc
       reg_pfcc := Cat(reg_pfcc(63, 4), read_error, empty, interrupted, Mux(respdone, Bool(false), trigger))
     }
     when(io.pfcclient.resp.fire() && PIDMatch) {
@@ -625,19 +633,19 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
         reg_pfcr  := io.pfcclient.resp.bits.data
       }
       when(io.pfcclient.resp.bits.last) {
-        reqfinish := Bool(true)
+        reqfinish := Bool(true) //set by hardware means finish
       }
     }
     when(io.pfcclient.req.fire()) {
-      when(reqfinish) {
-        reqfired  := Bool(false)
+      when(reqfinish) { //finish or cancel signal has fired to pfcManager, after this cycle hardware can start a new req
+        reqfired  := Bool(false) //reset reqfired to enable a new req start
         reqfinish := Bool(false)
         programID := programID + UInt(1)
-      }.otherwise {
-        reqfired  := Bool(true)
-        respfired := Bool(false)
-        findst    := reqdst
-        reg_pfcm  := UInt(0)
+      }.otherwise { //req signal hasfired to pfcManager
+        reqfired  := Bool(true)  //set reqfired to disable new req start
+        //respfired := Bool(false) //deleted because when(pfc_acqbsof) { respfired := Bool(false) }
+        findst    := reqdst  //dst address for finish := dst address for req
+        reg_pfcm  := UInt(0) //no conflict with software because when(pfc_acqbsof) { io.pfcclient.req.valid := reqfinish }
       }
     }
     when(read_en) {
