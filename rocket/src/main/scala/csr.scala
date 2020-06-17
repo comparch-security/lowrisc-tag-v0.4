@@ -553,7 +553,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     if (usingPFC) {
       when (decoded_addr(CSRs.pfcm)) { reg_pfcm := wdata }
       when (decoded_addr(CSRs.pfcc)) {
-        reg_pfcc     := Cat(wdata(63,60), wdata(59,9), wdata(8,4), Bool(false), Bool(true), Bool(false), wdata(0))
+        reg_pfcc     := Cat(wdata(63,60), wdata(59,10), wdata(9,4), Bool(false), Bool(true), Bool(false), wdata(0))
         //reg_pfcc   := Cat(mode,         groupID,     reserved,   read_error,  empty,       interrupted, trigger)
         pfc_acqbsof  := Bool(true)
       }
@@ -583,7 +583,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val reqfinish   = Reg(init=Bool(false)) //send finish or cancel signal to pfcManager
     val programID   = Reg(UInt(width=4))
     val PIDMatch    = Wire(Bool())
-    val reqdst      = reg_pfcc(59,8)   //address of pfcManager for req
+    val reqdst      = reg_pfcc(59,10)   //address of pfcManager for req
     val findst      = Reg(UInt())      //address of pfcManager for finish or cancel
     val trigger     = Wire(Bool())
     //software reset to cancel old pfcreq;
