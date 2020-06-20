@@ -88,7 +88,8 @@ class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
  val dst      = UInt(width=log2Up(Managers)) //groupID
  val cmd        = Bits(width=4)   //UInt(1) finish cancel
  val bitmap     = Bits(width=64)
- val groupID    = Bits(width=4)
+ val pfcMtype   = Bits(width=4) //Tilepfc or L2pfc or TCPFC
+ val pfcMID     = Bits(width=4)
  val programID  = Bits(width=4)
  def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }
