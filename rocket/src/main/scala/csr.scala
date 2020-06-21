@@ -585,7 +585,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val PIDMatch    = Wire(Bool())
     val reqtype     = reg_pfcc(59,52)   //pfcManagertype for req
     val fintype     = Reg(UInt())       //pfcManagertype for finish or cancel
-    val reqdst      = reg_pfcc(59,10)   //address of pfcManager for req
+    val reqdst      = Cat(reqtype(log2Up(io.pfcclient.pfcTypes)-1,0),reg_pfcc(log2Up(io.pfcclient.ManagerIDs)+9,10))   //address of pfcManager for req
     val findst      = Reg(UInt())      //address of pfcManager for finish or cancel
     val trigger     = Wire(Bool())
     //software reset to cancel old pfcreq;

@@ -11,15 +11,20 @@ case object PFCL2N extends Field[Int]
 
 trait HasPFCParameters {
   implicit val p: Parameters
-  val Tiles     = p(NTiles) //how many cores
-  val Csrs      = Tiles
-  val L1s       = Tiles
-  val L2Banks   = p(PFCL2N) //Can't use p(NBanks)
-  val TCBanks   = 1
-  val Clients   = Csrs
-  val Managers  = L1s+L2Banks+TCBanks //pfc managers
-  val NetPorts  = if(Managers>Clients) Managers else Clients
-  val MaxCounters = 64
+  val Tiles           = p(NTiles) //how many cores
+  val Csrs            = Tiles
+  val L1s             = Tiles
+  val pfcTypes        = 3 //TilePFC L2PFC TCPFC
+  val L2Banks         = p(PFCL2N) //Can't use p(NBanks)
+  val TCBanks         = 1
+  val Clients         = Csrs
+  val ManagerIDs      = max(L1s,max(L2Banks,TCBanks))
+  val NetPorts        = pfcTypes*ManagerIDs
+  val MaxCounters     = 64
+  //physical ID = Cat(types, ManagerID)
+  val TilePFCfirstPID = 0  //PFCNetwork physical ID
+  val L2PFCfirstPID   = 1<<log2Up(ManagerIDs)
+  val TCPFCfirstPID   = 2<<log2Up(ManagerIDs)
 }
 
 abstract class PFCModule(implicit val p: Parameters) extends Module with HasPFCParameters
@@ -85,7 +90,7 @@ class TilePerform extends Bundle {
 
 class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
  val src      = UInt(width=log2Up(Clients))
- val dst      = UInt(width=log2Up(Managers)) //groupID
+ val dst      = UInt(width=log2Up(NetPorts)) //groupID
  val cmd        = Bits(width=4)   //UInt(1) finish cancel
  val bitmap     = Bits(width=64)
  val pfcMtype   = Bits(width=4) //Tilepfc or L2pfc or TCPFC
@@ -95,7 +100,7 @@ class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
 }
 
 class PFCResp(implicit p: Parameters) extends PFCBundle()(p) {
-  val src     = UInt(width=log2Up(Managers)) //groupID
+  val src     = UInt(width=log2Up(NetPorts)) //groupID
   val dst     = UInt(width=log2Up(Clients))
   val first   = Bool() //indicate the first resp beat
   val last    = Bool() //indicate the last resp beat
@@ -233,7 +238,7 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
 class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
   val io  = new Bundle {
     val clients  = Vec(Clients, new PFCClientIO()).flip()
-    val managers = Vec(Managers, new PFCManagerIO()).flip()
+    val managers = Vec(NetPorts, new PFCManagerIO()).flip()
   }
   val reqNet  = Module(new BasicCrossbar(NetPorts, new PFCReq, count=2, Some((req: PhysicalNetworkIO[PFCReq]) => req.payload.hasMultibeatData())))
   val respNet = Module(new BasicCrossbar(NetPorts, new PFCResp, count=1, Some((resp: PhysicalNetworkIO[PFCResp]) => resp.payload.hasMultibeatData())))
@@ -253,7 +258,7 @@ class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
   })
 
   //pfc <> Net
-  (0 until Managers).map(i => {
+  (0 until NetPorts).map(i => {
     //reqNet.out to pfc.req
     io.managers(i).req.valid          := reqNet.io.out(i).valid
     reqNet.io.out(i).ready            := io.managers(i).req.ready
