@@ -186,7 +186,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
     })
     if (p(UseL2Cache)) {
       (0 until nBanks).map(i => {
-        performc_net.io.managers(i+nTiles) <> managerEndpoints(i).pfcmanager
+        performc_net.io.managers(performc_net.L2PFCfirstPID+i) <> managerEndpoints(i).pfcmanager
       })
     }
   }
@@ -208,8 +208,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
       case OuterTLId => memConvParams(TLId)
     })))
     if(p(UsePFC)) {
-      if (p(UseL2Cache)) { performc_net.io.managers(nTiles + nBanks) <> tc.io.pfcmanager }
-      else { performc_net.io.managers(nTiles) <> tc.io.pfcmanager }
+       performc_net.io.managers(performc_net.TCPFCfirstPID) <> tc.io.pfcmanager
     }
     tc.io.inner <> mem_net.io.out(0)
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
