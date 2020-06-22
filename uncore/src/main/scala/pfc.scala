@@ -19,7 +19,7 @@ trait HasPFCParameters {
   val TCBanks         = 1
   val Clients         = Csrs
   val ManagerIDs      = max(L1s,max(L2Banks,TCBanks))
-  val NetPorts        = pfcTypes*ManagerIDs
+  val NetPorts        = pfcTypes*(1<<log2Up(ManagerIDs))
   val MaxCounters     = 64
   //physical ID = Cat(types, ManagerID)
   val TilePFCfirstPID = 0  //PFCNetwork physical ID
@@ -93,8 +93,6 @@ class PFCReq(implicit p: Parameters) extends PFCBundle()(p) {
  val dst      = UInt(width=log2Up(NetPorts)) //groupID
  val cmd        = Bits(width=4)   //UInt(1) finish cancel
  val bitmap     = Bits(width=64)
- val pfcMtype   = Bits(width=4) //Tilepfc or L2pfc or TCPFC
- val pfcMID     = Bits(width=4)
  val programID  = Bits(width=4)
  def hasMultibeatData(dummy: Int = 0): Bool = Bool(true)
 }

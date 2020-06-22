@@ -316,7 +316,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   if(usingPFC) {
     read_mapping += CSRs.pfcr -> (reg_pfcr,                          UInt(0)          )
     read_mapping += CSRs.pfcc -> (reg_pfcc,                          UInt(0)          )
-    read_mapping += CSRs.pfcm -> (reg_pfcm,                         UInt(0)          )
+    read_mapping += CSRs.pfcm -> (reg_pfcm,                          UInt(0)          )
   }
 
   if (xLen == 32) {
@@ -582,11 +582,11 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val interrupted = Wire(Bool())          //pfc_req or pfc_resp has interrupted by call
     val reqfinish   = Reg(init=Bool(false)) //send finish or cancel signal to pfcManager
     val programID   = Reg(UInt(width=4))
-    val PIDMatch    = Wire(Bool())
-    val reqtype     = reg_pfcc(59,52)   //pfcManagertype for req
-    val fintype     = Reg(UInt())       //pfcManagertype for finish or cancel
-    val reqdst      = Cat(reqtype(log2Up(io.pfcclient.pfcTypes)-1,0),reg_pfcc(log2Up(io.pfcclient.ManagerIDs)+9,10))   //address of pfcManager for req
-    val findst      = Reg(UInt())      //address of pfcManager for finish or cancel
+    val PIDMatch    = Wire(Bool())      //programID match
+    val pfcMtype    = reg_pfcc(59,52)   //pfcManagertype for req
+    val pfcMID      = reg_pfcc(51,10)   //pfcManagerID for req
+    val reqdst      = Cat(pfcMtype(log2Up(io.pfcclient.pfcTypes)-1,0),pfcMID(log2Up(io.pfcclient.ManagerIDs)+9,10))  //network port ID of pfcManager
+    val findst      = Reg(UInt())      //network port ID of pfcManager for finish or cancel
     val trigger     = Wire(Bool())
     //software reset to cancel old pfcreq;
     //software set to start a new pfcreq;
@@ -606,8 +606,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     //trigger && !reqfired means send start signal to pfcmanager
     //reqfinish means send finish or cancel siganl to pfcmanager
     io.pfcclient.req.bits.src  := UInt(id)
-    io.pfcclient.req.bits.dst  := Mux(reqfinish, findst, reqdst) //pfcMID
-    io.pfcclient.req.bits.pfcMtype   := Mux(reqfinish, fintype, reqtype)
+    io.pfcclient.req.bits.dst  := Mux(reqfinish, findst, reqdst) //pfc network port ID
     io.pfcclient.req.bits.cmd        := Mux(reqfinish, UInt(1), UInt(0))
     io.pfcclient.req.bits.bitmap     := reg_pfcm
     io.pfcclient.req.bits.programID  := programID
@@ -648,7 +647,6 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
         reqfired  := Bool(true)  //set reqfired to disable new req start
         //respfired := Bool(false) //deleted because when(pfc_acqbsof) { respfired := Bool(false) }
         findst    := reqdst  //dst address for finish := dst address for req
-        fintype   := reqtype //pfcMtype for finish := pftMtype for req
         reg_pfcm  := UInt(0) //no conflict with software because when(pfc_acqbsof) { io.pfcclient.req.valid := reqfinish }
       }
     }
