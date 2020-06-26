@@ -593,7 +593,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     //software reset to cancel old pfcreq;
     //software set to start a new pfcreq;
     //hardware reset means respdone(all resp fired)
-    val empty       = Wire(Bool())     //reg_pfcr and fifo(resp_data) are empty
+    val empty       = Wire(Bool())     //reg_pfcr and fifo(resp_array) are empty
+    val pfcr_error  = Reg(Bool())      //reg_pfcr fetch an error data from resp_array
     val read_en     = Wire(Bool())     //software read reg_pfcr
     val read_error  = Wire(Bool())     //software read reg_pfcr however empty
     respdone    := io.pfcclient.resp.fire() && io.pfcclient.resp.bits.last && PIDMatch
@@ -602,7 +603,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     trigger     := reg_pfcc(0)
     empty       := !respfired || (read_coun > resp_coun)
     read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R //software read reg_pfcr
-    read_error  := (empty && read_en) || reg_pfcc(3)
+    read_error  := (pfcr_error && read_en) || reg_pfcc(3)
     resp_bitm   := UInt(1) << io.pfcclient.resp.bits.bitmapUI(5,0)
     array_out   := resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
     io.pfcclient.req.valid     := (trigger && !reqfired) || reqfinish
@@ -616,6 +617,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     io.pfcclient.resp.ready          := !reqfinish //when finish or cancel disable to receive pfcresp
     when(pfc_acqbsof) {
       respfired                 := Bool(false)  //set empty
+      pfcr_error                := Bool(false)  //clear read_error
       io.pfcclient.req.valid    := reqfinish    //only allow sending finish or cancel signal to pfcmanager
       io.pfcclient.resp.ready   := Bool(false)  //not allow receiving pfcresp
       when(trigger && reqfired && !reqfinish) {
@@ -654,8 +656,10 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       }
     }
     when(read_en) {
-      read_coun := read_next
-      reg_pfcr  := array_out
+      read_coun  := read_next
+      reg_pfcr   := array_out //:= resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
+      pfcr_error := Bool(read_coun >= resp_coun)
+
     }
   }
 
