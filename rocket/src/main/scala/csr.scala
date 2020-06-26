@@ -573,8 +573,10 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   }
   if (usingPFC) { //pfcClient ControlMachine
     val read_coun  = Reg(UInt(width=6))
+    val read_next  = Wire(init=read_coun+UInt(1))
     val resp_coun  = Reg(UInt(width=6))
-    val resp_data  = Reg(Vec(16, UInt(width=64)))
+    val resp_array = SeqMem(63, Bits(width=64))  //use sram store pfcManager resp.data
+    val array_out  = Wire(Bits(width=64))   //fifo_out
     val resp_bitm  = Wire(Bits(width=64))   //resp bit map
     val reqfired   = Reg(init=Bool(false))  //pfc_req has fired
     val respfired  = Reg(init=Bool(false))  //pfc_resp(first) has fired
@@ -585,7 +587,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val PIDMatch    = Wire(Bool())      //programID match
     val pfcMtype    = reg_pfcc(59,52)   //pfcManagertype for req
     val pfcMID      = reg_pfcc(51,10)   //pfcManagerID for req
-    val reqdst      = Cat(pfcMtype(log2Up(io.pfcclient.pfcTypes)-1,0),pfcMID(log2Up(io.pfcclient.ManagerIDs)+9,10))  //network port ID of pfcManager
+    val reqdst      = Cat(pfcMtype(log2Up(io.pfcclient.pfcTypes)-1,0),pfcMID(log2Up(io.pfcclient.ManagerIDs)-1,0))  //network port ID of pfcManager
     val findst      = Reg(UInt())      //network port ID of pfcManager for finish or cancel
     val trigger     = Wire(Bool())
     //software reset to cancel old pfcreq;
@@ -599,14 +601,15 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     PIDMatch    := io.pfcclient.resp.bits.programID === programID
     trigger     := reg_pfcc(0)
     empty       := !respfired || (read_coun > resp_coun)
-    read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R
+    read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R //software read reg_pfcr
     read_error  := (empty && read_en) || reg_pfcc(3)
     resp_bitm   := UInt(1) << io.pfcclient.resp.bits.bitmapUI(5,0)
+    array_out   := resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
     io.pfcclient.req.valid     := (trigger && !reqfired) || reqfinish
     //trigger && !reqfired means send start signal to pfcmanager
     //reqfinish means send finish or cancel siganl to pfcmanager
-    io.pfcclient.req.bits.src  := UInt(id)
-    io.pfcclient.req.bits.dst  := Mux(reqfinish, findst, reqdst) //pfc network port ID
+    io.pfcclient.req.bits.src        := UInt(id)
+    io.pfcclient.req.bits.dst        := Mux(reqfinish, findst, reqdst) //pfc network port ID
     io.pfcclient.req.bits.cmd        := Mux(reqfinish, UInt(1), UInt(0))
     io.pfcclient.req.bits.bitmap     := reg_pfcm
     io.pfcclient.req.bits.programID  := programID
@@ -627,7 +630,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     when(io.pfcclient.resp.fire() && PIDMatch) {
       respfired := Bool(true)
       resp_coun := resp_coun + UInt(1)
-      resp_data(resp_coun) := io.pfcclient.resp.bits.data
+      resp_array.write(resp_coun, io.pfcclient.resp.bits.data)
       reg_pfcm  := reg_pfcm | resp_bitm
       when(io.pfcclient.resp.bits.first) {
         read_coun := UInt(0)
@@ -651,8 +654,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       }
     }
     when(read_en) {
-      read_coun := read_coun + UInt(1)
-      reg_pfcr  := resp_data(read_coun)
+      read_coun := read_next
+      reg_pfcr  := array_out
     }
   }
 
