@@ -162,7 +162,7 @@ class RocketTile(id: Int = 0, resetSignal: Bool = null)(implicit p: Parameters) 
   io.dbgrst <> core.io.dbgrst
 
   //pfc
-  val pfc = Module(new TilePFCManager())
+  val pfc = Module(new TilePFCManager(id)(p))
   io.pfcmanager <> pfc.io.manager
   pfc.io.update.L1I := icache.io.pfc
   pfc.io.update.L1D := dcache.io.pfc

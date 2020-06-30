@@ -175,7 +175,7 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
 
 }
 
-class TilePFCManager(implicit p: Parameters) extends PFCModule()(p) {
+class TilePFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
   val io = new Bundle {
     val manager = new PFCManagerIO()
     val update  = new TilePerform()
@@ -194,7 +194,7 @@ class TilePFCManager(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(6) := io.update.L1D.write_back
 }
 
-class L2BankPFCManager(implicit p: Parameters) extends PFCModule()(p) {
+class L2BankPFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
   val io = new Bundle {
     val manager = new PFCManagerIO()
     val update  = new L2CachePerform()

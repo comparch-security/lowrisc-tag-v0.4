@@ -575,7 +575,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val read_coun  = Reg(UInt(width=6))
     val read_next  = Wire(init=read_coun+UInt(1))
     val resp_coun  = Reg(UInt(width=6))
-    val resp_array = SeqMem(63, Bits(width=64))  //use sram store pfcManager resp.data
+    //val resp_array = SeqMem(63, Bits(width=64))  //use sram store pfcManager resp.data
+    val resp_array = Reg((Vec(16, Bits(width=64))))
     val array_out  = Wire(Bits(width=64))   //fifo_out
     val resp_bitm  = Wire(Bits(width=64))   //resp bit map
     val reqfired   = Reg(init=Bool(false))  //pfc_req has fired
@@ -605,7 +606,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R //software read reg_pfcr
     read_error  := (pfcr_error && read_en) || reg_pfcc(3)
     resp_bitm   := UInt(1) << io.pfcclient.resp.bits.bitmapUI(5,0)
-    array_out   := resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
+    //array_out   := resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
+    array_out   := resp_array(read_coun)
     io.pfcclient.req.valid     := (trigger && !reqfired) || reqfinish
     //trigger && !reqfired means send start signal to pfcmanager
     //reqfinish means send finish or cancel siganl to pfcmanager
@@ -632,7 +634,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     when(io.pfcclient.resp.fire() && PIDMatch) {
       respfired := Bool(true)
       resp_coun := resp_coun + UInt(1)
-      resp_array.write(resp_coun, io.pfcclient.resp.bits.data)
+      resp_array.write(resp_coun, io.pfcclient.resp.bits.data) //resp_arry(resp_count) := io.pfcclient.resp.bits.data
       reg_pfcm  := reg_pfcm | resp_bitm
       when(io.pfcclient.resp.bits.first) {
         read_coun := UInt(0)

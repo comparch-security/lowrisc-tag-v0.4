@@ -411,7 +411,7 @@ class L2HellaCacheBank(implicit p: Parameters) extends HierarchicalCoherenceAgen
   val meta = Module(new L2MetadataArray) // TODO: add delay knob
   val data = Module(new L2DataArray(1))
   val tshrfile = Module(new TSHRFile)
-  val pfc = Module(new L2BankPFCManager())
+  val pfc = Module(new L2BankPFCManager(cacheId)(p))
   io.inner <> tshrfile.io.inner
   io.outer <> tshrfile.io.outer
   tshrfile.io.incoherent <> io.incoherent
