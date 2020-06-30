@@ -11,6 +11,7 @@ case object PFCL2N extends Field[Int]
 
 trait HasPFCParameters {
   implicit val p: Parameters
+  val PFCEmitLog      = true
   val Tiles           = p(NTiles) //how many cores
   val Csrs            = Tiles
   val L1s             = Tiles
@@ -126,6 +127,7 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
 
   val s_IDLE :: s_RESP :: Nil = Enum(UInt(), 2)
   val req_reg = Reg(new PFCReq())
+  val firstresp = Reg(Bool())
   val state = Reg(init = s_IDLE)
   val counterID     = Reg(UInt(width=log2Up(nCounters)))
   val pfcounters    = Vec(nCounters, Wire(UInt(width=64)))
@@ -146,7 +148,8 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
   io.manager.resp.valid      := state === s_RESP
   io.manager.resp.bits.dst   := req_reg.src
   io.manager.resp.bits.data  := pfcounters(raddr)
-  io.manager.resp.bits.last  := PopCount(bitmap) === UInt(1)
+  io.manager.resp.bits.first := firstresp
+  io.manager.resp.bits.last  := PopCount(bitmap) <= UInt(1)
   io.manager.resp.bits.bitmapUI   := raddr(log2Up(nCounters)-1,0)
   io.manager.resp.bits.programID  := req_reg.programID
 
@@ -154,19 +157,22 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
     req_reg   := io.manager.req.bits
     bitmap    := io.manager.req.bits.bitmap(nCounters-1,0)
     counterID := UInt(0)
+    firstresp := Bool(true)
   }
   when(io.manager.resp.fire()) {
     counterID := counterID+UInt(1)
     bitmap := rmleastO
+    firstresp := Bool(false)
   }
 
-  when(state === s_IDLE && io.manager.req.fire()) {
+  when(state === s_IDLE && io.manager.req.fire() && io.manager.req.bits.cmd===UInt(0)) {
+    //cmd===UInt(0) require a new pfc
     state := s_RESP
   }
   when(state === s_RESP && io.manager.resp.fire() && io.manager.resp.bits.last) {
     state := s_IDLE
   }
-  when(req_reg.cmd(0)) { //finish or cancel
+  when(req_reg.cmd(0)) { //cmd===UInt(1) means finish or cancel a pfc req
     state := s_IDLE
     req_reg.cmd           := UInt(0)
     io.manager.req.ready  := Bool(false)
@@ -193,16 +199,18 @@ class TilePFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(5) := io.update.L1D.write_miss
   pfcManager.io.update(6) := io.update.L1D.write_back
 
-  val resp_pfc = io.manager.resp.bits.data
-  val resp_bitmapUI = io.manager.resp.bits.bitmapUI
-  when(io.manager.resp.fire()) {
-    when(resp_bitmapUI===UInt(0)) { printf("Tile%d L1I_read = %d\n",        UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(1)) { printf("Tile%d L1I_readmiss = %d\n",    UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(2)) { printf("Tile%d L1D_read = %d\n",        UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(3)) { printf("Tile%d L1D_readmiss = %d\n",    UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(4)) { printf("Tile%d L1D_write = %d\n",       UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(5)) { printf("Tile%d L1D_writemiss = %d\n",   UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(6)) { printf("Tile%d L1D_writeback = %d\n",   UInt(id), resp_pfc)}
+  if(PFCEmitLog) {
+    val resp_pfc = io.manager.resp.bits.data
+    val resp_bitmapUI = io.manager.resp.bits.bitmapUI
+    when(io.manager.resp.fire()) {
+      when(resp_bitmapUI===UInt(0)) { printf("Tile%d L1I_read = %d\n",        UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(1)) { printf("Tile%d L1I_readmiss = %d\n",    UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(2)) { printf("Tile%d L1D_read = %d\n",        UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(3)) { printf("Tile%d L1D_readmiss = %d\n",    UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(4)) { printf("Tile%d L1D_write = %d\n",       UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(5)) { printf("Tile%d L1D_writemiss = %d\n",   UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(6)) { printf("Tile%d L1D_writeback = %d\n",   UInt(id), resp_pfc)}
+    }
   }
 }
 
@@ -219,13 +227,15 @@ class L2BankPFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(2) := io.update.write
   pfcManager.io.update(3) := io.update.write_back
 
-  val resp_pfc = io.manager.resp.bits.data
-  val resp_bitmapUI = io.manager.resp.bits.bitmapUI
-  when(io.manager.resp.fire()) {
-    when(resp_bitmapUI===UInt(0)) { printf("L2Bank%d read = %d\n",        UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(1)) { printf("L2Bank%d readmiss = %d\n",    UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(2)) { printf("L2Bank%d write = %d\n",       UInt(id), resp_pfc)}
-    when(resp_bitmapUI===UInt(3)) { printf("L2Bank%d writemiss = %d\n",   UInt(id), resp_pfc)}
+  if(PFCEmitLog) {
+    val resp_pfc = io.manager.resp.bits.data
+    val resp_bitmapUI = io.manager.resp.bits.bitmapUI
+    when(io.manager.resp.fire()) {
+      when(resp_bitmapUI===UInt(0)) { printf("L2Bank%d read = %d\n",        UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(1)) { printf("L2Bank%d readmiss = %d\n",    UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(2)) { printf("L2Bank%d write = %d\n",       UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(3)) { printf("L2Bank%d writemiss = %d\n",   UInt(id), resp_pfc)}
+    }
   }
 }
 
@@ -253,24 +263,26 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(13) := io.update.writeTM1_miss
   pfcManager.io.update(14) := io.update.writeTM1_back
 
-  val resp_pfc = io.manager.resp.bits.data
-  val resp_bitmapUI = io.manager.resp.bits.bitmapUI
-  when(io.manager.resp.fire()) {
-    when(resp_bitmapUI===UInt(0))  { printf("TC readTT = %d\n",        resp_pfc)}
-    when(resp_bitmapUI===UInt(1))  { printf("TC readTTmiss = %d\n",    resp_pfc)}
-    when(resp_bitmapUI===UInt(2))  { printf("TC writeTT = %d\n",       resp_pfc)}
-    when(resp_bitmapUI===UInt(3))  { printf("TC writeTTmiss = %d\n",   resp_pfc)}
-    when(resp_bitmapUI===UInt(4))  { printf("TC writeTTback = %d\n",   resp_pfc)}
-    when(resp_bitmapUI===UInt(5))  { printf("TC readTM0 = %d\n",       resp_pfc)}
-    when(resp_bitmapUI===UInt(6))  { printf("TC readTM0miss = %d\n",   resp_pfc)}
-    when(resp_bitmapUI===UInt(7))  { printf("TC writeTM0 = %d\n",      resp_pfc)}
-    when(resp_bitmapUI===UInt(8))  { printf("TC writeTM0miss = %d\n",  resp_pfc)}
-    when(resp_bitmapUI===UInt(9))  { printf("TC writeTM0back = %d\n",  resp_pfc)}
-    when(resp_bitmapUI===UInt(10)) { printf("TC readTM1 = %d\n",       resp_pfc)}
-    when(resp_bitmapUI===UInt(11)) { printf("TC readTM1miss = %d\n",   resp_pfc)}
-    when(resp_bitmapUI===UInt(12)) { printf("TC writeTM1 = %d\n",      resp_pfc)}
-    when(resp_bitmapUI===UInt(13)) { printf("TC writeTM1miss = %d\n",  resp_pfc)}
-    when(resp_bitmapUI===UInt(14)) { printf("TC writeTM1back = %d\n",  resp_pfc)}
+  if(PFCEmitLog) {
+    val resp_pfc = io.manager.resp.bits.data
+    val resp_bitmapUI = io.manager.resp.bits.bitmapUI
+    when(io.manager.resp.fire()) {
+      when(resp_bitmapUI===UInt(0))  { printf("TC readTT = %d\n",        resp_pfc)}
+      when(resp_bitmapUI===UInt(1))  { printf("TC readTTmiss = %d\n",    resp_pfc)}
+      when(resp_bitmapUI===UInt(2))  { printf("TC writeTT = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(3))  { printf("TC writeTTmiss = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(4))  { printf("TC writeTTback = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(5))  { printf("TC readTM0 = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(6))  { printf("TC readTM0miss = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(7))  { printf("TC writeTM0 = %d\n",      resp_pfc)}
+      when(resp_bitmapUI===UInt(8))  { printf("TC writeTM0miss = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(9))  { printf("TC writeTM0back = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(10)) { printf("TC readTM1 = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(11)) { printf("TC readTM1miss = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(12)) { printf("TC writeTM1 = %d\n",      resp_pfc)}
+      when(resp_bitmapUI===UInt(13)) { printf("TC writeTM1miss = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(14)) { printf("TC writeTM1back = %d\n",  resp_pfc)}
+    }
   }
 }
 

@@ -603,7 +603,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     PIDMatch    := io.pfcclient.resp.bits.programID === programID
     trigger     := reg_pfcc(0)
     empty       := !respfired || (read_coun > resp_coun)
-    read_en     := decoded_addr(CSRs.pfcr) && io.rw.cmd === CSR.R //software read reg_pfcr
+    read_en     := decoded_addr(CSRs.pfcr) && io.retire.toBool //software read reg_pfcr
     read_error  := (pfcr_error && read_en) || reg_pfcc(3)
     resp_bitm   := UInt(1) << io.pfcclient.resp.bits.bitmapUI(5,0)
     //array_out   := resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
@@ -661,7 +661,13 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       read_coun  := read_next
       reg_pfcr   := array_out //:= resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
       pfcr_error := Bool(read_coun >= resp_coun)
-      printf("reg_pfc %d's read = %d", read_coun, reg_pfcr)
+      if(io.pfcclient.PFCEmitLog) {
+        when(pfcr_error) { //after reg_pfcr fetch the wrong data software shouldn't read it
+          printf("reg_pfcr read_error read_count = %d resp_count = %d\n", read_coun, resp_coun)
+        }.otherwise {
+          printf("%d's read reg_pfcr = %d, have received = %d\n", read_coun, reg_pfcr, resp_coun)
+        }
+      }
     }
   }
 
