@@ -192,6 +192,18 @@ class TilePFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(4) := io.update.L1D.write
   pfcManager.io.update(5) := io.update.L1D.write_miss
   pfcManager.io.update(6) := io.update.L1D.write_back
+
+  val resp_pfc = io.manager.resp.bits.data
+  val resp_bitmapUI = io.manager.resp.bits.bitmapUI
+  when(io.manager.resp.fire()) {
+    when(resp_bitmapUI===UInt(0)) { printf("Tile%d L1I_read = %d\n",        UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(1)) { printf("Tile%d L1I_readmiss = %d\n",    UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(2)) { printf("Tile%d L1D_read = %d\n",        UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(3)) { printf("Tile%d L1D_readmiss = %d\n",    UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(4)) { printf("Tile%d L1D_write = %d\n",       UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(5)) { printf("Tile%d L1D_writemiss = %d\n",   UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(6)) { printf("Tile%d L1D_writeback = %d\n",   UInt(id), resp_pfc)}
+  }
 }
 
 class L2BankPFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
@@ -206,6 +218,15 @@ class L2BankPFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(1) := io.update.read_miss
   pfcManager.io.update(2) := io.update.write
   pfcManager.io.update(3) := io.update.write_back
+
+  val resp_pfc = io.manager.resp.bits.data
+  val resp_bitmapUI = io.manager.resp.bits.bitmapUI
+  when(io.manager.resp.fire()) {
+    when(resp_bitmapUI===UInt(0)) { printf("L2Bank%d read = %d\n",        UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(1)) { printf("L2Bank%d readmiss = %d\n",    UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(2)) { printf("L2Bank%d write = %d\n",       UInt(id), resp_pfc)}
+    when(resp_bitmapUI===UInt(3)) { printf("L2Bank%d writemiss = %d\n",   UInt(id), resp_pfc)}
+  }
 }
 
 class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
@@ -231,6 +252,26 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(12) := io.update.writeTM1
   pfcManager.io.update(13) := io.update.writeTM1_miss
   pfcManager.io.update(14) := io.update.writeTM1_back
+
+  val resp_pfc = io.manager.resp.bits.data
+  val resp_bitmapUI = io.manager.resp.bits.bitmapUI
+  when(io.manager.resp.fire()) {
+    when(resp_bitmapUI===UInt(0))  { printf("TC readTT = %d\n",        resp_pfc)}
+    when(resp_bitmapUI===UInt(1))  { printf("TC readTTmiss = %d\n",    resp_pfc)}
+    when(resp_bitmapUI===UInt(2))  { printf("TC writeTT = %d\n",       resp_pfc)}
+    when(resp_bitmapUI===UInt(3))  { printf("TC writeTTmiss = %d\n",   resp_pfc)}
+    when(resp_bitmapUI===UInt(4))  { printf("TC writeTTback = %d\n",   resp_pfc)}
+    when(resp_bitmapUI===UInt(5))  { printf("TC readTM0 = %d\n",       resp_pfc)}
+    when(resp_bitmapUI===UInt(6))  { printf("TC readTM0miss = %d\n",   resp_pfc)}
+    when(resp_bitmapUI===UInt(7))  { printf("TC writeTM0 = %d\n",      resp_pfc)}
+    when(resp_bitmapUI===UInt(8))  { printf("TC writeTM0miss = %d\n",  resp_pfc)}
+    when(resp_bitmapUI===UInt(9))  { printf("TC writeTM0back = %d\n",  resp_pfc)}
+    when(resp_bitmapUI===UInt(10)) { printf("TC readTM1 = %d\n",       resp_pfc)}
+    when(resp_bitmapUI===UInt(11)) { printf("TC readTM1miss = %d\n",   resp_pfc)}
+    when(resp_bitmapUI===UInt(12)) { printf("TC writeTM1 = %d\n",      resp_pfc)}
+    when(resp_bitmapUI===UInt(13)) { printf("TC writeTM1miss = %d\n",  resp_pfc)}
+    when(resp_bitmapUI===UInt(14)) { printf("TC writeTM1back = %d\n",  resp_pfc)}
+  }
 }
 
 class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
@@ -268,4 +309,7 @@ class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
     respNet.io.in(i).bits.header.src  := io.managers(i).resp.bits.src
     respNet.io.in(i).bits.header.dst  := io.managers(i).resp.bits.dst
   })
+
+  //some unused reqNet_valid may be connected to high when vcs simulation
+  (Clients until NetPorts).map(i =>{ reqNet.io.in(i).valid := Bool(false) })
 }

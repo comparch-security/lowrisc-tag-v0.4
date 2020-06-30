@@ -661,7 +661,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
       read_coun  := read_next
       reg_pfcr   := array_out //:= resp_array.read(Mux(read_en, read_next, UInt(0)), read_en || io.pfcclient.resp.fire() && io.pfcclient.resp.bits.first)
       pfcr_error := Bool(read_coun >= resp_coun)
-
+      printf("reg_pfc %d's read = %d", read_coun, reg_pfcr)
     }
   }
 
