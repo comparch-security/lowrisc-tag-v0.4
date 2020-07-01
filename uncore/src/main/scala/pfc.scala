@@ -165,20 +165,13 @@ class PFCManager(nCounters: Int)(implicit p: Parameters) extends PFCModule()(p) 
     firstresp := Bool(false)
   }
 
-  when(state === s_IDLE && io.manager.req.fire() && io.manager.req.bits.cmd===UInt(0)) {
-    //cmd===UInt(0) require a new pfc
-    state := s_RESP
+  when(io.manager.req.fire()) {
+    //cmd===UInt(0) csr require a new pfc, otherwise cancel or finish pfc
+    state := Mux(io.manager.req.bits.cmd===UInt(0), s_RESP, s_IDLE)
   }
   when(state === s_RESP && io.manager.resp.fire() && io.manager.resp.bits.last) {
     state := s_IDLE
   }
-  when(req_reg.cmd(0)) { //cmd===UInt(1) means finish or cancel a pfc req
-    state := s_IDLE
-    req_reg.cmd           := UInt(0)
-    io.manager.req.ready  := Bool(false)
-    io.manager.resp.valid := Bool(false)
-  }
-
 }
 
 class TilePFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
