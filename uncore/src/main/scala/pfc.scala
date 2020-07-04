@@ -196,13 +196,13 @@ class TilePFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
     val resp_pfc = io.manager.resp.bits.data
     val resp_bitmapUI = io.manager.resp.bits.bitmapUI
     when(io.manager.resp.fire()) {
-      when(resp_bitmapUI===UInt(0)) { printf("Tile%d L1I_read = %d\n",        UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(1)) { printf("Tile%d L1I_readmiss = %d\n",    UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(2)) { printf("Tile%d L1D_read = %d\n",        UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(3)) { printf("Tile%d L1D_readmiss = %d\n",    UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(4)) { printf("Tile%d L1D_write = %d\n",       UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(5)) { printf("Tile%d L1D_writemiss = %d\n",   UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(6)) { printf("Tile%d L1D_writeback = %d\n",   UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(0)) { printf("PFCResp: Tile%d L1I_read = %d\n",        UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(1)) { printf("PFCResp: Tile%d L1I_readmiss = %d\n",    UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(2)) { printf("PFCResp: Tile%d L1D_read = %d\n",        UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(3)) { printf("PFCResp: Tile%d L1D_readmiss = %d\n",    UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(4)) { printf("PFCResp: Tile%d L1D_write = %d\n",       UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(5)) { printf("PFCResp: Tile%d L1D_writemiss = %d\n",   UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(6)) { printf("PFCResp: Tile%d L1D_writeback = %d\n",   UInt(id), resp_pfc)}
     }
   }
 }
@@ -224,10 +224,10 @@ class L2BankPFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
     val resp_pfc = io.manager.resp.bits.data
     val resp_bitmapUI = io.manager.resp.bits.bitmapUI
     when(io.manager.resp.fire()) {
-      when(resp_bitmapUI===UInt(0)) { printf("L2Bank%d read = %d\n",        UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(1)) { printf("L2Bank%d readmiss = %d\n",    UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(2)) { printf("L2Bank%d write = %d\n",       UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(3)) { printf("L2Bank%d writemiss = %d\n",   UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(0)) { printf("PFCResp: L2Bank%d read = %d\n",        UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(1)) { printf("PFCResp: L2Bank%d readmiss = %d\n",    UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(2)) { printf("PFCResp: L2Bank%d write = %d\n",       UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(3)) { printf("PFCResp: L2Bank%d writemiss = %d\n",   UInt(id), resp_pfc)}
     }
   }
 }
@@ -260,21 +260,21 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
     val resp_pfc = io.manager.resp.bits.data
     val resp_bitmapUI = io.manager.resp.bits.bitmapUI
     when(io.manager.resp.fire()) {
-      when(resp_bitmapUI===UInt(0))  { printf("TC readTT = %d\n",        resp_pfc)}
-      when(resp_bitmapUI===UInt(1))  { printf("TC readTTmiss = %d\n",    resp_pfc)}
-      when(resp_bitmapUI===UInt(2))  { printf("TC writeTT = %d\n",       resp_pfc)}
-      when(resp_bitmapUI===UInt(3))  { printf("TC writeTTmiss = %d\n",   resp_pfc)}
-      when(resp_bitmapUI===UInt(4))  { printf("TC writeTTback = %d\n",   resp_pfc)}
-      when(resp_bitmapUI===UInt(5))  { printf("TC readTM0 = %d\n",       resp_pfc)}
-      when(resp_bitmapUI===UInt(6))  { printf("TC readTM0miss = %d\n",   resp_pfc)}
-      when(resp_bitmapUI===UInt(7))  { printf("TC writeTM0 = %d\n",      resp_pfc)}
-      when(resp_bitmapUI===UInt(8))  { printf("TC writeTM0miss = %d\n",  resp_pfc)}
-      when(resp_bitmapUI===UInt(9))  { printf("TC writeTM0back = %d\n",  resp_pfc)}
-      when(resp_bitmapUI===UInt(10)) { printf("TC readTM1 = %d\n",       resp_pfc)}
-      when(resp_bitmapUI===UInt(11)) { printf("TC readTM1miss = %d\n",   resp_pfc)}
-      when(resp_bitmapUI===UInt(12)) { printf("TC writeTM1 = %d\n",      resp_pfc)}
-      when(resp_bitmapUI===UInt(13)) { printf("TC writeTM1miss = %d\n",  resp_pfc)}
-      when(resp_bitmapUI===UInt(14)) { printf("TC writeTM1back = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(0))  { printf("PFCResp: TC readTT = %d\n",        resp_pfc)}
+      when(resp_bitmapUI===UInt(1))  { printf("PFCResp: TC readTTmiss = %d\n",    resp_pfc)}
+      when(resp_bitmapUI===UInt(2))  { printf("PFCResp: TC writeTT = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(3))  { printf("PFCResp: TC writeTTmiss = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(4))  { printf("PFCResp: TC writeTTback = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(5))  { printf("PFCResp: TC readTM0 = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(6))  { printf("PFCResp: TC readTM0miss = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(7))  { printf("PFCResp: TC writeTM0 = %d\n",      resp_pfc)}
+      when(resp_bitmapUI===UInt(8))  { printf("PFCResp: TC writeTM0miss = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(9))  { printf("PFCResp: TC writeTM0back = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(10)) { printf("PFCResp: TC readTM1 = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(11)) { printf("PFCResp: TC readTM1miss = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(12)) { printf("PFCResp: TC writeTM1 = %d\n",      resp_pfc)}
+      when(resp_bitmapUI===UInt(13)) { printf("PFCResp: TC writeTM1miss = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(14)) { printf("PFCResp: TC writeTM1back = %d\n",  resp_pfc)}
     }
   }
 }
