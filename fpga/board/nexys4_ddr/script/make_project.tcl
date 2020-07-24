@@ -12,8 +12,8 @@ set base_dir "../../.."
 set osd_dir "../../../opensocdebug/hardware"
 set glip_dir "../../../opensocdebug/glip/src"
 set common_dir "../../common"
-set minion_dir "../../../minion_subsystem"
-set pulpino_dir "../../../minion_subsystem/pulpino"
+#set minion_dir "../../../minion_subsystem"
+#set pulpino_dir "../../../minion_subsystem/pulpino"
 
 set project_name [lindex $argv 0]
 set CONFIG [lindex $argv 1]
@@ -96,49 +96,6 @@ set files [list \
                [file normalize $glip_dir/common/logic/fifo/verilog/oh_fifo_sync.v] \
                [file normalize $glip_dir/common/logic/fifo/verilog/oh_memory_ram.v] \
                [file normalize $glip_dir/common/logic/fifo/verilog/oh_memory_dp.v] \
-               [file normalize $pulpino_dir/ips/riscv/alu_div.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/alu.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/compressed_decoder.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/controller.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/cs_registers.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/debug_unit.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/decoder.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/exc_controller.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/ex_stage.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/hwloop_controller.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/hwloop_regs.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/id_stage.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/if_stage.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/include/riscv_config.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/include/riscv_defines.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/load_store_unit.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/mult.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/prefetch_buffer.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/prefetch_L0_buffer.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/register_file_ff.sv ] \
-               [file normalize $pulpino_dir/ips/riscv/riscv_core.sv ] \
-               [file normalize $pulpino_dir/rtl/components/cluster_clock_gating.sv ] \
-               [file normalize $pulpino_dir/rtl/includes/config.sv ] \
-               [file normalize $minion_dir/software/bootstrap/code.v ] \
-               [file normalize $minion_dir/software/bootstrap/data.v ] \
-               [file normalize $minion_dir/verilog/coremem.sv ] \
-               [file normalize $minion_dir/verilog/minion_soc.sv ] \
-               [file normalize $minion_dir/verilog/my_fifo.v ] \
-               [file normalize $minion_dir/verilog/sd_cmd_serial_host.v ] \
-               [file normalize $minion_dir/verilog/sd_crc_16.v ] \
-               [file normalize $minion_dir/verilog/sd_crc_7.v ] \
-               [file normalize $minion_dir/verilog/sd_data_serial_host.sv ] \
-               [file normalize $minion_dir/verilog/ps2_keyboard.v ] \
-               [file normalize $minion_dir/verilog/dualmem.v ] \
-               [file normalize $minion_dir/verilog/ps2_defines.v ] \
-               [file normalize $minion_dir/verilog/ps2_translation_table.v ] \
-               [file normalize $minion_dir/verilog/rx_delay.v ] \
-               [file normalize $minion_dir/verilog/fstore2.v ] \
-               [file normalize $minion_dir/verilog/ascii_code.v ] \
-               [file normalize $minion_dir/verilog/ps2.v ] \
-               [file normalize $minion_dir/verilog/sd_defines.h ] \
-               [file normalize $minion_dir/verilog/sd_top.sv ] \
-               [file normalize $minion_dir/verilog/uart.v ] \
              ]
 add_files -norecurse -fileset [get_filesets sources_1] $files
 
@@ -147,8 +104,6 @@ set_property include_dirs [list \
                                [file normalize $base_dir/src/main/verilog] \
                                [file normalize $origin_dir/src ]\
                                [file normalize $origin_dir/generated-src] \
-                               [file normalize $pulpino_dir/rtl/includes] \
-                               [file normalize $pulpino_dir/ips/riscv/include] \
                               ] [get_filesets sources_1]
 
 set_property verilog_define [list FPGA FPGA_FULL NEXYS4 PULP_FPGA_EMUL] [get_filesets sources_1]
@@ -281,8 +236,7 @@ set obj [get_filesets constrs_1]
 
 # Add/Import constrs file and set constrs file properties
 set files [list [file normalize "$origin_dir/constraint/pin_plan.xdc"] \
-                [file normalize "$origin_dir/constraint/timing.xdc"] \
-                [file normalize "$minion_dir/vivado/srcs/video_keyboard_io_nexys4ddr.xdc"]]
+                [file normalize "$origin_dir/constraint/timing.xdc"]]
 set file_added [add_files -norecurse -fileset $obj $files]
 
 # generate all IP source code
@@ -313,8 +267,6 @@ set_property include_dirs [list \
                                [file normalize $base_dir/src/main/verilog] \
                                [file normalize $origin_dir/src] \
                                [file normalize $origin_dir/generated-src] \
-                               [file normalize $pulpino_dir/rtl/includes] \
-                               [file normalize $pulpino_dir/ips/riscv/include] \
                                [file normalize $proj_dir/$project_name.srcs/sources_1/ip/mig_7series_0/mig_7series_0/example_design/sim] \
                               ] $obj
 #set_property verilog_define [list FPGA FPGA_FULL NEXYS4 PULP_FPGA_EMUL] $obj

@@ -12,7 +12,7 @@ endif
 # Build rules
 #--------------------------------------------------------------------
 
-FPGA_DIR ?= $(TOP)/vsim
+FPGA_DIR ?= $(TOP)/vcs
 BASE_DIR ?= .
 
 DRIVER_DIR = $(BASE_DIR)/../driver
