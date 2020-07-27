@@ -17,7 +17,7 @@ generated_dir = $(abspath ./generated-src)
 
 glip_dir = $(base_dir)/opensocdebug/glip/src
 osd_dir = $(base_dir)/opensocdebug/hardware
-example_dir = $(base_dir)/fpga/bare_metal/examples
+example_dir = $(base_dir)/fpga/bare_metal_V03/examples
 
 project_name = lowrisc-chip-imp
 BACKEND ?= lowrisc_chip.LowRISCBackend
