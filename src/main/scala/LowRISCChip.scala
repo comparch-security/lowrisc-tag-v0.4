@@ -181,12 +181,27 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
   if(p(UsePFC)) {
     (0 until nTiles).map(i => {
-      performc_net.io.clients(i)  <> tileList(i).io.pfcclient
-      performc_net.io.managers(i)  <> tileList(i).io.pfcmanager
+      performc_net.io.clients(i) <> tileList(i).io.pfcclient
+    })
+    (0 until performc_net.ManagerIDs).map(i => {
+      if(i < nTiles) performc_net.io.managers(i)  <> tileList(i).io.pfcmanager
+      else {
+        performc_net.io.managers(i).req.ready  := Bool(false)
+        performc_net.io.managers(i).resp.valid := Bool(false)
+      }
     })
     if (p(UseL2Cache)) {
-      (0 until nBanks).map(i => {
-        performc_net.io.managers(performc_net.L2PFCfirstPID+i) <> managerEndpoints(i).pfcmanager
+      (0 until performc_net.ManagerIDs).map(i => {
+        if(i < nBanks) performc_net.io.managers(performc_net.L2PFCfirstPID+i) <> managerEndpoints(i).pfcmanager
+        else {
+          performc_net.io.managers(performc_net.L2PFCfirstPID + i).req.ready  := Bool(false)
+          performc_net.io.managers(performc_net.L2PFCfirstPID + i).resp.valid := Bool(false)
+        }
+      })
+    } else {
+      (0 until performc_net.ManagerIDs).map(i => {
+        performc_net.io.managers(performc_net.L2PFCfirstPID+i).req.ready  := Bool(false)
+        performc_net.io.managers(performc_net.L2PFCfirstPID+i).resp.valid := Bool(false)
       })
     }
   }
@@ -208,11 +223,21 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
       case OuterTLId => memConvParams(TLId)
     })))
     if(p(UsePFC)) {
-       performc_net.io.managers(performc_net.TCPFCfirstPID) <> tc.io.pfcmanager
+      performc_net.io.managers(performc_net.TCPFCfirstPID) <> tc.io.pfcmanager
+      (1 until performc_net.ManagerIDs).map(i => {
+        performc_net.io.managers(performc_net.TCPFCfirstPID+i).req.ready  := Bool(false)
+        performc_net.io.managers(performc_net.TCPFCfirstPID+i).resp.valid := Bool(false)
+      })
     }
     tc.io.inner <> mem_net.io.out(0)
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
   } else {
+    if(p(UsePFC)) {
+      (0 until performc_net.ManagerIDs).map(i => {
+        performc_net.io.managers(performc_net.TCPFCfirstPID+i).req.ready  := Bool(false)
+        performc_net.io.managers(performc_net.TCPFCfirstPID+i).resp.valid := Bool(false)
+      })
+    }
     TopUtils.connectTilelinkNasti(io.nasti_mem, mem_net.io.out(0))(memConvParams)
   }
 
@@ -347,5 +372,12 @@ object Run extends App with FileSystemUtilities {
   scr_map_hdr.close
   val dev_map_hdr = createOutputFile(topModuleName + "." + configClassName + ".dev_map.h")
   AllAddrMapEntries.foreach{ map => dev_map_hdr.write(map.as_c_header) }
+  /*if(paramsFromConfig(UsePFC)){
+    dev_map_hdr.write("#define " + "ENA_PFC " + "0x01" + "\n")
+  }
+  if (paramsFromConfig(UseTagMem)) {
+    dev_map_hdr.write("#define " + "ADD_TC " + "0x01" + "\n")
+  }
+  dev_map_hdr.write("#define " + "L2Banks " + "0x"+ paramsFromConfig(NBanks).toHexString + "\n")*/
   dev_map_hdr.close
 }

@@ -17,15 +17,16 @@ trait HasPFCParameters {
   val L1s             = Tiles
   val pfcTypes        = 3 //TilePFC L2PFC TCPFC
   val L2Banks         = p(PFCL2N) //Can't use p(NBanks)
-  val TCBanks         = 1
+  val TCBanks         = if(p(UseTagMem)) 1 else 0
   val Clients         = Csrs
-  val ManagerIDs      = max(L1s,max(L2Banks,TCBanks))
-  val NetPorts        = pfcTypes*(1<<log2Up(ManagerIDs))
+  val ManagerIDsWidth = log2Up(max(L1s,max(L2Banks,TCBanks)))
+  val ManagerIDs      = 1<<ManagerIDsWidth
+  val NetPorts        = pfcTypes*ManagerIDs
   val MaxCounters     = 64
   //physical ID = Cat(types, ManagerID)
   val TilePFCfirstPID = 0  //PFCNetwork physical ID
-  val L2PFCfirstPID   = 1<<log2Up(ManagerIDs)
-  val TCPFCfirstPID   = 2<<log2Up(ManagerIDs)
+  val L2PFCfirstPID   = 1<<ManagerIDsWidth
+  val TCPFCfirstPID   = 2<<ManagerIDsWidth
 }
 
 abstract class PFCModule(implicit val p: Parameters) extends Module with HasPFCParameters
@@ -227,7 +228,7 @@ class L2BankPFCManager(id: Int)(implicit p: Parameters) extends PFCModule()(p) {
       when(resp_bitmapUI===UInt(0)) { printf("PFCResp: L2Bank%d read = %d\n",        UInt(id), resp_pfc)}
       when(resp_bitmapUI===UInt(1)) { printf("PFCResp: L2Bank%d readmiss = %d\n",    UInt(id), resp_pfc)}
       when(resp_bitmapUI===UInt(2)) { printf("PFCResp: L2Bank%d write = %d\n",       UInt(id), resp_pfc)}
-      when(resp_bitmapUI===UInt(3)) { printf("PFCResp: L2Bank%d writemiss = %d\n",   UInt(id), resp_pfc)}
+      when(resp_bitmapUI===UInt(3)) { printf("PFCResp: L2Bank%d writeback = %d\n",   UInt(id), resp_pfc)}
     }
   }
 }
@@ -288,33 +289,44 @@ class PFCCrossbar(implicit p: Parameters) extends PFCModule()(p) {
   val respNet = Module(new BasicCrossbar(NetPorts, new PFCResp, count=1, Some((resp: PhysicalNetworkIO[PFCResp]) => resp.payload.hasMultibeatData())))
 
   //csr <> Net
-  (0 until Clients).map(i =>{
-    //Csr.pfcreq to reqNet.in
-    reqNet.io.in(i).valid             := io.clients(i).req.valid
-    io.clients(i).req.ready           := reqNet.io.in(i).ready
-    reqNet.io.in(i).bits.payload      := io.clients(i).req.bits
-    reqNet.io.in(i).bits.header.src   := io.clients(i).req.bits.src
-    reqNet.io.in(i).bits.header.dst   := io.clients(i).req.bits.dst
-    //respNet.out to Csr.pfcresp
-    io.clients(i).resp.valid          := respNet.io.out(i).valid
-    respNet.io.out(i).ready           := io.clients(i).resp.ready
-    io.clients(i).resp.bits           := respNet.io.out(i).bits.payload
+  (0 until NetPorts).map(i =>{
+    //disable unused port
+    if(i >= TilePFCfirstPID+Tiles) {
+      reqNet.io.in(i).valid := Bool(false)
+      respNet.io.out(i).ready := Bool(false)
+    } else {
+      //Csr.pfcreq to reqNet.in
+      reqNet.io.in(i).valid := io.clients(i).req.valid
+      io.clients(i).req.ready := reqNet.io.in(i).ready
+      reqNet.io.in(i).bits.payload := io.clients(i).req.bits
+      reqNet.io.in(i).bits.header.src := io.clients(i).req.bits.src
+      reqNet.io.in(i).bits.header.dst := io.clients(i).req.bits.dst
+      //respNet.out to Csr.pfcresp
+      io.clients(i).resp.valid := respNet.io.out(i).valid
+      respNet.io.out(i).ready := io.clients(i).resp.ready
+      io.clients(i).resp.bits := respNet.io.out(i).bits.payload
+    }
   })
 
   //pfc <> Net
   (0 until NetPorts).map(i => {
-    //reqNet.out to pfc.req
-    io.managers(i).req.valid          := reqNet.io.out(i).valid
-    reqNet.io.out(i).ready            := io.managers(i).req.ready
-    io.managers(i).req.bits           := reqNet.io.out(i).bits.payload
-    //pfc.resp to respNet.in
-    respNet.io.in(i).valid            := io.managers(i).resp.valid
-    io.managers(i).resp.ready         := respNet.io.in(i).ready
-    respNet.io.in(i).bits.payload     := io.managers(i).resp.bits
-    respNet.io.in(i).bits.header.src  := io.managers(i).resp.bits.src
-    respNet.io.in(i).bits.header.dst  := io.managers(i).resp.bits.dst
+    //disable unused port
+    if((i>=TilePFCfirstPID+Tiles && i<L2PFCfirstPID) ||
+       (i>=L2PFCfirstPID+L2Banks && i<TCPFCfirstPID) ||
+       (i>=TCPFCfirstPID+TCBanks)) {
+      reqNet.io.out(i).ready := Bool(false)
+      respNet.io.in(i).valid  := Bool(false)
+    } else {
+      //reqNet.out to pfc.req
+      io.managers(i).req.valid := reqNet.io.out(i).valid
+      reqNet.io.out(i).ready := io.managers(i).req.ready
+      io.managers(i).req.bits := reqNet.io.out(i).bits.payload
+      //pfc.resp to respNet.in
+      respNet.io.in(i).valid := io.managers(i).resp.valid
+      io.managers(i).resp.ready := respNet.io.in(i).ready
+      respNet.io.in(i).bits.payload := io.managers(i).resp.bits
+      respNet.io.in(i).bits.header.src := io.managers(i).resp.bits.src
+      respNet.io.in(i).bits.header.dst := io.managers(i).resp.bits.dst
+    }
   })
-
-  //some unused reqNet_valid may be connected to high when vcs simulation
-  (Clients until NetPorts).map(i =>{ reqNet.io.in(i).valid := Bool(false) })
 }

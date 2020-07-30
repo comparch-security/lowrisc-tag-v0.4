@@ -473,7 +473,8 @@ class With6BitTags extends Config(
 
 class BasicFPGAConfig extends
     //Config(new WithTagConfig ++ new WithBootRAMConfig ++ new WithL2 ++ new BaseConfig)
-    Config(new WithTagConfig ++ new WithSPIConfig ++ new WithBootRAMConfig ++ new WithFlashConfig ++ new WithL2 ++ new BaseConfig)
+    //Config(new WithTagConfig ++ new WithSPIConfig ++ new WithBootRAMConfig ++ new WithFlashConfig ++ new WithL2 ++ new BaseConfig)
+    Config(new WithSPIConfig ++ new WithBootRAMConfig ++ new WithFlashConfig ++ new WithL2 ++ new BaseConfig)
 
 class FPGAConfig extends
     Config(new WithUARTConfig ++ new BasicFPGAConfig)
