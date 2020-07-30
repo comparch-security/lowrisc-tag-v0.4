@@ -165,7 +165,6 @@ class Frontend(implicit p: Parameters) extends CoreModule()(p) with HasL1CachePa
   io.cpu.btb_resp.bits := s2_btb_resp_bits
 
   //L1IPFC
-  val icache_pa = Cat(tlb.io.resp.ppn, s1_pc(pgIdxBits-1 ,0))
-  io.pfc.read := Reg(next = io.cpu.resp.fire() && addrMap.isCacheable(icache_pa))
-  io.pfc.read_miss := Reg(next = io.mem.acquire.fire() && addrMap.isCacheable(icache_pa))  //exclude io
+  io.pfc.read := Reg(next = io.cpu.resp.fire())
+  io.pfc.read_miss := Reg(next = io.mem.acquire.fire())
 }
