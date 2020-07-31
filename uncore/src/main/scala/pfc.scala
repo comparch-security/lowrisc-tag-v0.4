@@ -7,8 +7,6 @@ import cde.{Parameters, Field}
 import junctions._
 import scala.math.{min, max}
 
-case object PFCL2N extends Field[Int]
-
 trait HasPFCParameters {
   implicit val p: Parameters
   val PFCEmitLog      = true
@@ -16,7 +14,7 @@ trait HasPFCParameters {
   val Csrs            = Tiles
   val L1s             = Tiles
   val pfcTypes        = 3 //TilePFC L2PFC TCPFC
-  val L2Banks         = p(PFCL2N) //Can't use p(NBanks)
+  val L2Banks         = if(p(UseL2Cache)) p(NBanks) else 0
   val TCBanks         = if(p(UseTagMem)) 1 else 0
   val Clients         = Csrs
   val ManagerIDsWidth = log2Up(max(L1s,max(L2Banks,TCBanks)))

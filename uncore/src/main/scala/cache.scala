@@ -6,6 +6,8 @@ import scala.reflect.ClassTag
 import junctions._
 import cde.{Parameters, Field}
 
+case object UseL2Cache extends Field[Boolean]
+case object NBanks extends Field[Int]
 case object CacheName extends Field[String]
 case object NSets extends Field[Int]
 case object NWays extends Field[Int]

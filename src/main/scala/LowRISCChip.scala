@@ -11,12 +11,11 @@ import rocket.Util._
 import open_soc_debug._
 
 case object UseDma extends Field[Boolean]
-case object NBanks extends Field[Int]
 case object NSCR extends Field[Int]
 case object BankIdLSB extends Field[Int]
 case object IODataBits extends Field[Int]
 case object ConfigString extends Field[Array[Byte]]
-case object UseL2Cache extends Field[Boolean]
+
 
 trait HasTopLevelParameters {
   implicit val p: Parameters
@@ -181,27 +180,12 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   managerEndpoints.foreach { _.incoherent.foreach { _ := io.cpu_rst } } // revise when tiles are reset separately
   if(p(UsePFC)) {
     (0 until nTiles).map(i => {
-      performc_net.io.clients(i) <> tileList(i).io.pfcclient
-    })
-    (0 until performc_net.ManagerIDs).map(i => {
-      if(i < nTiles) performc_net.io.managers(i)  <> tileList(i).io.pfcmanager
-      else {
-        performc_net.io.managers(i).req.ready  := Bool(false)
-        performc_net.io.managers(i).resp.valid := Bool(false)
-      }
+      performc_net.io.clients(i)  <> tileList(i).io.pfcclient
+      performc_net.io.managers(i) <> tileList(i).io.pfcmanager
     })
     if (p(UseL2Cache)) {
-      (0 until performc_net.ManagerIDs).map(i => {
-        if(i < nBanks) performc_net.io.managers(performc_net.L2PFCfirstPID+i) <> managerEndpoints(i).pfcmanager
-        else {
-          performc_net.io.managers(performc_net.L2PFCfirstPID + i).req.ready  := Bool(false)
-          performc_net.io.managers(performc_net.L2PFCfirstPID + i).resp.valid := Bool(false)
-        }
-      })
-    } else {
-      (0 until performc_net.ManagerIDs).map(i => {
-        performc_net.io.managers(performc_net.L2PFCfirstPID+i).req.ready  := Bool(false)
-        performc_net.io.managers(performc_net.L2PFCfirstPID+i).resp.valid := Bool(false)
+      (0 until nBanks).map(i => {
+        performc_net.io.managers(performc_net.L2PFCfirstPID+i) <> managerEndpoints(i).pfcmanager
       })
     }
   }
@@ -224,20 +208,10 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
     })))
     if(p(UsePFC)) {
       performc_net.io.managers(performc_net.TCPFCfirstPID) <> tc.io.pfcmanager
-      (1 until performc_net.ManagerIDs).map(i => {
-        performc_net.io.managers(performc_net.TCPFCfirstPID+i).req.ready  := Bool(false)
-        performc_net.io.managers(performc_net.TCPFCfirstPID+i).resp.valid := Bool(false)
-      })
     }
     tc.io.inner <> mem_net.io.out(0)
     TopUtils.connectTilelinkNasti(io.nasti_mem, tc.io.outer)(memConvParams)
   } else {
-    if(p(UsePFC)) {
-      (0 until performc_net.ManagerIDs).map(i => {
-        performc_net.io.managers(performc_net.TCPFCfirstPID+i).req.ready  := Bool(false)
-        performc_net.io.managers(performc_net.TCPFCfirstPID+i).resp.valid := Bool(false)
-      })
-    }
     TopUtils.connectTilelinkNasti(io.nasti_mem, mem_net.io.out(0))(memConvParams)
   }
 

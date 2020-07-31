@@ -228,8 +228,8 @@ $(addprefix $(output_dir)/, $(addsuffix .riscv, $(asm_p_tests) $(asm_v_tests))):
 
 $(addprefix $(output_dir)/, $(addsuffix .riscv, $(bmarks_tests))):
 	mkdir -p $(output_dir)
-	$(MAKE) -C $(riscv_test_bmarks_dir) $(basename $(notdir $@))
-	ln -fs ../$(riscv_test_bmarks_dir)/$(basename $(notdir $@)) $@
+	$(MAKE) -C $(riscv_test_bmarks_dir) $(notdir $@)
+	ln -fs ../$(riscv_test_bmarks_dir)/$(notdir $@) $@
 
 $(addprefix $(output_dir)/, $(addsuffix .riscv, $(tag_tests))):
 	mkdir -p $(output_dir)
