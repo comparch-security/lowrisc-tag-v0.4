@@ -69,8 +69,8 @@ void get_pfc(void)
 
  
 #if(ADD_TC)
-  write_csr(0x404, pfc_fullmap);
-  write_csr(0x403, tcpfc_conf);
+  asm volatile ("csrw 0x404, %0" :: "r"(pfc_fullmap));
+  asm volatile ("csrw 0x403, %0" :: "r"(tcpfc_conf));
   __asm__("addi x0, x0, 0");
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[11]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[12]));

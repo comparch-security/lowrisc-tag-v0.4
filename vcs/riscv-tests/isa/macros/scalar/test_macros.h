@@ -30,7 +30,6 @@ test_ ## testnum: \
 #define TEST_INSERT_NOPS_9  nop; TEST_INSERT_NOPS_8
 #define TEST_INSERT_NOPS_10 nop; TEST_INSERT_NOPS_9
 
-
 #-----------------------------------------------------------------------
 # RV64UI MACROS
 #-----------------------------------------------------------------------
@@ -571,6 +570,29 @@ test_ ## testnum: \
   test_ ## testnum ## _data: \
   .double result; \
 1:
+
+
+#define GET_PFC \
+not x5, x0;   \
+addi x6, x0, 1;   \
+csrrw x0, 0x404, x5;   \
+csrrw x0, 0x403, x6;   \
+TEST_INSERT_NOPS_4;   \
+not x5, x0;   \
+addi x6, x0, 0x01;   \
+slli x6, x6, 52;   \
+addi x6, x6, 0x01;   \
+csrrw x0, 0x404, x5;   \
+csrrw x0, 0x403, x6;   \
+TEST_INSERT_NOPS_1;   \
+not x5, x0;   \
+addi x6, x0, 0x02;   \
+slli x6, x6, 52;   \
+addi x6, x6, 0x01;   \
+csrrw x0, 0x404, x5;   \
+csrrw x0, 0x403, x6;   \
+TEST_INSERT_NOPS_5;   \
+TEST_INSERT_NOPS_10;   \
 
 #-----------------------------------------------------------------------
 # Pass and fail code (assumes test num is in TESTNUM)

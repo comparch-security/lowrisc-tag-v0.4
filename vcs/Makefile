@@ -173,7 +173,7 @@ rv32si = csr ma_fetch scall sbreak wfi hpm \
 
 rv32mi = csr mcsr dirty illegal ma_addr ma_fetch sbreak scall \
 
-rv64ui = $(rv32ui) addw addiw ld lwu sd slliw sllw sltiu sltu sraiw sraw srliw srlw subw \
+rv64ui = $(rv32ui) addw addiw ld lwu sd slliw sllw sltiu sltu sraiw sraw srliw srlw subw pfctest\
 
 rv64um = $(rv32um) divuw divw mulw remuw remw \
 

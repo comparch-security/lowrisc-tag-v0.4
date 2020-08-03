@@ -414,10 +414,12 @@ class With4Banks extends Config (
   }
 )
 
-class BaseL2Config extends Config(new WithL2 ++ new With4Banks ++ new BaseConfig)
+class BaseL2Config extends Config(new WithL2 ++ new BaseConfig)
+//class BaseL2Config extends Config(new WithL2 ++ new With4Banks ++ new BaseConfig)
 
 class DefaultConfig extends Config(new WithHostConfig ++ new BaseConfig)
-class DefaultL2Config extends Config(new WithL2 ++ new With4Banks ++ new DefaultConfig)
+class DefaultL2Config extends Config(new WithL2 ++ new DefaultConfig)
+//class DefaultL2Config extends Config(new WithL2 ++ new With4Banks ++ new DefaultConfig)
 
 class TagConfig extends Config(new WithTagConfig ++ new DefaultConfig)
 class TagL2Config extends Config(new WithTagConfig ++ new DefaultL2Config)
