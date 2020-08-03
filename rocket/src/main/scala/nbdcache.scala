@@ -1180,7 +1180,7 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
   io.pfc.read_miss := RegNext(next = mshrs.io.req.fire() && isRead(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
   io.pfc.write := RegNext(next = writeArb.io.in(0).fire())
   io.pfc.write_miss := RegNext(next = mshrs.io.req.fire() && isWrite(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
-  io.pfc.write_back := RegNext(next = io.mem.release.fire() && io.mem.release.bits.addr_beat === UInt(0))
+  io.pfc.write_back := RegNext(next = io.mem.release.fire() && io.mem.release.bits.hasData() && io.mem.release.bits.first())
 }
 
 // exposes a sane decoupled request interface
