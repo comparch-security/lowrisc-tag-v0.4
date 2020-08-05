@@ -576,6 +576,7 @@ test_ ## testnum: \
 # spike doesn't need read csr_pfc to get pfc so #define GET_PFC nop
 #-----------------------------------------------------------------------
 
+#define PFC_MEM 0x10
 #define GET_PFC
 
 #-----------------------------------------------------------------------

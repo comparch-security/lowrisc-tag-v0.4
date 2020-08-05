@@ -403,12 +403,14 @@ class L2HellaCacheBank(implicit p: Parameters) extends HierarchicalCoherenceAgen
                                   io.outer.acquire.bits.allocate())
   val uncache_readmiss  =  RegNext(next = io.outer.acquire.fire() && !io.outer.acquire.bits.hasData() &&
                                   !io.outer.acquire.bits.allocate())
-  val cache_write       =  RegNext(next = io.inner.release.fire() && io.inner.release.bits.addr_beat === UInt(0))
-  val uncache_write     =  RegNext(next = io.inner.acquire.fire() && io.inner.acquire.bits.addr_beat === UInt(0) &&
-                                  io.inner.acquire.bits.hasData() && !io.inner.acquire.bits.allocate())
-  val cache_writeback   =  RegNext(next = io.outer.release.fire() && io.outer.release.bits.addr_beat === UInt(0))
-  val uncache_writeback =  RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.addr_beat === UInt(0) &&
-                                  io.outer.acquire.bits.hasData() && !io.outer.acquire.bits.allocate())
+  val cache_write       =  RegNext(next = io.inner.release.fire() && io.inner.release.bits.hasData() &&
+                                   io.inner.release.bits.first())
+  val uncache_write     =  RegNext(next = io.inner.acquire.fire() && io.inner.acquire.bits.hasData() &&
+                                  io.inner.acquire.bits.first() && !io.inner.acquire.bits.allocate())
+  val cache_writeback   =  RegNext(next = io.outer.release.fire() && io.outer.release.bits.hasData() &&
+                                   io.outer.release.bits.first())
+  val uncache_writeback =  RegNext(next = io.outer.acquire.fire() && io.outer.acquire.bits.hasData() &&
+                                  io.outer.acquire.bits.first() && !io.outer.acquire.bits.allocate())
 
   val meta = Module(new L2MetadataArray) // TODO: add delay knob
   val data = Module(new L2DataArray(1))

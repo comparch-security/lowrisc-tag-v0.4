@@ -572,6 +572,8 @@ test_ ## testnum: \
 1:
 
 
+#define PFC_MEM 0x08
+
 #define GET_PFC \
 not x5, x0;   \
 addi x6, x0, 1;   \
