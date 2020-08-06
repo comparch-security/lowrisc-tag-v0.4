@@ -30,6 +30,8 @@ test_ ## testnum: \
 #define TEST_INSERT_NOPS_9  nop; TEST_INSERT_NOPS_8
 #define TEST_INSERT_NOPS_10 nop; TEST_INSERT_NOPS_9
 
+#define PFC_MEM 0x10
+#define GET_PFC
 
 #-----------------------------------------------------------------------
 # RV64UI MACROS
