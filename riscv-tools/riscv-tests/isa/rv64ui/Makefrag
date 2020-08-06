@@ -25,6 +25,7 @@ rv64ui_sc_tests = \
 	srl srli srliw srlw \
 	sub subw \
 	xor xori \
+	pfctest \
 
 rv64ui_mc_tests = \
 	lrsc

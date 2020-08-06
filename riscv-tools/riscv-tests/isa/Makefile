@@ -84,7 +84,7 @@ junk += $(tests) $(tests_dump) $(tests_hex) $(tests_out) $(tests32_out)
 #------------------------------------------------------------
 # Default
 
-all: $(tests_dump)
+all: $(tests)
 
 #------------------------------------------------------------
 # Clean up
