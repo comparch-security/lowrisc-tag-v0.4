@@ -12,17 +12,34 @@
 #include "riscv_test.h"
 #include "test_macros.h"
 
+#define L1ILINE   64
+#define L1ILINEW  6
+#define L1ISETW   5
 #define L1DLINEW  6
 #define L1DSETW   5
 #define L2LINEW   6
 #define L2SETW    7
 #define L2BANKW   0
 
+
 #define PFC_L1IR_TEST           \
     .rept 10000                 \
       nop;                      \
     .endr;                      
-   
+
+#define PFC_L1IRM_TEST          \
+    auipc x5, 0;                \
+    addi  x5, x5, 8;            \
+    .rept 1000                  \
+      addi  x5, x5, L1ILINE;    \
+      jalr  x0, x5;             \
+      .set nops, L1ILINE/4-2;   \
+      .rept nops                \
+        nop;                    \
+      .endr;                    \
+    .endr;                      \
+    nop;
+
 
 #define PFC_L1DR_TEST           \
     addi x5, x0, PFC_MEM;       \
@@ -101,6 +118,7 @@
       .rept 1000                \
         add  x5, x5, x7;        \
         sw   x6, 0(x5);         \
+        sw   x6, 0(x5);         \
       .endr;                    \
      .endr; 
 
@@ -108,8 +126,8 @@
 RVTEST_RV64U
 RVTEST_CODE_BEGIN
 
-
 #PFC_L1IR_TEST
+#PFC_L1IRM_TEST
 #PFC_L1DR_TEST
 #PFC_L1DW_TEST
 #PFC_L1DWB_TEST

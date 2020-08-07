@@ -1176,22 +1176,18 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
   io.cpu.replay_next := (s1_replay && s1_read) || mshrs.io.replay_next
 
   //PFC
-  val wb_rd    = if(refillCycles<1)
-                   { wb.io.data_req.fire() }
-                else
-                   { wb.io.data_req.fire() && (wb.io.data_req.bits.addr(log2Up(refillCycles)+rowOffBits-1,rowOffBits) === UInt(0)) }
-  val s1_wb_rd = RegNext(next=wb_rd)
-  val s2_wb_rd = RegNext(next=s1_wb_rd)
-  val mem_wd   = if(refillCycles < 1)
-                   { writeArb.io.in(1).fire() }
-                 else
-                   { writeArb.io.in(1).fire() && (writeArb.io.in(1).bits.addr(log2Up(refillCycles)+rowOffBits-1,rowOffBits) === UInt(0)) }
-  //io.pfc.read := RegNext(next = readArb.io.out.fire())
-  //io.pfc.read := RegNext(next = cache_resp.valid && cache_resp.bits.has_data)
-  io.pfc.read := RegNext(next = cache_resp.valid && cache_resp.bits.has_data || s2_wb_rd)
-  io.pfc.read_miss := RegNext(next = mshrs.io.req.fire() && isRead(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
-  io.pfc.write := RegNext(next = writeArb.io.in(0).fire() || mem_wd)
-  io.pfc.write_miss := RegNext(next = mshrs.io.req.fire() && isWrite(s2_req.cmd) && addrMap.isCacheable(s2_req.addr))
+  val wb_rd    = if(refillCycles<1)  { wb.io.data_req.fire() }      //wb read dataArray
+                 else { wb.io.data_req.fire() && (wb.io.data_req.bits.addr(log2Up(refillCycles)+rowOffBits-1,rowOffBits) === UInt(0)) }
+  val prb_rm   = prober.io.meta_read.fire()                         //prober read metaArray
+  val cpu_rd   = cache_resp.valid && isRead(s2_req.cmd)             //cpu read dataArray and get data successfully
+  val mem_wd   = if(refillCycles < 1) { writeArb.io.in(1).fire() }  //L2 write dataArray successfully
+                 else { writeArb.io.in(1).fire() && (writeArb.io.in(1).bits.addr(log2Up(refillCycles)+rowOffBits-1,rowOffBits) === UInt(0)) }
+  val cpu_wd   = writeArb.io.in(0).fire()                           //cpu write dataArray successfully
+  val misstomshrs =  mshrs.io.req.fire() && !mshrs.io.secondary_miss && addrMap.isCacheable(s2_req.addr)
+  io.pfc.read := RegNext(next = cpu_rd)
+  io.pfc.read_miss  := RegNext(next = misstomshrs && isRead(s2_req.cmd))
+  io.pfc.write := RegNext(next = cpu_wd)
+  io.pfc.write_miss := RegNext(next = misstomshrs && isWrite(s2_req.cmd))
   io.pfc.write_back := RegNext(next = io.mem.release.fire() && io.mem.release.bits.hasData() && io.mem.release.bits.first())
 }
 
