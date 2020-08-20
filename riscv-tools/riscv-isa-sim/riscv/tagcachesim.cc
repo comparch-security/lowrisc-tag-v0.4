@@ -37,10 +37,12 @@ tag_cache_sim_t::tag_cache_sim_t(const tag_cache_sim_t& rhs)
 
 tag_cache_sim_t::~tag_cache_sim_t() {
   delete [] datas;
+  delete [] created;
 }
 
 void tag_cache_sim_t::init() {
   datas = new uint8_t[sets*ways*linesz]();
+  created = new uint8_t[sets*ways]();
   tag_map = NULL;
   if(empty_block == NULL) empty_block = new uint8_t[linesz]();
 }
@@ -48,6 +50,16 @@ void tag_cache_sim_t::init() {
 uint64_t* tag_cache_sim_t::check_tag(uint64_t addr, size_t &row) {
   size_t idx = (addr >> idx_shift) & (sets-1);
   size_t tag = (addr >> idx_shift) | VALID;
+
+  if(this->name == std::string("TM1$")){
+    for (size_t i = 0; i< ways; i++){
+      if (!created[idx*ways + i]){
+        tags[idx*ways + i] = tag;
+        created[idx*ways + i] = true;
+        break;
+      }
+    }
+  }
 
   for (size_t i = 0; i < ways; i++)
     if (tag == (tags[idx*ways + i] & ~(DIRTY|TAGFLAG))) {

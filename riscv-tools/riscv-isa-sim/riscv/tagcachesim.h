@@ -22,6 +22,7 @@ class tag_cache_sim_t : public cache_sim_t
   bool wb_enforce;
 
   uint8_t *datas;
+  uint8_t *created;
   tag_cache_sim_t* tag_map;
 
   sim_t *sim;
