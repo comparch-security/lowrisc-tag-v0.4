@@ -7,6 +7,7 @@
 static void handle_illegal_instruction(trapframe_t* tf)
 {
   tf->insn = *(uint16_t*)tf->epc;
+  // printk("illegal insn trap in S-mode. insn = %#lx\n",tf->insn);
   int len = insn_len(tf->insn);
   if (len == 4)
     tf->insn |= ((uint32_t)*(uint16_t*)(tf->epc + 2) << 16);
@@ -87,6 +88,8 @@ static void handle_supervisorcall(trapframe_t* tf)
 
 void handle_trap(trapframe_t* tf)
 {
+  // printk("trapped.\n");
+
   if ((intptr_t)tf->cause < 0)
     return handle_interrupt(tf);
 
@@ -107,4 +110,5 @@ void handle_trap(trapframe_t* tf)
   kassert(tf->cause < ARRAY_SIZE(trap_handlers) && trap_handlers[tf->cause]);
 
   trap_handlers[tf->cause](tf);
+  // printk("trap handled.\n");
 }

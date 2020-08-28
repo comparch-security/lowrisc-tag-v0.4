@@ -15,21 +15,23 @@ volatile uint64_t *tohost = (uint64_t *)DEV_MAP__io_ext_host__BASE;
 #endif
 
 
-void illegal_insn_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
-{
-  die("illegal_insn_trap @ %p",read_csr(mepc));
-  // write_csr(mepc, mepc + 4);
-}
-void misaligned_load_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
-{
-  die("misaligned_load_trap @ %p",read_csr(mepc));
-  // write_csr(mepc, mepc + 4);
-}
-void misaligned_store_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
-{
-  die("misaligned_store_trap @ %p",read_csr(mepc));
-  // write_csr(mepc, mepc + 4);
-}
+// void illegal_insn_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
+// {
+//   printm("illegal_insn_trap @ %p, cause %d",mepc,mcause);
+
+//   die("insn is %llx",*(uint64_t*)(mepc & (~ 0x7)));
+//   // write_csr(mepc, mepc + 4);
+// }
+// void misaligned_load_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
+// {
+//   die("misaligned_load_trap @ %p",read_csr(mepc));
+//   // write_csr(mepc, mepc + 4);
+// }
+// void misaligned_store_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
+// {
+//   die("misaligned_store_trap @ %p",read_csr(mepc));
+//   // write_csr(mepc, mepc + 4);
+// }
 
 
 void __attribute__((noreturn)) bad_trap()
