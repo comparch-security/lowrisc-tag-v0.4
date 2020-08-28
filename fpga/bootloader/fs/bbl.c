@@ -129,7 +129,7 @@ static void run_loaded_program(size_t argc, char** argv, uintptr_t kstack_top)
   if (current.instret0) // count instret if so requested
     current.instret0 = rdinstret();
 
-  // get_pfc(&pfc0);
+  get_pfc(&pfc0);
 
   start_uarch_counters();
 
@@ -337,8 +337,8 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
   size_t argc ;
   
   if(read_batch("0:/run.sh",&argc,&args) == -1){
-    file_chdir("/0:/403.gcc");
-    // file_chdir("/0:/462.libquantum");
+    // file_chdir("/0:/403.gcc");
+    file_chdir("/0:/462.libquantum");
     // file_chdir("/0:/");
     static char argstr [256] = 
       // "hmmer --fixed 0 --mean 325 --num 45000 --sd 200 --seed 0 bombesin.hmm"
@@ -351,8 +351,8 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
       // "perlbench -I. -I./lib gv.pl"
       // "payload < test.txt"
       // "payload"
-      "gcc cccp.i -o cccp.s"
-      // "libquantum 33 5"
+      // "gcc cccp.i -o cccp.s"
+      "libquantum 33 5"
       ;
     argc = args_parser(argstr,&args); 
 

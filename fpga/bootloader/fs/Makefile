@@ -204,6 +204,7 @@ junk += \
 	$(patsubst %.o, %.d, $(C_OBJS)) \
 	$(patsubst %.o, %.d, $(S_OBJS)) \
 	$(patsubst %.o, %.d, $(DRIVER_OBJS)) \
+	$(patsubst %.o, %.d, $(SOFTFLOAT_OBJS)) \
 
 #--------------------------------------------------------------------
 # Building Targets
