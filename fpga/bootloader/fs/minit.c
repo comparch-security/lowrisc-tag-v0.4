@@ -1,7 +1,7 @@
 #include "mtrap.h"
 #include "atomic.h"
 #include "vm.h"
-#include "fp_emulation.h"
+// #include "fp_emulation.h"
 #include "uart.h"
 #include <string.h>
 #include "bits.h"
@@ -51,21 +51,21 @@ static void delegate_traps()
   assert(read_csr(medeleg) == exceptions);
 }
 
-static void fp_init()
-{
-  assert(read_csr(mstatus) & MSTATUS_FS);
+// static void fp_init()
+// {
+//   assert(read_csr(mstatus) & MSTATUS_FS);
 
-#ifdef __riscv_hard_float
-  if (!supports_extension('D'))
-    die("FPU not found; recompile pk with -msoft-float");
-  for (int i = 0; i < 32; i++)
-    init_fp_reg(i);
-  write_csr(fcsr, 0);
-#else
-  if (supports_extension('D'))
-    die("FPU unexpectedly found; recompile with -mhard-float");
-#endif
-}
+// #ifdef __riscv_hard_float
+//   if (!supports_extension('D'))
+//     die("FPU not found; recompile pk with -msoft-float");
+//   for (int i = 0; i < 32; i++)
+//     init_fp_reg(i);
+//   write_csr(fcsr, 0);
+// #else
+//   if (supports_extension('D'))
+//     die("FPU unexpectedly found; recompile with -mhard-float");
+// #endif
+// }
 
 
 hls_t* hls_init(uintptr_t id)
@@ -90,7 +90,7 @@ static void memory_init()
 static void hart_init()
 {
   mstatus_init();
-  fp_init();
+  // fp_init();
   delegate_traps();
 }
 

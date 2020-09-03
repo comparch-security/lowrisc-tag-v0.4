@@ -56,11 +56,11 @@ C_OBJS = \
 	remove_htif.o \
 	elf.o \
 	pfc.o \
-	emulation.o \
-	fp_emulation.o \
-	fp_ldst.o \
-	misaligned_ldst.o \
-	muldiv_emulation.o \
+	# emulation.o \
+	# fp_emulation.o \
+	# fp_ldst.o \
+	# misaligned_ldst.o \
+	# muldiv_emulation.o \
 
 
 S_OBJS = \
@@ -222,8 +222,8 @@ $(DRIVER_OBJS): %.o:$(DRIVER_DIR)/%.c $(DRIVER_HEADERS)
 $(SOFTFLOAT_OBJS): %.o:$(SOFTFLOAT_DIR)/%.c $(SOFTFLOAT_HEADERS) $(HEADERS)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -c $< -o $@
 
-$(TARGET): $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(SOFTFLOAT_OBJS)
-	$(RISCV_GCC) -o $@ $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(SOFTFLOAT_OBJS) $(RISCV_LINK_OPTS)
+$(TARGET): $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) 
+	$(RISCV_GCC) -o $@ $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(RISCV_LINK_OPTS)
 	cp $(TARGET) ../../board/nexys4_ddr/
 
 dump: $(TARGET).dump

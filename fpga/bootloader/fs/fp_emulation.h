@@ -1,8 +1,8 @@
 #ifndef _RISCV_FP_EMULATION_H
 #define _RISCV_FP_EMULATION_H
 
-#define PK_ENABLE_FP_EMULATION
-#define SOFTFLOAT_ENABLED
+// #define PK_ENABLE_FP_EMULATION
+// #define SOFTFLOAT_ENABLED
 
 #include "emulation.h"
 
