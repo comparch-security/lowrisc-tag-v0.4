@@ -354,25 +354,26 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   when(io.data.resp.valid) { data_buf(row) := io.data.resp.bits.data }
 
   //PFC
+  val miss   = io.meta.resp.valid && !io.meta.resp.bits.hit
   val wbaddr = Cat(io.wb.req.bits.tag, io.wb.req.bits.idx, UInt(0, tgHelper.blockOffBits+cacheIdBits))
-  val writeTM1_back = tgHelper.is_top(wbaddr)
-  val writeTM0_back = tgHelper.is_map(wbaddr) && !writeTM1_back
-  val writeTT_back  = !(writeTM1_back || writeTM0_back)
+  val isTTwbaddr  = !tgHelper.is_map(wbaddr)
+  val isTM1wbaddr = tgHelper.is_top(wbaddr)
+  val isTM0wbaddr = !isTTwbaddr && !isTM1wbaddr
   io.pfc.readTT          := io.meta.resp.valid && xact.pfc.readTT
+  io.pfc.readTT_miss     := miss && xact.pfc.readTT_miss
   io.pfc.writeTT         := io.meta.resp.valid && xact.pfc.writeTT
+  io.pfc.writeTT_miss    := miss && xact.pfc.writeTT_miss
+  io.pfc.writeTT_back    := io.wb.req.fire() && isTTwbaddr
   io.pfc.readTM0         := io.meta.resp.valid && xact.pfc.readTM0
+  io.pfc.readTM0_miss    := miss && xact.pfc.readTM0_miss
   io.pfc.writeTM0        := io.meta.resp.valid && xact.pfc.writeTM0
+  io.pfc.writeTM0_miss   := miss && xact.pfc.writeTM0_miss
+  io.pfc.writeTM0_back   := io.wb.req.fire() && isTM0wbaddr
   io.pfc.readTM1         := io.meta.resp.valid && xact.pfc.readTM1
+  io.pfc.readTM1_miss    := miss && xact.pfc.readTM1_miss
   io.pfc.writeTM1        := io.meta.resp.valid && xact.pfc.writeTM1
-  io.pfc.readTT_miss     := !io.meta.resp.bits.hit && io.pfc.readTT
-  io.pfc.writeTT_miss    := !io.meta.resp.bits.hit && io.pfc.writeTT
-  io.pfc.readTM0_miss    := !io.meta.resp.bits.hit && io.pfc.readTM0
-  io.pfc.writeTM0_miss   := !io.meta.resp.bits.hit && io.pfc.writeTM0
-  io.pfc.readTM1_miss    := !io.meta.resp.bits.hit && io.pfc.readTM1
-  io.pfc.writeTM1_miss   := !io.meta.resp.bits.hit && io.pfc.writeTM1
-  io.pfc.writeTT_back    := io.wb.req.fire() && writeTT_back
-  io.pfc.writeTM0_back   := io.wb.req.fire() && writeTM0_back
-  io.pfc.writeTM1_back   := io.wb.req.fire() && writeTM1_back
+  io.pfc.writeTM1_miss   := miss && xact.pfc.writeTM1_miss
+  io.pfc.writeTM1_back   := io.wb.req.fire() && isTM1wbaddr
 
   // metadata read
   io.meta.read.bits.id := UInt(id)
@@ -799,12 +800,26 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   }
 
   //PFC
-  io.tc.req.bits.pfc.readTT    := tc_state === ts_TTR && !tc_xact_rw
-  io.tc.req.bits.pfc.writeTT   := tc_state === ts_TTR && tc_xact_rw
-  io.tc.req.bits.pfc.readTM0   := tc_state === ts_TM0R && !tc_xact_rw
-  io.tc.req.bits.pfc.writeTM0  := tc_state === ts_TM0R && tc_xact_rw
-  io.tc.req.bits.pfc.readTM1   := tc_state === ts_TM1F && !tc_xact_rw
-  io.tc.req.bits.pfc.writeTM1  := tc_state === ts_TM1F && tc_xact_rw
+  val noTM0R = Reg(Bool())
+  val noTM1F = Reg(Bool())
+  when(tc_state === ts_IDLE) {
+    noTM0R := Bool(true)
+    noTM1F := Bool(true)
+  }
+  when(tc_state === ts_TM0R) { noTM0R := Bool(false) }
+  when(tc_state === ts_TM1F) { noTM1F := Bool(false) }
+  io.tc.req.bits.pfc.readTT        := tc_state  === ts_TTR  && !tc_xact_rw
+  io.tc.req.bits.pfc.readTT_miss   := (tc_state === ts_TTF  || tc_state === ts_TTL && tc_xact_tm0_tag1)  && !tc_xact_rw
+  io.tc.req.bits.pfc.writeTT       := tc_state  === ts_TTR  && tc_xact_rw
+  io.tc.req.bits.pfc.writeTT_miss  := (tc_state === ts_TTF  || tc_state === ts_TTL && tc_xact_tm0_tag1 )  && tc_xact_rw
+  io.tc.req.bits.pfc.readTM0       := tc_state  === ts_TM0R && !tc_xact_rw
+  io.tc.req.bits.pfc.readTM0_miss  := (tc_state === ts_TM0F || tc_state === ts_TM0L && tc_xact_tm1_tag1) && !tc_xact_rw
+  io.tc.req.bits.pfc.writeTM0      := (tc_state === ts_TM0R || tc_state === ts_TM0L && noTM0R) && tc_xact_rw
+  io.tc.req.bits.pfc.writeTM0_miss := (tc_state === ts_TM0F || tc_state === ts_TM0L && tc_xact_tm1_tag1) && tc_xact_rw
+  io.tc.req.bits.pfc.readTM1       := tc_state  === ts_TM1F && !tc_xact_rw
+  io.tc.req.bits.pfc.readTM1_miss  := (tc_state === ts_TM1F || tc_state === ts_TM1L) && !tc_xact_rw
+  io.tc.req.bits.pfc.writeTM1      := (tc_state === ts_TM1F || tc_state === ts_TM1L  && noTM1F) && tc_xact_rw
+  io.tc.req.bits.pfc.writeTM1_miss := (tc_state === ts_TM1F || tc_state === ts_TM1L) && tc_xact_rw
 
 }
 
@@ -1227,7 +1242,7 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   pfc.io.update.writeTM0_miss := tagTrackers.map(_.io.pfc.writeTM0_miss).reduce(_||_)
   pfc.io.update.writeTM0_back := tagTrackers.map(_.io.pfc.writeTM0_back).reduce(_||_)
   pfc.io.update.readTM1       := tagTrackers.map(_.io.pfc.readTM1).reduce(_||_)
-  pfc.io.update.readTM1_miss  := tagTrackers.map(_.io.pfc.readTT_miss).reduce(_||_)
+  pfc.io.update.readTM1_miss  := tagTrackers.map(_.io.pfc.readTM1_miss).reduce(_||_)
   pfc.io.update.writeTM1      := tagTrackers.map(_.io.pfc.writeTM1).reduce(_||_)
   pfc.io.update.writeTM1_miss := tagTrackers.map(_.io.pfc.writeTM1_miss).reduce(_||_)
   pfc.io.update.writeTM1_back := tagTrackers.map(_.io.pfc.writeTM1_back).reduce(_||_)
