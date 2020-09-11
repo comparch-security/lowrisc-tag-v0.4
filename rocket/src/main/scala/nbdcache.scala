@@ -1183,11 +1183,12 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
   val mem_wd   = if(refillCycles < 1) { writeArb.io.in(1).fire() }  //L2 write dataArray successfully
                  else { writeArb.io.in(1).fire() && (writeArb.io.in(1).bits.addr(log2Up(refillCycles)+rowOffBits-1,rowOffBits) === UInt(0)) }
   val cpu_wd   = writeArb.io.in(0).fire()                           //cpu write dataArray successfully
-  val misstomshrs =  mshrs.io.req.fire() && !mshrs.io.secondary_miss && addrMap.isCacheable(s2_req.addr)
+  val misstomshrs =  mshrs.io.req.fire() && !mshrs.io.secondary_miss && addrMap.isCacheable(mshrs.io.req.bits.addr)
+  val mtm_needacquire =  misstomshrs && !(mshrs.io.req.bits.tag_match && mshrs.io.req.bits.old_meta.coh.isHit(mshrs.io.req.bits.cmd))
   io.pfc.read := RegNext(next = cpu_rd)
-  io.pfc.read_miss  := RegNext(next = misstomshrs && isRead(s2_req.cmd))
+  io.pfc.read_miss  := RegNext(next = mtm_needacquire && isRead(s2_req.cmd))
   io.pfc.write := RegNext(next = cpu_wd)
-  io.pfc.write_miss := RegNext(next = misstomshrs && isWrite(s2_req.cmd))
+  io.pfc.write_miss := RegNext(next = mtm_needacquire && isWrite(s2_req.cmd))
   io.pfc.write_back := RegNext(next = io.mem.release.fire() && io.mem.release.bits.hasData() && io.mem.release.bits.first())
 }
 
