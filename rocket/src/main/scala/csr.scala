@@ -568,6 +568,12 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
 
   if (useTagMem) {
     io.tag_ctrl := new TagCtrlSig().fromBits(reg_tagctrl)
+    when(reg_mstatus.prv =/= PRV.U) {
+      io.tag_ctrl.maskALUChck := UInt(0)
+      io.tag_ctrl.maskJmpChck := UInt(0)
+      io.tag_ctrl.maskLoadChck := UInt(0)
+      io.tag_ctrl.maskStoreChck := UInt(0)
+    }
   } else {
     io.tag_ctrl := new TagCtrlSig().fromBits(UInt(0,xLen))
   }
