@@ -14,8 +14,10 @@
 // initialized in crt.S
 int have_vec;
 
-volatile uint64_t tohost __attribute__((aligned(64)));
-volatile uint64_t fromhost __attribute__((aligned(64)));
+//volatile uint64_t tohost __attribute__((aligned(64)));
+//volatile uint64_t fromhost __attribute__((aligned(64)));
+volatile uint64_t *tohost = (uint64_t *)(HOST_BASE);
+volatile uint64_t *fromhost = (uint64_t *)(HOST_BASE);
 
 static long handle_frontend_syscall(long which, long arg0, long arg1, long arg2)
 {
@@ -26,10 +28,10 @@ static long handle_frontend_syscall(long which, long arg0, long arg1, long arg2)
   magic_mem[3] = arg2;
   __sync_synchronize();
 
-  tohost = (uintptr_t)magic_mem;
+  *tohost = (uintptr_t)magic_mem;
   while (fromhost == 0)
     ;
-  fromhost = 0;
+  *fromhost = 0;
 
   __sync_synchronize();
   return magic_mem[0];
@@ -65,7 +67,7 @@ static int handle_stats(int enable)
 
 void tohost_exit(long code)
 {
-  tohost = (code << 1) | 1;
+  *tohost = (code << 1) | 1;
   while (1);
 }
 
@@ -84,6 +86,7 @@ long handle_trap(long cause, long epc, long regs[32])
     tohost_exit(regs[10]);
   else if (regs[17] == SYS_stats)
     sys_ret = handle_stats(regs[10]);
+  else if (regs[17] == SYS_write) {} //do nothing because not support now
   else
     sys_ret = handle_frontend_syscall(regs[17], regs[10], regs[11], regs[12]);
 

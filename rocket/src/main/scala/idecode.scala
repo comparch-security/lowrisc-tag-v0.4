@@ -15,6 +15,11 @@ abstract trait DecodeConstants extends HasCoreParameters
   val table: Array[(BitPat, List[BitPat])]
 }
 
+class PseudoInstrution extends Bundle {
+   val call = Bool()
+   val ret  = Bool()
+}
+
 class IntCtrlSigs extends Bundle {
   val legal = Bool()
   val fp = Bool()
@@ -44,6 +49,7 @@ class IntCtrlSigs extends Bundle {
   val amo = Bool()
   val tagr = Bool()
   val tagw = Bool()
+  val pseudo = new PseudoInstrution()
 
   def default: List[BitPat] =
                 //               jal                                                               renf1             fence.i
@@ -63,6 +69,17 @@ class IntCtrlSigs extends Bundle {
                    rfs1, rfs2, rfs3, wfd, div, wxd, csr, fence_i, fence, amo,
                    tagr, tagw)
     sigs zip decoder map {case(s,d) => s := d}
+
+    val rd   = inst(11,7)
+    val rs1  = inst(19,15)
+    val rs2  = inst(24,20)
+    val Itype_Imm = inst(31,20)
+    val Jtype_Imm = Cat(inst(20), inst(19, 12), inst(20), inst(30, 21))
+
+    pseudo.call := (jal || jalr) && (rd === UInt(1) || rd === UInt(5))
+    //wrong because call rd, symbol --->  auipc rd, offsetHi; jalr rd, offsetLo(rd); if rd is omitted, x1 is implied
+    pseudo.ret  := jalr && rd === UInt(0) && Itype_Imm === UInt(0) && rs1 === UInt(1) //jalr x0, 0(x1)
+
     this
   }
 }

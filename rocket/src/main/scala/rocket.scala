@@ -324,7 +324,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
     else Bool(false)
   val ex_jalr_tag_xcpt =
     if (useTagMem) {
-      ex_ctrl.jalr &&
+      ex_ctrl.pseudo.ret &&
       csr.io.tag_ctrl.maskJmpChck =/= UInt(0) &&
       (ex_rs_tag(0) & csr.io.tag_ctrl.maskJmpChck) === UInt(0)
     }
@@ -456,7 +456,8 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   }
 
   // check for pc tag
-  val mem_pc_tag_xcpt = mem_reg_pc_tag =/= UInt(0) && (mem_reg_inst_tag & mem_reg_pc_tag) =/= mem_reg_pc_tag
+  val mem_pc_tag_xcpt = Bool(false)
+  //val mem_pc_tag_xcpt = mem_reg_pc_tag =/= UInt(0) && (mem_reg_inst_tag & mem_reg_pc_tag) =/= mem_reg_pc_tag
 
   val (mem_xcpt, mem_cause) = checkExceptions(List(
     (mem_reg_xcpt_interrupt || mem_reg_xcpt,              mem_reg_cause),
