@@ -337,8 +337,15 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
   size_t argc ;
   
   if(read_batch("0:/run.sh",&argc,&args) == -1){
-    // file_chdir("/0:/403.gcc");
-    file_chdir("/0:/462.libquantum");
+    // file_chdir("/0:/400.perlbench");
+     file_chdir("/0:/403.gcc");
+    // file_chdir("/0:/429.mcf");
+    // file_chdir("/0:/445.gobmk");
+    // file_chdir("/0:/456.hmmer");
+    // file_chdir("/0:/462.libquantum");
+    // file_chdir("/0:/464.h264ref");
+    // file_chdir("/0:/471.omnetpp");
+    // file_chdir("/0:/473.astar");
     // file_chdir("/0:/");
     static char argstr [256] = 
       // "hmmer --fixed 0 --mean 325 --num 45000 --sd 200 --seed 0 bombesin.hmm"
@@ -351,8 +358,8 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
       // "perlbench -I. -I./lib gv.pl"
       // "payload < test.txt"
       // "payload"
-      // "gcc cccp.i -o cccp.s"
-      "libquantum 33 5"
+       "gcc cccp.i -o cccp.s"
+      //"libquantum 33 5"
       ;
     argc = args_parser(argstr,&args); 
 
@@ -381,7 +388,6 @@ void boot_loader (void) {
   vm_init();
   file_init();
 
- 
   enter_supervisor_mode(rest_of_boot_loader,pk_vm_init());    
 
   while(1);

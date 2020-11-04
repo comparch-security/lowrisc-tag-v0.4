@@ -26,6 +26,8 @@ trap_table:
   .word console_interrupt
 #define TRAP_FROM_MACHINE_MODE_VECTOR 15
   .word __trap_from_machine_mode
+#define TAF_CHECK_FAILURE_VECTOR 16
+  .word bad_trap
 
   .option norvc
   .section .text.init,"ax",@progbits

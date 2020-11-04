@@ -85,7 +85,11 @@ static void handle_tag_check_failure(trapframe_t* tf)
 {
   dump_tf(tf);
   panic("Tag check failure @ %p",tf->epc);
+  /*printk("Tag failure epc %p eins %p ra %p rins %p\n",tf->epc,*((int*)tf->epc),tf->gpr[1],*((int*)tf->gpr[1])); //get faulting insn, if it wasn't a fetch-related trap
   
+  #define set_tagged_val(dst, val, tag) \
+  asm volatile ("tagw %0, %1; sw %0, 0(%2); tagw %0, zero;" : : "r" (val), "r" (tag), "r" (dst))
+  set_tagged_val(&(tf->gpr[1]),tf->gpr[1],15);*/
 }
 
 static void handle_supervisorcall(trapframe_t* tf)

@@ -43,7 +43,8 @@ static void delegate_traps()
     (1U << CAUSE_FAULT_LOAD) |
     (1U << CAUSE_FAULT_STORE) |
     (1U << CAUSE_BREAKPOINT) |
-    (1U << CAUSE_USER_ECALL);
+    (1U << CAUSE_USER_ECALL) |
+    (1U << CAUSE_TAG_CHECK_FAIL);
 
   write_csr(mideleg, interrupts);
   write_csr(medeleg, exceptions);
@@ -95,9 +96,19 @@ static void hart_init()
 }
 
 // FATFS FatFs; /* Work Area (file system object) for logical drive */
+void tagconfig_init()
+{
+  write_csr(mstagctrlen,  0); //disable supervisor change mtagctrl
+  write_csr(mutagctrlen,  0); //disable user change mtagctrl
+  long tagcheck = TMASK_JMP_CHECK;
+  long tagprop  = TMASK_STORE_PROP | TMASK_LOAD_PROP | TMASK_JMP_PROP;
+  write_csr(mtagctrl,  0); //clear mtagctrl
+  write_csr(mtagctrl,  tagcheck | tagprop);
+}
 
 void init_first_hart()
 {
+  tagconfig_init();
   hart_init();
   hls_init(0); // this might get called again from parse_config_string
   uart_init(); // init early if need to debug config string

@@ -315,7 +315,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   val ex_op1_tag = Mux(ex_ctrl.sel_alu1 === A1_RS1, ex_rs_tag(0), UInt(0))
   val ex_op2_tag = Mux(ex_ctrl.sel_alu2 === A2_RS2, ex_rs_tag(1), UInt(0))
   val ex_alu_tag =
-    if (useTagMem) (ex_op1_tag | ex_op2_tag) & csr.io.tag_ctrl.maskALUProp
+    if (useTagMem) Mux(ex_ctrl.pseudo.mv, ex_op1_tag, (ex_op1_tag | ex_op2_tag) & csr.io.tag_ctrl.maskALUProp)
     else           UInt(0)
   val ex_alu_tag_xcpt =
     if (useTagMem) {
@@ -445,7 +445,7 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
     mem_reg_pc := ex_reg_pc
     mem_reg_pc_tag := ex_reg_pc_tag
     mem_reg_wdata := Mux(ex_ctrl.tagr, ex_rs_tag(0), Mux(ex_ctrl.tagw, ex_rd, alu.io.out))
-    mem_reg_wtag := Mux(ex_ctrl.jalr||ex_ctrl.jal,   csr.io.tag_ctrl.maskJmpProp,
+    mem_reg_wtag := Mux(ex_ctrl.pseudo.call,   csr.io.tag_ctrl.maskJmpProp,
                     Mux(ex_ctrl.tagr,                UInt(0),
                     Mux(ex_ctrl.tagw,                ex_rs(0)(tgBits-1,0),
                                                      ex_alu_tag)))
@@ -456,8 +456,8 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
   }
 
   // check for pc tag
-  val mem_pc_tag_xcpt = Bool(false)
-  //val mem_pc_tag_xcpt = mem_reg_pc_tag =/= UInt(0) && (mem_reg_inst_tag & mem_reg_pc_tag) =/= mem_reg_pc_tag
+  //val mem_pc_tag_xcpt = Bool(false)
+  val mem_pc_tag_xcpt = mem_reg_pc_tag =/= UInt(0) && (mem_reg_inst_tag & mem_reg_pc_tag) =/= mem_reg_pc_tag
 
   val (mem_xcpt, mem_cause) = checkExceptions(List(
     (mem_reg_xcpt_interrupt || mem_reg_xcpt,              mem_reg_cause),

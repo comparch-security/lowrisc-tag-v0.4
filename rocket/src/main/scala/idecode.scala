@@ -18,6 +18,7 @@ abstract trait DecodeConstants extends HasCoreParameters
 class PseudoInstrution extends Bundle {
    val call = Bool()
    val ret  = Bool()
+   val mv   = Bool()
 }
 
 class IntCtrlSigs extends Bundle {
@@ -70,15 +71,25 @@ class IntCtrlSigs extends Bundle {
                    tagr, tagw)
     sigs zip decoder map {case(s,d) => s := d}
 
+    val opcode = inst(6,0)
+    val funct3 = inst(14,12)
     val rd   = inst(11,7)
     val rs1  = inst(19,15)
     val rs2  = inst(24,20)
     val Itype_Imm = inst(31,20)
     val Jtype_Imm = Cat(inst(20), inst(19, 12), inst(20), inst(30, 21))
 
-    pseudo.call := (jal || jalr) && (rd === UInt(1) || rd === UInt(5))
-    //wrong because call rd, symbol --->  auipc rd, offsetHi; jalr rd, offsetLo(rd); if rd is omitted, x1 is implied
-    pseudo.ret  := jalr && rd === UInt(0) && Itype_Imm === UInt(0) && rs1 === UInt(1) //jalr x0, 0(x1)
+    val compre = inst(1,0) =/= UInt("b11") //Compressed Instruction
+    val c_rs1  = inst(11,7)
+    val c_rs2  = inst(6,2)
+
+    pseudo.call := (jal || jalr) && (rd === UInt(1) || rd === UInt(5) || compre)
+    //x1 -> ra -> return address  x5 -> t0 -> alternate link register
+    //call rd, symbol --->  auipc rd, offsetHi; jalr rd, offsetLo(rd); if rd is omitted, x1 is implied
+    pseudo.ret  := jalr && Mux(compre, c_rs1 === UInt(1),          //c.jalr ra
+      rd === UInt(0) && Itype_Imm === UInt(0) && rs1 === UInt(1))  //jalr x0, 0(x1)
+    pseudo.mv   := Mux(compre, inst(15,12) ===UInt("b1000"),                      //c.mv rd,rs2
+      opcode === UInt("b0010011") && funct3 === UInt(0) && Itype_Imm === UInt(0)) //addi rd,rs1,0
 
     this
   }
