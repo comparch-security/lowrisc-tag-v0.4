@@ -56,11 +56,13 @@ C_OBJS = \
 	remove_htif.o \
 	elf.o \
 	pfc.o \
-	# emulation.o \
-	# fp_emulation.o \
-	# fp_ldst.o \
-	# misaligned_ldst.o \
-	# muldiv_emulation.o \
+
+FP_EMU_OBJS = \
+	emulation.o \
+	fp_emulation.o \
+	fp_ldst.o \
+	misaligned_ldst.o \
+	muldiv_emulation.o \
 
 
 S_OBJS = \
@@ -200,11 +202,15 @@ SOFTFLOAT_OBJS = \
 	$(patsubst %.c, %.o, $(SOFTFLOAT_C_SRCS)) \
 
 junk += \
-	$(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(SOFTFLOAT_OBJS) \
+	$(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(SOFTFLOAT_OBJS) $(FP_EMU_OBJS) \
 	$(patsubst %.o, %.d, $(C_OBJS)) \
 	$(patsubst %.o, %.d, $(S_OBJS)) \
 	$(patsubst %.o, %.d, $(DRIVER_OBJS)) \
 	$(patsubst %.o, %.d, $(SOFTFLOAT_OBJS)) \
+	$(patsubst %.o, %.d, $(FP_EMU_OBJS)) \
+	$(patsubst %.h, %.d, $(HEADERS)) \
+	$(patsubst %.h, %.o, $(HEADERS)) \
+	
 
 #--------------------------------------------------------------------
 # Building Targets
