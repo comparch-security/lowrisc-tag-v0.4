@@ -230,6 +230,12 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   require(rtc.size <= rtcAddr.region.size)
   rtc.io.tl <> mmio_net.io.out(rtcAddr.port)
 
+  // Global real time counter2
+  val rtc2 = Module(new RTC(nTiles)(ioNetParams))
+  val rtc2Addr = ioAddrHashMap("int:rtc2")
+  require(rtc2.size <= rtc2Addr.region.size)
+  rtc2.io.tl <> mmio_net.io.out(rtc2Addr.port)
+
   // scr
   //val scrFile = Module(new SCRFile("UNCORE_SCR", ioAddrHashMap("int:scr").start))
   //scrFile.io.scr.attach(Wire(init = UInt(nTiles)), "N_CORES")
@@ -276,7 +282,7 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
 
   // interrupt, currently just ORed
   for (i <- 0 until nTiles) {
-    tileList(i).io.irq := io.interrupt.orR
+    tileList(i).io.irq := Cat(rtc2.io.irqs(i), io.interrupt).orR
   }
 
   ////////////////////////////////////////////

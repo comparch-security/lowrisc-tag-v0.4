@@ -3,6 +3,7 @@
 #include "atomic.h"
 #include "bits.h"
 #include "uart.h"
+#include "rtc.h"
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -51,6 +52,12 @@ static void request_console_interrupt()
 
 void console_interrupt()
 {
+  //printm("console_interrupt mcause=%p\n", read_csr(mcause));
+  if(rtc_check_irq()) {
+    printm("rtc_interrupt\n");
+    rtc_update_cmp(10000000);
+    return;
+  }
   if(uart_check_read_irq())
     HLS()->console_ibuf = 1 + uart_recv();
   set_csr(mip, MIP_SSIP);
@@ -314,13 +321,24 @@ static void machine_page_fault(uintptr_t* regs, uintptr_t mepc)
 void trap_from_machine_mode(uintptr_t* regs, uintptr_t dummy, uintptr_t mepc)
 {
   uintptr_t mcause = read_csr(mcause);
-
-  switch (mcause)
-  {
-    case CAUSE_FAULT_LOAD:
-    case CAUSE_FAULT_STORE:
-      return machine_page_fault(regs, mepc);
-    default:
+  uint8_t   interrupt = mcause >>63;
+  //printm("trap_from_machine_mode mcause= %p\n", mcause);
+  if(interrupt) { //interrupt
+    if(rtc_check_irq()) {
+      //printm("rtc_interrupt\n");
+      rtc_update_cmp(10000000);
+    } else {
+      printm("machine mode cant not handle interrupt mcause= %p\n", mcause);
       bad_trap();
+    }
+  } else {   //exception
+    switch (mcause)
+    {
+      case CAUSE_FAULT_LOAD:
+      case CAUSE_FAULT_STORE:
+        return machine_page_fault(regs, mepc);
+      default:
+        bad_trap();
+    }
   }
 }

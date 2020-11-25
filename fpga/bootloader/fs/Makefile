@@ -79,6 +79,7 @@ HEADERS += \
 DRIVER_OBJS = \
 	uart.o \
 	spi.o \
+	rtc.o \
 	diskio.o \
 	ff.o \
 	unicode.o \

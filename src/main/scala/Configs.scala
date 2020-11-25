@@ -27,6 +27,7 @@ class BaseConfig extends Config (
       val entries = collection.mutable.ArrayBuffer[AddrMapEntry]()
       entries += AddrMapEntry("bootrom", MemSize(1<<13, 1<<12, MemAttr(AddrMapProt.RX)))
       entries += AddrMapEntry("rtc", MemSize(1<<12, 1<<12, MemAttr(AddrMapProt.RW)))
+      entries += AddrMapEntry("rtc2", MemSize(1<<12, 1<<12, MemAttr(AddrMapProt.RW)))
       for (i <- 0 until site(NTiles))
         entries += AddrMapEntry(s"prci$i", MemSize(1<<12, 1<<12, MemAttr(AddrMapProt.RW)))
       new AddrMap(entries)
@@ -87,6 +88,9 @@ class BaseConfig extends Config (
       res append  "rtc {\n"
       res append s"  addr 0x${addrMap("io:int:rtc").start.toString(16)};\n"
       res append  "};\n"
+      res append  "rtc2 {\n"
+      res append s"  addr 0x${addrMap("io:int:rtc2").start.toString(16)};\n"
+      res append  "};\n"
       if(site(UseUART)) {
         res append  "uart {\n"
         res append s"  addr 0x${addrMap("io:ext:uart").start.toString(16)};\n"
@@ -107,11 +111,13 @@ class BaseConfig extends Config (
       for (i <- 0 until site(NTiles)) {
         val isa = s"rv${site(XLen)}ima${if (site(UseFPU)) "fd" else ""}"
         val timecmpAddr = addrMap("io:int:rtc").start + 8*(i+1)
+        val timecmp2Addr = addrMap("io:int:rtc2").start + 8*(i+1)
         val prciAddr = addrMap(s"io:int:prci$i").start
         res append s"  $i {\n"
         res append  "    0 {\n"
         res append s"      isa $isa;\n"
         res append s"      timecmp 0x${timecmpAddr.toString(16)};\n"
+        res append s"      timecmp2 0x${timecmp2Addr.toString(16)};\n"
         res append s"      ipi 0x${prciAddr.toString(16)};\n"
         res append  "    };\n"
         res append  "  };\n"

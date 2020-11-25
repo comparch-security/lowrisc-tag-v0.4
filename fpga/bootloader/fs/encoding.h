@@ -42,6 +42,7 @@
 #define MIP_STIP            (1 << IRQ_S_TIMER)
 #define MIP_HTIP            (1 << IRQ_H_TIMER)
 #define MIP_MTIP            (1 << IRQ_M_TIMER)
+#define MIP_HOST            (1 << IRQ_HOST)
 
 #define SIP_SSIP MIP_SSIP
 #define SIP_STIP MIP_STIP

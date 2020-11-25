@@ -25,7 +25,6 @@
 int main( int argc, char* argv[] )
 {
   int results_data[DATA_SIZE];
-
   // Output the input array
   printArray( "input",  DATA_SIZE, input_data  );
   printArray( "verify", DATA_SIZE, verify_data );

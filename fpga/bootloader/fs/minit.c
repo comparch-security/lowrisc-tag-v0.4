@@ -5,6 +5,7 @@
 #include "uart.h"
 #include <string.h>
 #include "bits.h"
+#include "rtc.h"
 #include "ff.h"
 
 
@@ -108,6 +109,7 @@ void tagconfig_init()
 
 void init_first_hart()
 {
+  printm("init_first_hart\n");
   tagconfig_init();
   hart_init();
   hls_init(0); // this might get called again from parse_config_string
@@ -145,10 +147,14 @@ void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t stack)
   write_csr(sptbr, (uintptr_t)root_page_table >> RISCV_PGSHIFT);
   // write_csr(sptbr, (uintptr_t)root_page_table);
   
+  //enable rtc2 interrupt
+  rtc_update_cmp(5000000);
+  set_csr(mstatus,MSTATUS_MIE);
+
   mstatus = read_csr(mstatus);
   mepc = read_csr(mepc);
   sptbr = read_csr(sptbr) << RISCV_PGSHIFT;
-  // printm("mstatus:%p,mepc:%p,sptbr:%p",mstatus,mepc,sptbr);
+  // printm("mstatus:%p,mepc:%p,sptbr:%p\n",mstatus,mepc,sptbr);
   asm volatile ("mv a0, %0; mv sp, %0; mret" : : "r" (stack));
   // asm volatile ("mret");
   __builtin_unreachable();
