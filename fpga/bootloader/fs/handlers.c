@@ -79,6 +79,11 @@ static void handle_syscall(trapframe_t* tf)
 static void handle_interrupt(trapframe_t* tf)
 {
   clear_csr(sip, SIP_SSIP);
+  printk("interrupt caught in S mode. mcause is %p, mepc is %p\n",tf->cause,tf->epc);
+  if (tf->cause == ((1lu<<63)|IRQ_HOST)){
+    printk("we caught a rtc2 interrupt. terminate the program.\n");
+    do_syscall(0,0,0,0,0,0,SYS_exit);
+  }
 }
 
 static void handle_tag_check_failure(trapframe_t* tf)
