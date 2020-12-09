@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 by the author(s)
+/* Copyright (c) 2014-2017 by the author(s)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -107,6 +107,8 @@ const struct glip_version * glip_get_version(void)
  * @param[in]  backend_options options (key/value pairs) for the library and the
  *                          backend
  * @param[in]  num_backend_options  number of entries in the @p options array
+ * @param[in]  log_fn       the logging function to send all log messages to
+ *                          if set to NULL, all logs will go to STDERR
  * @return     0 if the call was successful
  * @return     -GLIP_EUNKNOWNBACKEND the specified @p backend_name is not
  *             available
@@ -115,9 +117,9 @@ const struct glip_version * glip_get_version(void)
  * @ingroup library-init-deinit
  */
 API_EXPORT
-int glip_new(struct glip_ctx **ctx, char* backend_name,
-             struct glip_option backend_options[],
-             size_t num_backend_options)
+int glip_new(struct glip_ctx **ctx, const char* backend_name,
+             const struct glip_option backend_options[],
+             size_t num_backend_options, glip_log_fn log_fn)
 {
     struct glip_ctx *c = calloc(1, sizeof(struct glip_ctx));
     if (!c) {
@@ -130,7 +132,11 @@ int glip_new(struct glip_ctx **ctx, char* backend_name,
     /*
      * Setup the logging infrastructure
      */
-    c->log_fn = log_stderr;
+    if (log_fn == NULL) {
+        c->log_fn = log_stderr;
+    } else {
+        c->log_fn = log_fn;
+    }
     c->log_priority = LOG_ERR;
 
     /* environment overwrites config */
@@ -153,6 +159,7 @@ int glip_new(struct glip_ctx **ctx, char* backend_name,
             break;
         }
     }
+    c->backend_id = backend_id;
 
     if (backend_id == -1) {
         err(c, "Unknown backend: %s\n", backend_name);
@@ -170,7 +177,13 @@ int glip_new(struct glip_ctx **ctx, char* backend_name,
      * Initialize the backend. This also sets all vtable pointers for the
      * backend functions.
      */
-    c->backend_options = backend_options;
+    c->backend_options = malloc(sizeof(struct glip_option)
+                                * num_backend_options);
+    if (!c->backend_options) {
+        return -ENOMEM;
+    }
+    memcpy(c->backend_options, backend_options,
+           sizeof(struct glip_option) * num_backend_options);
     c->num_backend_options = num_backend_options;
     glip_backends[backend_id].new(c);
 
@@ -194,6 +207,8 @@ int glip_new(struct glip_ctx **ctx, char* backend_name,
 API_EXPORT
 int glip_free(struct glip_ctx *ctx)
 {
+    glip_backends[ctx->backend_id].free(ctx);
+    free(ctx->backend_options);
     free(ctx);
     return 0;
 }
@@ -248,8 +263,15 @@ void* glip_get_caller_ctx(struct glip_ctx *ctx)
  * chunks of at least one FIFO width, so make sure to always transfer at least
  * as many bytes as the FIFO is wide.
  *
+ * Some backends support variable FIFO widths, but have no way of telling the
+ * host software the FIFO width. In this case this function returns 0. You
+ * need to set the FIFO width explicitly using glip_set_fifo_width().
+ *
  * @param ctx the library context
- * @return the width of the FIFO on the target side in bytes
+ * @return the width of the FIFO on the target side in bytes, or 0 if
+ *         the width is unknown.
+ *
+ * @see glip_set_fifo_width()
  *
  * @ingroup utilities
  */
@@ -257,6 +279,32 @@ API_EXPORT
 unsigned int glip_get_fifo_width(struct glip_ctx *ctx)
 {
     return ctx->backend_functions.get_fifo_width(ctx);
+}
+
+/**
+ * Set the width of the FIFO on the target side (if supported by the backend)
+ *
+ * Some backends have no way of informing the host software about the FIFO width
+ * on the target side. In this case the FIFO width must be known by the user
+ * of the GLIP API and set explicitly.
+ *
+ * In most cases for most backends this functionality is not needed.
+ *
+ * @param ctx the library context
+ * @return 0 if setting the width succeeded, -1 if not supported by the backend
+ *
+ * @see glip_get_fifo_width()
+ *
+ * @ingroup utilities
+ */
+API_EXPORT
+int glip_set_fifo_width(struct glip_ctx *ctx, unsigned int fifo_width_bytes)
+{
+    if (!ctx->backend_functions.set_fifo_width) {
+        err(ctx, "Function glip_set_fifo_width() is unsupported by backend.\n");
+        return -1;
+    }
+    return ctx->backend_functions.set_fifo_width(ctx, fifo_width_bytes);
 }
 
 /**
@@ -472,7 +520,7 @@ int glip_open(struct glip_ctx *ctx, unsigned int num_channels)
 
     rv = ctx->backend_functions.open(ctx, num_channels);
     if (rv != 0) {
-        err(ctx, "Cannot open backend\n");
+        err(ctx, "Cannot open backend (rv=%d)\n", rv);
         return -1;
     }
 
@@ -560,8 +608,9 @@ int glip_logic_reset(struct glip_ctx *ctx)
  * @param[out] size_read  the number of bytes actually read from the target.
  *                        Only those bytes may be considered valid inside
  *                        @p data!
- * @return     0 if the call was successful, or an error code if something went
- *             wrong
+ * @return     0 if the call was successful,
+ * @return     -ENOTCONN if the backend is not connected,
+ * @return     any other negative return code indicates an error
  *
  * @ingroup communication
  */
@@ -571,7 +620,7 @@ int glip_read(struct glip_ctx *ctx, uint32_t channel, size_t size,
 {
     if (!ctx->connected) {
         err(ctx, "No connection; you need to call glip_open() first!\n");
-        return -1;
+        return -ENOTCONN;
     }
     if (size == 0) {
         *size_read = 0;
@@ -599,8 +648,10 @@ int glip_read(struct glip_ctx *ctx, uint32_t channel, size_t size,
  *                        time
  * @return 0 if the call was successful and @p size bytes have been read
  * @return -ETIMEDOUT if the call timed out (some data might still have been
- *         read, see @p size_read)
- * @return any other value indicates an error
+ *         read, see @p size_read),
+ * @return -ENOTCONN if the backend is not connected,
+ * @return -ECANCELED if the operation was canceled,
+ * @return any other negative return code indicates an error
  *
  * Note: You need to allocate sufficient space to read @p size bytes into
  * @p data before calling this function.
@@ -615,7 +666,7 @@ int glip_read_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
 {
     if (!ctx->connected) {
         err(ctx, "No connection; you need to call glip_open() first!\n");
-        return -1;
+        return -ENOTCONN;
     }
     if (size == 0) {
         *size_read = 0;
@@ -658,6 +709,7 @@ int glip_read_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
  * @param[out] size_written the number of bytes actually written; repeat the
  *                          transfer for the remaining data if
  * @return     0 if the call was successful
+ * @return     -ENOTCONN if the backend is not connected
  * @return     any other value indicates an error
  *
  * @see glip_write_b()
@@ -670,7 +722,7 @@ int glip_write(struct glip_ctx *ctx, uint32_t channel, size_t size,
 {
     if (!ctx->connected) {
         err(ctx, "No connection; you need to call glip_open() first!\n");
-        return -1;
+        return -ENOTCONN;
     }
     if (size == 0) {
         *size_written = 0;
@@ -699,6 +751,8 @@ int glip_write(struct glip_ctx *ctx, uint32_t channel, size_t size,
  * @return 0 if the call was successful and @p size bytes have been written
  * @return -ETIMEDOUT if the call timed out (some data might still have been
  *         written, see @p size_written)
+ * @return -ENOTCONN if the backend is not connected
+ * @return -ECANCELED if the operation was canceled
  * @return any other value indicates an error
  *
  * @see glip_write()
@@ -711,7 +765,7 @@ int glip_write_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
 {
     if (!ctx->connected) {
         err(ctx, "No connection; you need to call glip_open() first!\n");
-        return -1;
+        return -ENOTCONN;
     }
     if (size == 0) {
         *size_written = 0;
@@ -771,7 +825,7 @@ int glip_option_get_uint32(struct glip_ctx* ctx, const char* option_name,
     }
 
     if (!found) {
-        info(ctx, "Option with key '%s' not found.\n", option_name);
+        dbg(ctx, "Option with key '%s' not found.\n", option_name);
         return -1;
     }
 
@@ -876,9 +930,88 @@ int glip_option_get_char(struct glip_ctx* ctx, const char* option_name,
     }
 
     if (!found) {
-        info(ctx, "Option with key '%s' not found.\n", option_name);
+        dbg(ctx, "Option with key '%s' not found.\n", option_name);
         return -1;
     }
+
+    return 0;
+}
+
+/**
+ * Parse a string of name=value pairs commonly used as backend options in GLIP
+ *
+ * This function is provided for conveniently getting a list of glip_option
+ * structs to be passed to glip_new() from a string of options in the format
+ * name=value,name2=value2,name3=value3
+ *
+ * @code{.c}
+ * char *backend_optionstring;
+ * struct glip_option* backend_options;
+ * size_t num_backend_options = 0;
+ *
+ * // obtain backend_optionstring from somewhere (e.g. Getopt or Argp)
+ * // ...
+ *
+ * // parse backend options
+ * glip_parse_option_string(backend_optionstring, &backend_options,
+ *                          &num_backend_options);
+ *
+ * // initialize GLIP library as usual
+ * glip_new(&glip_ctx, backend_name, backend_options, num_backend_options);
+ * @endcode
+ *
+ * @param[in]   str input string
+ * @param[out]  options input string
+ * @param[out]  num_options size of @p options
+ * @return      0 if the call was successful, or an error code if something went
+ *              wrong
+ *
+ * @ingroup utilities
+ */
+API_EXPORT
+int glip_parse_option_string(const char* str, struct glip_option* options[],
+                             size_t *num_options)
+{
+    char *opt;
+    int count = 0;
+
+    /* count the number of options */
+    char *strcp = strdup(str);
+    opt = strtok(strcp, ",");
+    if (opt != 0) {
+        count++;
+        while (strtok(0, ",") != 0) {
+            count++;
+        }
+    }
+    free(strcp);
+
+    *num_options = count;
+    if (count <= 0) {
+        return 0;
+    }
+
+    struct glip_option *optvec;
+    optvec = calloc(count, sizeof(struct glip_option));
+
+    strcp = strdup(str);
+    opt = strtok(strcp, ",");
+    int i = 0;
+    do {
+        char *sep = index(opt, '=');
+        if (sep) {
+            optvec[i].name = strndup(opt, sep - opt);
+            optvec[i].value = strndup(sep + 1, opt + strlen(opt) - sep);
+        } else {
+            optvec[i].name = strdup(opt);
+            optvec[i].value = 0;
+        }
+        opt = strtok(0, ",");
+        i++;
+    } while (opt);
+
+    free(strcp);
+    *options = optvec;
 
     return 0;
 }

@@ -91,11 +91,13 @@ set files [list \
                [file normalize $glip_dir/backend_uart/logic/verilog/glip_uart_transmit.v ] \
                [file normalize $glip_dir/common/logic/credit/verilog/debtor.v] \
                [file normalize $glip_dir/common/logic/credit/verilog/creditor.v] \
-               [file normalize $glip_dir/common/logic/scaler/verilog/glip_downscale.v] \
-               [file normalize $glip_dir/common/logic/scaler/verilog/glip_upscale.v] \
-               [file normalize $glip_dir/common/logic/fifo/verilog/oh_fifo_sync.v] \
-               [file normalize $glip_dir/common/logic/fifo/verilog/oh_memory_ram.v] \
-               [file normalize $glip_dir/common/logic/fifo/verilog/oh_memory_dp.v] \
+               [file normalize $glip_dir/common/logic/scaler/verilog/glip_downscale.sv] \
+               [file normalize $glip_dir/common/logic/scaler/verilog/glip_upscale.sv] \
+               [file normalize $glip_dir/common/logic/fifo/verilog/fifo_dualclock_fwft.sv] \
+               [file normalize $glip_dir/common/logic/fifo/verilog/fifo_dualclock_standard.sv] \
+               [file normalize $glip_dir/common/logic/fifo/verilog/fifo_singleclock_fwft.sv] \
+               [file normalize $glip_dir/common/logic/fifo/verilog/fifo_singleclock_noc.sv] \
+               [file normalize $glip_dir/common/logic/fifo/verilog/fifo_singleclock_standard.sv] \
              ]
 add_files -norecurse -fileset [get_filesets sources_1] $files
 
@@ -164,15 +166,7 @@ set_property -dict [list \
                         CONFIG.MMCM_CLKOUT0_DIVIDE_F {5} \
                         CONFIG.RESET_PORT {resetn} \
                         CONFIG.CLKOUT1_JITTER {114.829} \
-                        CONFIG.CLKOUT1_PHASE_ERROR {98.575} \
-                        CONFIG.CLKOUT2_DRIVES {BUFG} \
-                        CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {60.000} \
-                        CONFIG.CLKOUT2_USED {1} \
-                        CONFIG.CLK_OUT2_PORT {clk_io_uart} \
-                        CONFIG.CLKOUT3_DRIVES {BUFG} \
-                        CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {120.000} \
-                        CONFIG.CLKOUT3_USED {1} \
-                        CONFIG.CLK_OUT3_PORT {clk_pixel}] \
+                        CONFIG.CLKOUT1_PHASE_ERROR {98.575}] \
     [get_ips clk_wiz_0]
 generate_target {instantiation_template} [get_files $proj_dir/$project_name.srcs/sources_1/ip/clk_wiz_0/clk_wiz_0.xci]
 #SD-card clock generator

@@ -69,12 +69,11 @@ static const struct usb_dev_entry usb_devs[] = {
 };
 
 
-
 /* USB device constants */
 /** USB write endpoint */
-const int USB_WR_EP = 0x02 | LIBUSB_ENDPOINT_OUT; /* EP2 OUT */
+static const int USB_WR_EP = 0x02 | LIBUSB_ENDPOINT_OUT; /* EP2 OUT */
 /** USB read endpoint */
-const int USB_RD_EP = 0x6 | LIBUSB_ENDPOINT_IN; /* EP6 IN */
+static const int USB_RD_EP = 0x6 | LIBUSB_ENDPOINT_IN; /* EP6 IN */
 
 /**
  * USB read timeout [ms]
@@ -82,19 +81,19 @@ const int USB_RD_EP = 0x6 | LIBUSB_ENDPOINT_IN; /* EP6 IN */
  * This timeout should be rather small to achieve good performance even for
  * small reads.
  */
-const int USB_RX_TIMEOUT_MS = 2; /* 2 ms */
+static const int USB_RX_TIMEOUT_MS = 2; /* 2 ms */
 
 /**
  * USB write timeout [ms]
  *
  * This value can be rather large without impacting performance.
  */
-const int USB_TX_TIMEOUT_MS = 1000; /* 1 second */
+static const int USB_TX_TIMEOUT_MS = 1000; /* 1 second */
 
 /**
  * the timeout after which a USB read or write transfer is triggered [ms]
  */
-const int USB_TRANSFER_RETRY_TIMEOUT_MS = 5;
+static const int USB_TRANSFER_RETRY_TIMEOUT_MS = 5;
 
 /**
  * Packet/block size for USB bulk transfers [byte]
@@ -133,6 +132,10 @@ const int USB_TRANSFER_RETRY_TIMEOUT_MS = 5;
  */
 #define USB_BUF_SIZE (USB_TRANSFER_PACKET_SIZE_BYTES * \
                       USB_MAX_PACKETS_PER_TRANSFER * 2)
+
+
+static void* usb_read_thread(void* ctx_void);
+static void* usb_write_thread(void* ctx_void);
 
 /**
  * GLIP backend context for the Cypress FX2 backend
@@ -206,6 +209,17 @@ int gb_cypressfx2_new(struct glip_ctx *ctx)
     ctx->backend_ctx = c;
 
     return 0;
+}
+
+/**
+ * Destruct the backend
+ *
+ * @see glip_free()
+ */
+void gb_cypressfx2_free(struct glip_ctx *ctx)
+{
+    libusb_exit(ctx->backend_ctx->usb_ctx);
+    free(ctx->backend_ctx);
 }
 
 /**
@@ -552,33 +566,13 @@ int gb_cypressfx2_logic_reset(struct glip_ctx *ctx)
 }
 
 /**
- * Read from the target device
+ * Possibly trigger a refill of the incoming (read) buffer
  *
- * @see glip_read()
+ * We request a new read from the USB device if at least one packet fits
+ * into the read buffer. The read itself is done by the usb_read_thread.
  */
-int gb_cypressfx2_read(struct glip_ctx *ctx, uint32_t channel, size_t size,
-                       uint8_t *data, size_t *size_read)
+static void trigger_read_refill(struct glip_backend_ctx *bctx)
 {
-    if (channel != 0) {
-        err(ctx, "Only channel 0 is supported by the cypressfx2 backend");
-        return -1;
-    }
-
-    struct glip_backend_ctx* bctx = ctx->backend_ctx;
-
-    size_t fill_level = cbuf_fill_level(bctx->read_buf);
-    size_t size_read_req = (size > fill_level ? fill_level : size);
-
-    int rv = cbuf_read(bctx->read_buf, data, size_read_req);
-    if (rv < 0) {
-        err(ctx, "Unable to get data from read buffer, rv = %d\n", rv);
-        return -1;
-    }
-
-    /**
-     * We request a new read from the USB device if at least one packet fits
-     * into the read buffer. The read itself is done by the usb_read_thread.
-     */
     if (cbuf_free_level(bctx->read_buf) >= USB_TRANSFER_PACKET_SIZE_BYTES) {
         int sval;
         sem_getvalue(&bctx->read_notification_sem, &sval);
@@ -586,9 +580,55 @@ int gb_cypressfx2_read(struct glip_ctx *ctx, uint32_t channel, size_t size,
             sem_post(&bctx->read_notification_sem);
         }
     }
+}
 
-    *size_read = size_read_req;
-    return 0;
+/**
+ * Possibly trigger a flush of the write (outgoing) buffer
+ *
+ * If half of the write buffer is filled we trigger the USB sending thread
+ * to transfer the data to the USB device. Apart from that, the write thread
+ * is triggered every USB_TRANSFER_RETRY_TIMEOUT_MS milliseconds, even if
+ * less data is available.
+ *
+ * The threshold "1/2 write buffer size" is a suitable value for
+ * high-bandwidth communication; if there is not much data to transfer, the
+ * communication latency will be increased to at least
+ * USB_TRANSFER_RETRY_TIMEOUT_MS per transfer.
+ */
+static void trigger_write_flush(struct glip_backend_ctx *bctx)
+{
+    if (cbuf_fill_level(bctx->write_buf) >= USB_BUF_SIZE / 2) {
+        int sval;
+        sem_getvalue(&bctx->write_notification_sem, &sval);
+        if (sval == 0) {
+            sem_post(&bctx->write_notification_sem);
+        }
+    }
+}
+/**
+ * Read from the target device
+ *
+ * @see glip_read()
+ */
+int gb_cypressfx2_read(struct glip_ctx *ctx, uint32_t channel, size_t size,
+                       uint8_t *data, size_t *size_read)
+{
+    int rv;
+    struct glip_backend_ctx* bctx = ctx->backend_ctx;
+
+    if (channel != 0) {
+        err(ctx, "Only channel 0 is supported by the cypressfx2 backend");
+        return -1;
+    }
+
+    rv = gb_util_cbuf_read(bctx->read_buf, size, data, size_read);
+    if (rv != 0) {
+        return rv;
+    }
+
+    trigger_read_refill(bctx);
+
+    return rv;
 }
 
 /**
@@ -601,59 +641,27 @@ int gb_cypressfx2_read_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
                          unsigned int timeout)
 {
     int rv;
-    struct glip_backend_ctx *bctx = ctx->backend_ctx;
+    struct glip_backend_ctx* bctx = ctx->backend_ctx;
 
-    if (size > USB_BUF_SIZE) {
-        /*
-         * This is not a problem for non-blocking reads, but blocking reads will
-         * block forever in this case as the maximum amount of data ever
-         * available is limited by the buffer size.
-         */
-        err(ctx, "The read size cannot be larger than %u bytes.", USB_BUF_SIZE);
+    if (channel != 0) {
+        err(ctx, "Only channel 0 is supported by the cypressfx2 backend");
         return -1;
     }
 
-    /*
-     * Wait until sufficient data is available to be read.
-     */
-    struct timespec ts;
-    if (timeout != 0) {
-        clock_gettime(CLOCK_REALTIME, &ts);
-        timespec_add_ns(&ts, timeout * 1000 * 1000);
+    rv = gb_util_cbuf_read_b(bctx->read_buf, size, data, size_read, timeout);
+    if (rv != 0) {
+        return rv;
     }
 
-    size_t level = cbuf_fill_level(bctx->read_buf);
+    trigger_read_refill(bctx);
 
-    while (level < size) {
-        if (timeout == 0) {
-            rv = cbuf_wait_for_level_change(bctx->read_buf, level);
-        } else {
-            rv = cbuf_timedwait_for_level_change(bctx->read_buf, level, &ts);
-        }
-
-        if (rv != 0) {
-            break;
-        }
-
-        level = cbuf_fill_level(bctx->read_buf);
-    }
-
-    /*
-     * We read whatever data is available, and assume a timeout if the available
-     * amount of data does not match the requested amount.
-     */
-    *size_read = 0;
-    rv = gb_cypressfx2_read(ctx, channel, size, data, size_read);
-    if (rv == 0 && size != *size_read) {
-        return -ETIMEDOUT;
-    }
     return rv;
 }
 
 /**
  * Write to the target device
  *
- * All data is written through USB 2.0 bulk transfers to the target. Since
+ * All data is written through USB bulk transfers to the target. Since
  * those transfers are most efficient when sending large amounts of data, we
  * do a client-side buffering of data. The buffer is flushed if one of the
  * two conditions hold:
@@ -666,43 +674,27 @@ int gb_cypressfx2_read_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
  * USB transfer.
  *
  * @todo Add a "flush buffer" API call to send off immediately a transfer even
- *       through none of the conditions a) or b) hold.
+ *       though neither condition a) nor condition b) hold.
  *
  * @see glip_write()
  */
 int gb_cypressfx2_write(struct glip_ctx *ctx, uint32_t channel, size_t size,
                         uint8_t *data, size_t *size_written)
 {
+    int rv;
+    struct glip_backend_ctx* bctx = ctx->backend_ctx;
+
     if (channel != 0) {
         err(ctx, "Only channel 0 is supported by the cypressfx2 backend");
         return -1;
     }
 
-    struct glip_backend_ctx* bctx = ctx->backend_ctx;
-
-    unsigned int buf_size_free = cbuf_free_level(bctx->write_buf);
-    *size_written = (size > buf_size_free ? buf_size_free : size);
-
-    cbuf_write(bctx->write_buf, data, *size_written);
-
-    /*
-     * If half of the write buffer is filled we trigger the USB sending thread
-     * to transfer the data to the USB device. Apart from that, the write thread
-     * is triggered every USB_TRANSFER_RETRY_TIMEOUT_MS milliseconds, even if
-     * less data is available.
-     *
-     * The threshold "1/2 write buffer size" is a suitable value for
-     * high-bandwidth communication; if there is not much data to transfer, the
-     * communication latency will be increased to at least
-     * USB_TRANSFER_RETRY_TIMEOUT_MS per transfer.
-     */
-    if (cbuf_fill_level(bctx->write_buf) >= USB_BUF_SIZE / 2) {
-        int sval;
-        sem_getvalue(&bctx->write_notification_sem, &sval);
-        if (sval == 0) {
-            sem_post(&bctx->write_notification_sem);
-        }
+    rv = gb_util_cbuf_write(bctx->write_buf, size, data, size_written);
+    if (rv != 0) {
+        return rv;
     }
+
+    trigger_write_flush(bctx);
 
     return 0;
 }
@@ -716,41 +708,22 @@ int gb_cypressfx2_write_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
                           uint8_t *data, size_t *size_written,
                           unsigned int timeout)
 {
-    struct glip_backend_ctx *bctx = ctx->backend_ctx;
+    int rv;
+    struct glip_backend_ctx* bctx = ctx->backend_ctx;
 
-    struct timespec ts;
-
-    if (timeout != 0) {
-        clock_gettime(CLOCK_REALTIME, &ts);
-        timespec_add_ns(&ts, timeout * 1000 * 1000);
+    if (channel != 0) {
+        err(ctx, "Only channel 0 is supported by the cypressfx2 backend");
+        return -1;
     }
 
-    size_t size_done = 0; /* number of bytes already written */
-
-    while (1) {
-        size_t size_done_tmp = 0;
-        gb_cypressfx2_write(ctx, channel, size - size_done, &data[size_done],
-                            &size_done_tmp);
-        size_done += size_done_tmp;
-
-        if (size_done == size) {
-            break;
-        }
-
-        if (cbuf_free_level(bctx->write_buf) == 0) {
-            if (timeout == 0) {
-                cbuf_wait_for_level_change(bctx->write_buf, 0);
-            } else {
-                cbuf_timedwait_for_level_change(bctx->write_buf, 0, &ts);
-            }
-        }
+    rv = gb_util_cbuf_write_b(bctx->write_buf, size, data, size_written,
+                              timeout);
+    if (rv != 0) {
+        return rv;
     }
 
-    *size_written = size_done;
+    trigger_write_flush(bctx);
 
-    if (size != *size_written) {
-        return -ETIMEDOUT;
-    }
     return 0;
 }
 
@@ -769,7 +742,7 @@ int gb_cypressfx2_write_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
 /**
  * Thread: write data to the USB device
  */
-void* usb_write_thread(void* ctx_void)
+static void* usb_write_thread(void* ctx_void)
 {
     struct glip_ctx *ctx = ctx_void;
     struct glip_backend_ctx* bctx = ctx->backend_ctx;
@@ -870,7 +843,7 @@ void* usb_write_thread(void* ctx_void)
 /**
  * Thread: read data from the USB device
  */
-void* usb_read_thread(void* ctx_void)
+static void* usb_read_thread(void* ctx_void)
 {
     struct glip_ctx *ctx = ctx_void;
     struct glip_backend_ctx* bctx = ctx->backend_ctx;

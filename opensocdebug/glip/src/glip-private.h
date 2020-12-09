@@ -54,6 +54,9 @@
 #ifdef BACKEND_CYPRESSFX2_ENABLED
 #include "backend_cypressfx2/sw/backend_cypressfx2.h"
 #endif
+#ifdef BACKEND_CYPRESSFX3_ENABLED
+#include "backend_cypressfx3/sw/backend_cypressfx3.h"
+#endif
 #ifdef BACKEND_TCP_ENABLED
 #include "backend_tcp/sw/backend_tcp.h"
 #endif
@@ -66,11 +69,11 @@
  * Macro used by the configure script to enable a backend in the glip_backends
  * struct.
  */
-#define ENABLED_BACKEND(NAME)  { #NAME, gb_ ## NAME ##_new }
+#define ENABLED_BACKEND(NAME)  { #NAME, gb_ ## NAME ##_new, gb_ ## NAME ##_free }
 /**
  * Macro used by the configure script to disable a backend
  */
-#define DISABLED_BACKEND(NAME) { #NAME, 0 }
+#define DISABLED_BACKEND(NAME) { #NAME, NULL, NULL }
 
 /**
  * API_EXPORT marks all exported functions which are part of the public API.
@@ -84,6 +87,7 @@
 struct glip_backend {
     const char *name; /**< unique name of the backend */
     int (*new)(struct glip_ctx* /* ctx */); /**< constructor */
+    void (*free)(struct glip_ctx* /* ctx */); /**< destructor */
 };
 
 /**
@@ -99,6 +103,7 @@ struct glip_backend {
 static struct glip_backend glip_backends[] = {
     BACKEND_UART,
     BACKEND_CYPRESSFX2,
+    BACKEND_CYPRESSFX3,
     BACKEND_TCP,
     BACKEND_JTAG
 };
