@@ -719,7 +719,11 @@ module chip_top
        .MAM_DATA_WIDTH   ( `ROCKET_MAM_IO_DWIDTH   ),
        .MAM_ADDR_WIDTH   ( `ROCKET_PADDR_WIDTH     ),
        .FREQ_CLK_IO      ( 60000000                ),
+       `ifdef KC705
+       .UART_BAUD        ( 1200000                 )
+       `else
        .UART_BAUD        ( 12000000                )
+       `endif
        )
    u_debug_system
      (

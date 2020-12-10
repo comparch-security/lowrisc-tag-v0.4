@@ -472,6 +472,12 @@ class With512MRamConfig extends Config (
   }
 )
 
+class With1GRamConfig extends Config (
+  (pname,site,here) => pname match {
+    case RAMSize => BigInt(1L << 30)  // 1024 MB
+  }
+)
+
 class With6BitTags extends Config(
     (pname,site,here) => pname match {
         case MIFTagBits => Dump("ROCKET_MEM_TAG_WIDTH", 6)
@@ -495,6 +501,12 @@ class Nexys4Config extends
 
 class Nexys4DebugConfig extends
     Config(new With128MRamConfig ++ new FPGADebugConfig)
+
+class KC705Config extends
+  Config(new With1GRamConfig ++ new FPGAConfig)
+
+class KC705DebugConfig extends
+  Config(new With1GRamConfig ++ new FPGADebugConfig)
 
 class Nexys4VideoConfig extends
     Config(new With512MRamConfig ++ new FPGAConfig)
