@@ -157,6 +157,8 @@ generate_target {instantiation_template} [get_files $proj_dir/$project_name.srcs
 create_ip -name clk_wiz -vendor xilinx.com -library ip -module_name clk_wiz_0
 set_property -dict [list \
                         CONFIG.PRIMITIVE {PLL} \
+                        CONFIG.PRIM_SOURCE {Single_ended_clock_capable_pin} \
+                        CONFIG.PRIM_IN_FREQ {100.000} \
                         CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {200.000} \
                         CONFIG.RESET_TYPE {ACTIVE_LOW} \
                         CONFIG.CLKOUT1_DRIVES {BUFG} \
@@ -166,7 +168,11 @@ set_property -dict [list \
                         CONFIG.MMCM_CLKOUT0_DIVIDE_F {5} \
                         CONFIG.RESET_PORT {resetn} \
                         CONFIG.CLKOUT1_JITTER {114.829} \
-                        CONFIG.CLKOUT1_PHASE_ERROR {98.575}] \
+                        CONFIG.CLKOUT1_PHASE_ERROR {98.575} \
+                        CONFIG.CLKOUT2_DRIVES {BUFG} \
+                        CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {60.000} \
+                        CONFIG.CLKOUT2_USED {1} \
+                        CONFIG.CLK_OUT2_PORT {clk_io_uart}] \
     [get_ips clk_wiz_0]
 generate_target {instantiation_template} [get_files $proj_dir/$project_name.srcs/sources_1/ip/clk_wiz_0/clk_wiz_0.xci]
 #SD-card clock generator

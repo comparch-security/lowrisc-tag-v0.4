@@ -24,9 +24,9 @@
         <PHYRatio>4:1</PHYRatio>
         <InputClkFreq>200</InputClkFreq>
         <UIExtraClocks>1</UIExtraClocks>
-        <MMCM_VCO>1200</MMCM_VCO>
-        <MMCMClkOut0>48.000</MMCMClkOut0>
-        <MMCMClkOut1>20.000</MMCMClkOut1>
+        <MMCM_VCO>800</MMCM_VCO>
+        <MMCMClkOut0>16</MMCMClkOut0>
+        <MMCMClkOut1>13</MMCMClkOut1>
         <MMCMClkOut2>1</MMCMClkOut2>
         <MMCMClkOut3>1</MMCMClkOut3>
         <MMCMClkOut4>1</MMCMClkOut4>
@@ -193,8 +193,8 @@
         <AXIParameters>
             <C0_C_RD_WR_ARB_ALGORITHM>RD_PRI_REG</C0_C_RD_WR_ARB_ALGORITHM>
             <C0_S_AXI_ADDR_WIDTH>30</C0_S_AXI_ADDR_WIDTH>
-            <C0_S_AXI_DATA_WIDTH>128</C0_S_AXI_DATA_WIDTH>
-            <C0_S_AXI_ID_WIDTH>9</C0_S_AXI_ID_WIDTH>
+            <C0_S_AXI_DATA_WIDTH>64</C0_S_AXI_DATA_WIDTH>
+            <C0_S_AXI_ID_WIDTH>8</C0_S_AXI_ID_WIDTH>
             <C0_S_AXI_SUPPORTS_NARROW_BURST>0</C0_S_AXI_SUPPORTS_NARROW_BURST>
         </AXIParameters>
     </Controller>

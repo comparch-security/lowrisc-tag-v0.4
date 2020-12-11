@@ -206,8 +206,8 @@ module chip_top
    clk_wiz_0 clk_gen
      (
       .clk_in1       ( clk_p         ), // 100 MHz onboard
-      .clk_out1      ( mig_sys_clk   ), // 200 MHz
-      //.clk_io_uart   ( clk_io_uart   ), // 60 MHz
+      .clk_out1      ( mig_sys_clk   ), // 200 MHz to mig
+      .clk_io_uart   ( clk_io_uart   ), // 60 MHz
       .resetn        ( rst_top       ),
       .locked        ( clk_locked    )
       );
@@ -215,14 +215,13 @@ module chip_top
 
   /*`ifdef KC705
    //clock generator
-   //logic clk_locked,mig_out_clk0;
-   logic clk_io_uart; // UART IO clock for debug
+   logic mig_100M_clk, clk_locked; // UART IO clock for debug
 
    clk_wiz_0 clk_gen
      (
-      .clk_in1       ( mig_out_clk0  ), // 200 MHz from mig
-      .clk_out1      ( clk           ), // 50 MHz
-      .clk_io_uart   ( clk_io_uart   ), // 60 MHz
+      .clk_in1       ( mig_100M_clk  ), // 100 MHz from mig
+      .clk_out1      (               ), // 200 MHz
+      .clk_io_uart   (               ), // 60 MHz
       .resetn        ( rst_top       ),
       .locked        ( clk_locked    )
       );
@@ -232,8 +231,8 @@ module chip_top
    mig_7series_0 dram_ctl
      (
  `ifdef KC705
-      .sys_clk_p            ( clk_p                  ),
-      .sys_clk_n            ( clk_n                  ),
+      .sys_clk_p            ( clk_p                  ), // 200 MHz onboard
+      .sys_clk_n            ( clk_n                  ), // 200 MHz onboard
       .sys_rst              ( rst_top                ),
       .ui_addn_clk_0        ( clk                    ),
       .ui_addn_clk_1        ( clk_io_uart            ),
@@ -256,7 +255,7 @@ module chip_top
       .sys_clk_i            ( mig_sys_clk            ),
       .sys_rst              ( clk_locked             ),
       .ui_addn_clk_0        ( clk                    ),
-      .ui_addn_clk_1        ( clk_io_uart            ),
+      .ui_addn_clk_1        (                        ),
       .device_temp_i        ( 0                      ),
       .ddr2_dq              ( ddr_dq                 ),
       .ddr2_dqs_n           ( ddr_dqs_n              ),
@@ -718,10 +717,11 @@ module chip_top
        .N_CORES          ( `ROCKET_NTILES          ),
        .MAM_DATA_WIDTH   ( `ROCKET_MAM_IO_DWIDTH   ),
        .MAM_ADDR_WIDTH   ( `ROCKET_PADDR_WIDTH     ),
-       .FREQ_CLK_IO      ( 60000000                ),
        `ifdef KC705
+       .FREQ_CLK_IO      ( 60000000                ),
        .UART_BAUD        ( 1200000                 )
        `else
+       .FREQ_CLK_IO      ( 60000000                ),
        .UART_BAUD        ( 12000000                )
        `endif
        )

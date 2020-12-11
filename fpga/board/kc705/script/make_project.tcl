@@ -154,12 +154,13 @@ set_property -dict [list \
 generate_target {instantiation_template} [get_files $proj_dir/$project_name.srcs/sources_1/ip/axi_clock_converter_0/axi_clock_converter_0.xci]
 
 # Clock generators
+if 0 {
 create_ip -name clk_wiz -vendor xilinx.com -library ip -module_name clk_wiz_0
 set_property -dict [list \
                         CONFIG.PRIMITIVE {PLL} \
                         CONFIG.PRIM_SOURCE {Global_buffer} \
                         CONFIG.PRIM_IN_FREQ {100.000} \
-                        CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {50.000} \
+                        CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {200.000} \
                         CONFIG.RESET_TYPE {ACTIVE_LOW} \
                         CONFIG.CLKOUT1_DRIVES {BUFG} \
                         CONFIG.MMCM_DIVCLK_DIVIDE {1} \
@@ -173,6 +174,8 @@ set_property -dict [list \
                         CONFIG.CLK_OUT2_PORT {clk_io_uart}] \
     [get_ips clk_wiz_0]
 generate_target {instantiation_template} [get_files $proj_dir/$project_name.srcs/sources_1/ip/clk_wiz_0/clk_wiz_0.xci]
+}
+
 # SPI interface for R/W SD card
 create_ip -name axi_quad_spi -vendor xilinx.com -library ip -module_name axi_quad_spi_0
 set_property -dict [list \
