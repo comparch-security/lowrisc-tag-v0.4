@@ -10,9 +10,7 @@ module chip_top
   (
 `ifdef ADD_PHY_DDR
  `ifdef KC705
-   output  led0,
-   output  led1,
-   output  led2,
+   output [6:0]  led,
    // DDR3 RAM
    inout [63:0]  ddr_dq,
    inout [7:0]   ddr_dqs_n,
@@ -65,7 +63,9 @@ module chip_top
    inout         spi_sclk,
    inout         spi_mosi,
    inout         spi_miso,
-   output        sd_reset,
+   `ifdef NEXYS4
+     output        sd_reset,
+   `endif
 `endif
 
    // clock and reset
@@ -213,19 +213,19 @@ module chip_top
       );
  `endif //  `ifdef NEXYS4_COMMON
 
-  /*`ifdef KC705
+  `ifdef KC705
    //clock generator
    logic mig_100M_clk, clk_locked; // UART IO clock for debug
-
+   /*
    clk_wiz_0 clk_gen
      (
       .clk_in1       ( mig_100M_clk  ), // 100 MHz from mig
       .clk_out1      (               ), // 200 MHz
-      .clk_io_uart   (               ), // 60 MHz
+      .clk_io_uart   ( clk_io_uart   ), // 60 MHz
       .resetn        ( rst_top       ),
       .locked        ( clk_locked    )
-      );
- `endif*/ //  `ifdef KC705
+      );*/
+ `endif //  `ifdef KC705
 
    // DRAM controller
    mig_7series_0 dram_ctl
@@ -236,6 +236,7 @@ module chip_top
       .sys_rst              ( rst_top                ),
       .ui_addn_clk_0        ( clk                    ),
       .ui_addn_clk_1        ( clk_io_uart            ),
+      .ui_addn_clk_2        ( mig_100M_clk           ),
       .ddr3_dq              ( ddr_dq                 ),
       .ddr3_dqs_n           ( ddr_dqs_n              ),
       .ddr3_dqs_p           ( ddr_dqs_p              ),
@@ -1089,31 +1090,52 @@ logic rx_led,tx_led;
 logic [29:0] led0_count;
 logic [29:0] led1_count;
 logic [29:0] led2_count;
-assign led0 =rx_led;
-assign led1 =tx_led;
-assign led2 =led1_count[22];
+logic [29:0] led3_count;
+logic [29:0] led4_count;
+logic [29:0] led5_count;
+logic [29:0] led6_count;
+logic [29:0] led7_count;
+assign led[0] =rx_led;
+assign led[1] =tx_led;
+assign led[2] =led2_count[25];
+assign led[3] =led3_count[25];
+assign led[4] =led4_count[25];
+assign led[5] =led5_count[25];
+assign led[6] =led6_count[25];
+assign led[7] =led7_count[25];
 
 always @(posedge clk_io_uart or negedge rstn) begin
   if(!rstn) begin
     rx_led <= 1'b0;
     tx_led <= 1'b0;
-    led0_count <= 30'd0;
+    led2_count <= 30'd0;
   end
   else begin
     rx_led <= ~rxd;
     tx_led <= ~txd;
-    led0_count <= led0_count+1'b1;
+    led2_count <= led2_count+1'b1;
   end
 end
 
-always @(posedge clk_io_uart or negedge rstn) begin
-  if(!rstn)  led1_count <= 30'd0;
-  else  led1_count <= led1_count+1'b1;
+always @(posedge mig_ui_clk or negedge rstn) begin
+  if(!rstn)  led3_count <= 30'd0;
+  else  led3_count <= led3_count+1'b1;
 end
 
-always @(posedge mig_ui_clk or negedge rstn) begin
-  if(!rstn)  led2_count <= 30'd0;
-  else  led2_count <= led2_count+1'b1;
+always @(posedge clk or negedge rstn) begin
+  if(!rstn)  led4_count <= 30'd0;
+  else  led4_count <= led4_count+1'b1;
+end
+
+always @(posedge mig_100M_clk or negedge rstn) begin
+  if(!rstn)  led5_count <= 30'd0;
+  else  led5_count <= led5_count+1'b1;
+end
+
+
+always @(posedge clk or posedge rstn) begin //pass synthesis
+  if(!rstn)  led6_count <= 30'd0;
+  else  led6_count <= led6_count+1'b1;
 end
 
   `endif

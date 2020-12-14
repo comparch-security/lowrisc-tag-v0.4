@@ -24,6 +24,7 @@ junk += $(TARGET) $(TARGET).hex
 
 DRIVER_DIR = ../driver
 SOFTFLOAT_DIR = ../softfloat
+#FPGA_DIR ?= ../../board/kc705/
 FPGA_DIR ?= ../../board/nexys4_ddr/
 GEN_DIR = $(FPGA_DIR)/generated-src
 PAYLOAD_DIR ?= ../payload
@@ -231,7 +232,7 @@ $(SOFTFLOAT_OBJS): %.o:$(SOFTFLOAT_DIR)/%.c $(SOFTFLOAT_HEADERS) $(HEADERS)
 
 $(TARGET): $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) 
 	$(RISCV_GCC) -o $@ $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(RISCV_LINK_OPTS)
-	cp $(TARGET) ../../board/nexys4_ddr/
+	cp $(TARGET) $(FPGA_DIR)
 
 dump: $(TARGET).dump
 $(TARGET).dump: $(TARGET)
