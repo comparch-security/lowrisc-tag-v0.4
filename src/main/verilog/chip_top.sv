@@ -719,11 +719,11 @@ module chip_top
        .MAM_DATA_WIDTH   ( `ROCKET_MAM_IO_DWIDTH   ),
        .MAM_ADDR_WIDTH   ( `ROCKET_PADDR_WIDTH     ),
        `ifdef KC705
-       .FREQ_CLK_IO      ( 60000000                ),
-       .UART_BAUD        ( 1200000                 )
+       .FREQ_CLK_IO      ( 100000000               ),
+       .UART_BAUD        ( 921600                  ) //cp2103
        `else
        .FREQ_CLK_IO      ( 60000000                ),
-       .UART_BAUD        ( 12000000                )
+       .UART_BAUD        ( 12000000                ) //FT2232HQ
        `endif
        )
    u_debug_system

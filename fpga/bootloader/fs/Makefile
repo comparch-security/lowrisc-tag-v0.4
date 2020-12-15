@@ -24,8 +24,8 @@ junk += $(TARGET) $(TARGET).hex
 
 DRIVER_DIR = ../driver
 SOFTFLOAT_DIR = ../softfloat
-#FPGA_DIR ?= ../../board/kc705/
-FPGA_DIR ?= ../../board/nexys4_ddr/
+FPGA_DIR ?= ../../board/kc705/
+#FPGA_DIR ?= ../../board/nexys4_ddr/
 GEN_DIR = $(FPGA_DIR)/generated-src
 PAYLOAD_DIR ?= ../payload
 RISCV_PREFIX=riscv64-unknown-elf-
