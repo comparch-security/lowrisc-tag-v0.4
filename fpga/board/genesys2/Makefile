@@ -21,8 +21,8 @@ example_dir = $(base_dir)/fpga/bare_metal_V03/examples
 
 project_name = lowrisc-chip-imp
 BACKEND ?= lowrisc_chip.LowRISCBackend
-CONFIG ?= GENESYS2Config
-#CONFIG ?= GENESYS2DebugConfig
+#CONFIG ?= GENESYS2Config
+CONFIG ?= GENESYS2DebugConfig
 #CONFIG ?= KC705DebugConfig
 #CONFIG ?= Nexys4DebugConfig
 #CONFIG ?= Nexys4Config

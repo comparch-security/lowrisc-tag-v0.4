@@ -316,8 +316,10 @@ int gb_uart_open(struct glip_ctx *ctx, unsigned int num_channels)
     tty.c_cflag &= ~(PARENB | PARODD);
     tty.c_cflag &= ~CSTOPB;
     /* Hardware flow control */
-    tty.c_cflag |= (CLOCAL | CREAD);
-    tty.c_cflag |= CRTSCTS;
+    //tty.c_cflag |= (CLOCAL | CREAD);
+    //tty.c_cflag |= CRTSCTS;
+    /* Disable flow control */
+    tty.c_cflag &= ~CRTSCTS;
 
     /* read doesn't block */
     tty.c_cc[VMIN]  = 0;
