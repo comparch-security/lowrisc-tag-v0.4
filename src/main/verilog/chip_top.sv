@@ -10,7 +10,7 @@ module chip_top
   (
 `ifdef ADD_PHY_DDR
  `ifdef KC705
-   output [6:0]  led,
+   output [7:0]  led,
    // DDR3 RAM
    inout [63:0]  ddr_dq,
    inout [7:0]   ddr_dqs_n,
@@ -27,7 +27,25 @@ module chip_top
    output        ddr_cs_n,
    output [7:0]  ddr_dm,
    output        ddr_odt,
- `elsif NEXYS4
+   `elsif  GENESYS2
+   output [7:0]  led,
+   // DDR3 RAM
+   inout [31:0]  ddr_dq,
+   inout [3:0]   ddr_dqs_n,
+   inout [3:0]   ddr_dqs_p,
+   output [14:0] ddr_addr,
+   output [2:0]  ddr_ba,
+   output        ddr_ras_n,
+   output        ddr_cas_n,
+   output        ddr_we_n,
+   output        ddr_reset_n,
+   output        ddr_ck_n,
+   output        ddr_ck_p,
+   output        ddr_cke,
+   output        ddr_cs_n,
+   output [3:0]  ddr_dm,
+   output        ddr_odt,
+   `elsif NEXYS4
    // DDR2 RAM
    inout [15:0]  ddr_dq,
    inout [1:0]   ddr_dqs_n,
@@ -49,8 +67,11 @@ module chip_top
 `ifdef ADD_UART
    input         rxd,
    output        txd,
+   `ifdef GENESYS2  //GENESYS2 have no rts and cts
+   `else
    output        rts,
    input         cts,
+   `endif
 `endif
 
 `ifdef ADD_FLASH
@@ -58,13 +79,15 @@ module chip_top
    inout [3:0]   flash_io,
 `endif
 
-`ifdef ADD_SPI
+`ifdef ADD_SPI //SDCARD
    inout         spi_cs,
    inout         spi_sclk,
    inout         spi_mosi,
    inout         spi_miso,
    `ifdef NEXYS4
-     output        sd_reset,
+   output        sd_reset,
+   `elsif GENESYS2
+   output        sd_reset,
    `endif
 `endif
 
@@ -231,6 +254,28 @@ module chip_top
    mig_7series_0 dram_ctl
      (
  `ifdef KC705
+      .sys_clk_p            ( clk_p                  ), // 200 MHz onboard
+      .sys_clk_n            ( clk_n                  ), // 200 MHz onboard
+      .sys_rst              ( rst_top                ),
+      .ui_addn_clk_0        ( clk                    ),
+      .ui_addn_clk_1        ( clk_io_uart            ),
+      .ui_addn_clk_2        ( mig_100M_clk           ),
+      .ddr3_dq              ( ddr_dq                 ),
+      .ddr3_dqs_n           ( ddr_dqs_n              ),
+      .ddr3_dqs_p           ( ddr_dqs_p              ),
+      .ddr3_addr            ( ddr_addr               ),
+      .ddr3_ba              ( ddr_ba                 ),
+      .ddr3_ras_n           ( ddr_ras_n              ),
+      .ddr3_cas_n           ( ddr_cas_n              ),
+      .ddr3_we_n            ( ddr_we_n               ),
+      .ddr3_reset_n         ( ddr_reset_n            ),
+      .ddr3_ck_p            ( ddr_ck_p               ),
+      .ddr3_ck_n            ( ddr_ck_n               ),
+      .ddr3_cke             ( ddr_cke                ),
+      .ddr3_cs_n            ( ddr_cs_n               ),
+      .ddr3_dm              ( ddr_dm                 ),
+      .ddr3_odt             ( ddr_odt                ),
+ `elsif GENESYS2
       .sys_clk_p            ( clk_p                  ), // 200 MHz onboard
       .sys_clk_n            ( clk_n                  ), // 200 MHz onboard
       .sys_rst              ( rst_top                ),
@@ -721,6 +766,9 @@ module chip_top
        `ifdef KC705
        .FREQ_CLK_IO      ( 100000000               ),
        .UART_BAUD        ( 921600                  ) //cp2103
+       `elsif GENESYS2
+       .FREQ_CLK_IO      ( 100000000               ),
+       .UART_BAUD        ( 3000000                 ) //FT232R
        `else
        .FREQ_CLK_IO      ( 60000000                ),
        .UART_BAUD        ( 12000000                ) //FT2232HQ
@@ -749,8 +797,13 @@ module chip_top
       .uart_w_valid    ( io_uart_lite.w_valid   ),
       .rx              ( rxd                    ),
       .tx              ( txd                    ),
-      .rts             ( rts                    ),
+      `ifdef GENESYS2
+      .rts             (                        ),
+      .cts             ( 1'b0                   ),
+      `else
+      .rts             ( rts                    ), //glip_uart_toplevel.v: assign uart_rts_n = 0;
       .cts             ( cts                    ),
+      `endif
       .sys_rst         ( sys_rst                ),
       .cpu_rst         ( cpu_rst                ),
       .ring_out        ( debug_ring_start       ),
@@ -804,9 +857,15 @@ module chip_top
       .dsrn            ( 1'b1                   ),
       .sin             ( rxd                    ),
       .sout            ( txd                    ),
-      .ctsn            ( cts                    ),
-      .rtsn            ( rts                    )
+      `ifdef GENESYS2
+      .ctsn             ( 1'b0                   ),
+      .rtsn             (                        )
+      `else
+      .ctsn             ( cts                    ),
+      .rtsn             ( rts                    )
+      `endif
       );
+
 
  `else // !`ifdef ADD_UART
 
@@ -1084,8 +1143,6 @@ module chip_top
    defparam io_mem_crossbar.MASK2 = `DEV_MAP__io_ext_flash__MASK;
 `endif
 
- `ifdef KC705
-   `ifdef ADD_UART
 logic rx_led,tx_led;
 logic [29:0] led0_count;
 logic [29:0] led1_count;
@@ -1095,6 +1152,43 @@ logic [29:0] led4_count;
 logic [29:0] led5_count;
 logic [29:0] led6_count;
 logic [29:0] led7_count;
+
+`ifdef GENESYS2
+assign led[0] =rx_led;
+assign led[1] =tx_led;
+assign led[2] =led2_count[25];
+assign led[3] =led3_count[25];
+assign led[4] =led4_count[25];
+
+always @(posedge clk_io_uart or negedge rstn) begin
+  if(!rstn) begin
+    rx_led <= 1'b0;
+    tx_led <= 1'b0;
+  end
+  else begin
+    rx_led <= ~rxd;
+    tx_led <= ~txd;
+  end
+end
+
+always @(posedge clk_io_uart or posedge rstn) begin //pass synthesis???
+  if(!rstn)  led2_count <= 30'd0;
+  else  led2_count <= led2_count+1'b1;
+end
+
+always @(posedge clk_io_uart or negedge rstn) begin
+  if(!rstn)  led3_count <= 30'd0;
+  else  led3_count <= led3_count+1'b1;
+end
+
+always @(posedge clk or negedge rstn) begin
+  if(!rstn)  led4_count <= 30'd0;
+  else  led4_count <= led4_count+1'b1;
+end
+
+`endif
+
+`ifdef KC705
 assign led[0] =rx_led;
 assign led[1] =tx_led;
 assign led[2] =led2_count[25];
@@ -1138,7 +1232,6 @@ always @(posedge clk or posedge rstn) begin //pass synthesis
   else  led6_count <= led6_count+1'b1;
 end
 
-  `endif
 `endif
 
 endmodule // chip_top

@@ -508,6 +508,12 @@ class KC705Config extends
 class KC705DebugConfig extends
   Config(new With1GRamConfig ++ new FPGADebugConfig)
 
+class GENESYS2Config extends
+  Config(new With1GRamConfig ++ new FPGAConfig)
+
+class GENESYS2DebugConfig extends
+  Config(new With1GRamConfig ++ new FPGADebugConfig)
+
 class Nexys4VideoConfig extends
     Config(new With512MRamConfig ++ new FPGAConfig)
 
