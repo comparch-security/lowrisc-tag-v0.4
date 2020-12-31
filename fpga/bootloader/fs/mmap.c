@@ -617,12 +617,12 @@ void vm_init()
     MIN(DRAM_BASE, mem_size - (first_free_paddr - DRAM_BASE));
 
   // printm("mem pages: %p, free_pages: %p, next_free_page: %p\n",mem_pages,free_pages,next_free_page);
-  // uintptr_t sbi_start = (uintptr_t)&sbi_base;
-  // uintptr_t sbi_term = (uintptr_t)sbi_top_paddr();
-  // uintptr_t sbi_vstart = (uintptr_t)((((DEV_MAP__mem__MASK + 1) << RISCV_PGSHIFT) -(sbi_term - sbi_start)));
-  // printm("sbi paddr: %p-%p, vaddr %p-%p\n",sbi_start,sbi_term,sbi_vstart,(1lu<<40));
+  uintptr_t sbi_start = (uintptr_t)&sbi_base;
+  uintptr_t sbi_term = (uintptr_t)sbi_top_paddr();
+  uintptr_t sbi_vstart = (uintptr_t)((((DEV_MAP__mem__MASK + 1) << RISCV_PGSHIFT) -(sbi_term - sbi_start)));
+  printm("sbi paddr: %p-%p, vaddr %p-%p\n",sbi_start,sbi_term,sbi_vstart,(1lu<<40));
   
-  // __map_kernel_range(sbi_vstart,sbi_start,sbi_term - sbi_start,PROT_READ|PROT_EXEC);
+  __map_kernel_range(sbi_vstart,sbi_start,sbi_term - sbi_start,PROT_READ|PROT_EXEC);
   
 
   // vm_display();
