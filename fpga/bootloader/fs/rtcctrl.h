@@ -3,7 +3,7 @@
 
 #define BBL_PK_RTC2_DELTA 0x1000000
 
-#define BBL_PK_LIMITED_RUN
+// #define BBL_PK_LIMITED_RUN
 
 #ifdef BBL_PK_LIMITED_RUN
 
