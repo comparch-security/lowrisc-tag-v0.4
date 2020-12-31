@@ -57,6 +57,10 @@ C_OBJS = \
 	elf.o \
 	pfc.o \
 
+MISALIGN_EMU_OBJS = \
+	misaligned_ldst.o \
+	emulation.o \
+
 FP_EMU_OBJS = \
 	emulation.o \
 	fp_emulation.o \
@@ -226,11 +230,14 @@ $(S_OBJS): %.o: %.S $(HEADERS)
 $(DRIVER_OBJS): %.o:$(DRIVER_DIR)/%.c $(DRIVER_HEADERS)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -c $< -o $@
 
+$(MISALIGN_EMU_OBJS): %.o: %.c $(HEADERS) 
+	$(RISCV_GCC) $(RISCV_GCC_OPTS) -c $< -o $@ 
+
 $(SOFTFLOAT_OBJS): %.o:$(SOFTFLOAT_DIR)/%.c $(SOFTFLOAT_HEADERS) $(HEADERS)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -c $< -o $@
 
 $(TARGET): $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) 
-	$(RISCV_GCC) -o $@ $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(RISCV_LINK_OPTS)
+	$(RISCV_GCC) -o $@ $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS)  $(RISCV_LINK_OPTS)
 	cp $(TARGET) ../../board/nexys4_ddr/
 
 dump: $(TARGET).dump
