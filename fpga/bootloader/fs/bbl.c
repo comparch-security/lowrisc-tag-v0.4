@@ -349,6 +349,7 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
     // file_chdir("/0:/");
     static char argstr [256] = 
       // "hmmer --fixed 0 --mean 325 --num 45000 --sd 200 --seed 0 bombesin.hmm"
+      //"mcf inp.in"
       // "omnetpp omnetpp.ini"
       // "gobmk --quiet --mode gtp < capture.tst"
       // "gobmk --mode gtp"

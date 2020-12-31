@@ -4,7 +4,10 @@
 #include "uart.h"
 
 int main() {
+  long int i=0,j=0;
   uart_init();
-  printf("Hello World!\n");
+  while(1) {
+    for(i=0;i<100000;i++);
+    printf("Hello World! %d\n",j++);
+  }
 }
-

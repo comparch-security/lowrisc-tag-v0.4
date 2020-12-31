@@ -24,10 +24,18 @@ static void trace_event2(uint64_t id, uint64_t value) {
 }
 
 int main() {
+  long int i=0,j=0,k=0;
   STM_TRACE(0x1234, 0xdeadbeef);
-
   trace_event0();
   trace_event1(23);
   trace_event2(0xabcd, 0x0123456789abcdef);
+  for(i=0;i<200;i++) {
+    for(j=0;j<100000;j++);
+      trace_event1(k++);
+  }
+  while(1) {
+    for(j=0;j<1000000;j++);
+      trace_event1(k++);
+  }
 }
 

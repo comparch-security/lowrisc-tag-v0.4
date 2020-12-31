@@ -36,6 +36,7 @@
 
 
 int gb_uart_new(struct glip_ctx* ctx);
+void gb_uart_free(struct glip_ctx* ctx);
 
 int gb_uart_open(struct glip_ctx *ctx, unsigned int num_channels);
 int gb_uart_close(struct glip_ctx *ctx);
@@ -55,7 +56,6 @@ int gb_uart_write_b(struct glip_ctx *ctx, uint32_t channel, size_t size,
 
 unsigned int gb_uart_get_channel_count(struct glip_ctx *ctx);
 unsigned int gb_uart_get_fifo_width(struct glip_ctx *ctx);
+int gb_uart_set_fifo_width(struct glip_ctx *ctx, unsigned int fifo_width_bytes);
 
-void *poll_thread(void *arg);
-
-#endif /* __BACKEND_JTAG_H__ */
+#endif /* __BACKEND_UART_H__ */

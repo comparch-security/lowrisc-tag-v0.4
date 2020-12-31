@@ -101,8 +101,9 @@ struct glip_version {
 
 const struct glip_version * glip_get_version(void);
 
-int glip_new(struct glip_ctx **ctx, char* backend_name,
-             struct glip_option options[], size_t num_options);
+int glip_new(struct glip_ctx **ctx, const char* backend_name,
+             const struct glip_option options[], size_t num_options,
+             glip_log_fn log_fn);
 int glip_free(struct glip_ctx *ctx);
 
 int glip_open(struct glip_ctx *ctx, unsigned int num_channels);
@@ -125,12 +126,17 @@ int glip_get_log_priority(struct glip_ctx *ctx);
 void glip_set_log_priority(struct glip_ctx *ctx, int priority);
 
 unsigned int glip_get_fifo_width(struct glip_ctx *ctx);
+int glip_set_fifo_width(struct glip_ctx *ctx, unsigned int fifo_width_bytes);
 unsigned int glip_get_channel_count(struct glip_ctx *ctx);
 
 int glip_get_backends(const char ***name, size_t *count);
 
 void glip_set_caller_ctx(struct glip_ctx *ctx, void *caller_ctx);
 void* glip_get_caller_ctx(struct glip_ctx *ctx);
+
+int glip_parse_option_string(const char* str, struct glip_option* options[],
+                             size_t *num_options);
+
 
 #ifdef __cplusplus
 }

@@ -103,8 +103,12 @@ set files [list \
  "[file normalize "$origin_dir/../../../../common/logic/sevensegment/sevensegment.v"]"\
  "[file normalize "$origin_dir/../../../../common/logic/measure/glip_measure_sevensegment.v"]"\
  "[file normalize "$origin_dir/../../../../common/logic/measure/glip_measure.v"]"\
- "[file normalize "$origin_dir/../../../../common/logic/scaler/verilog/glip_downscale.v"]"\
- "[file normalize "$origin_dir/../../../../common/logic/scaler/verilog/glip_upscale.v"]"\
+ "[file normalize "$origin_dir/../../../../common/logic/scaler/verilog/glip_downscale.sv"]"\
+ "[file normalize "$origin_dir/../../../../common/logic/scaler/verilog/glip_upscale.sv"]"\
+ "[file normalize "$origin_dir/../../../../common/logic/fifo/verilog/fifo_singleclock_fwft.sv"]"\
+ "[file normalize "$origin_dir/../../../../common/logic/fifo/verilog/fifo_singleclock_standard.sv"]"\
+ "[file normalize "$origin_dir/../../../../common/logic/fifo/verilog/fifo_dualclock_fwft.sv"]"\
+ "[file normalize "$origin_dir/../../../../common/logic/fifo/verilog/fifo_dualclock_standard.sv"]"\
 ]
 add_files -norecurse -fileset $obj $files
 
