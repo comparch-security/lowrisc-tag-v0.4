@@ -10,11 +10,25 @@
 #include <string.h>
 #include "remove_htif.h"
 #include "rtcctrl.h"
+#include "emulation.h"
+#include "fp_emulation.h"
+#include "unprivileged_memory.h"
 
 
 #ifdef DEV_MAP__io_ext_host__BASE
 volatile uint64_t *tohost = (uint64_t *)DEV_MAP__io_ext_host__BASE;
 #endif
+
+union byte_array {
+  uint8_t bytes[8];
+  uintptr_t intx;
+  uint64_t int64;
+};
+
+void __attribute__((noinline)) truly_illegal_insn(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc, uintptr_t mstatus, insn_t insn)
+{
+  redirect_trap(mepc, mstatus);
+}
 
 
 void illegal_insn_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
@@ -26,13 +40,92 @@ void illegal_insn_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
 }
 void misaligned_load_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
 {
-  die("misaligned_load_trap @ %p",read_csr(mepc));
+  // printm("caught a misaligned load trap.\n");
   // write_csr(mepc, mepc + 4);
+
+  uintptr_t omepc = read_csr(mepc);
+  write_csr(mepc,0x100000);
+  uintptr_t new_epc = read_csr(mepc);
+  assert(new_epc == 0x100000);
+  write_csr(mepc,omepc);
+
+  union byte_array val;
+  uintptr_t mstatus;
+  insn_t insn = get_insn(mepc, &mstatus);
+  uintptr_t addr = read_csr(mbadaddr);
+
+      static uint64_t count = 0;
+      // printm("No. %#llx:",count++);
+      // printm("insn = %lx, mepc = %llx, addr= %llx, instret= %llx\n",insn,mepc,addr,read_csr(minstret));
+
+  int shift = 0, fp = 0, len;
+  if ((insn & MASK_LW) == MATCH_LW)
+    len = 4, shift = 8*(sizeof(uintptr_t) - len);
+
+  else if ((insn & MASK_LD) == MATCH_LD)
+    len = 8, shift = 8*(sizeof(uintptr_t) - len);
+  else if ((insn & MASK_LWU) == MATCH_LWU)
+    len = 4;
+
+  else if ((insn & MASK_LH) == MATCH_LH)
+    len = 2, shift = 8*(sizeof(uintptr_t) - len);
+  else if ((insn & MASK_LHU) == MATCH_LHU)
+    len = 2;
+  else{
+    len = 1;
+    shift = 1;
+
+    return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
+  }
+
+  // printm("len = %d, shift = %x\n",len,shift);
+
+  val.int64 = 0;
+  for (intptr_t i = len-1; i >= 0; i--)
+    val.bytes[i] = load_uint8_t((void *)(addr + i), mepc);
+
+  // printm("load finished.\n");
+
+  // in fpga implementation, fp must equal to 0.
+  if (!fp)
+    SET_RD(insn, regs, (intptr_t)val.intx << shift >> shift);
+
+  // printm("fp configure finished.\n");
+
+  // die("misaligned_load_trap @ %p",read_csr(mepc));
+  write_csr(mepc, mepc + 4);
+  // printm("mepc is changed to %llx\n",read_csr(mepc));
 }
+
 void misaligned_store_trap(uintptr_t* regs, uintptr_t mcause, uintptr_t mepc)
 {
-  die("misaligned_store_trap @ %p",read_csr(mepc));
+  // die("misaligned_store_trap @ %p",read_csr(mepc));
   // write_csr(mepc, mepc + 4);
+
+  // printm("caught a misaligned store trap.\n");
+  union byte_array val;
+  uintptr_t mstatus;
+  insn_t insn = get_insn(mepc, &mstatus);
+  int len;
+
+  val.intx = GET_RS2(insn, regs);
+  if ((insn & MASK_SW) == MATCH_SW)
+    len = 4;
+
+  else if ((insn & MASK_SD) == MATCH_SD)
+    len = 8;
+
+
+  else if ((insn & MASK_SH) == MATCH_SH)
+    len = 2;
+  else
+    return truly_illegal_insn(regs, mcause, mepc, mstatus, insn);
+
+  uintptr_t addr = read_csr(mbadaddr);
+  for (int i = 0; i < len; i++)
+    store_uint8_t((void *)(addr + i), val.bytes[i], mepc);
+
+  write_csr(mepc, mepc + 4);
 }
 
 
