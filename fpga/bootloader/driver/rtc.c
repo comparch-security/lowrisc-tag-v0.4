@@ -5,11 +5,16 @@
 volatile uint64_t *rtc1_base_ptr = (uint64_t *)(RTC1_BASE);
 volatile uint64_t *rtc2_base_ptr = (uint64_t *)(RTC2_BASE);
 
+
 uint8_t rtc_check_irq(void) {
   uint64_t cmp = *(rtc2_base_ptr+1);
   uint64_t time = *rtc2_base_ptr;
   if(time > cmp)  return 1;
   return 0;
+}
+
+void rtc_write_cmp(uint64_t cmptime) {
+  *(rtc2_base_ptr+1) = cmptime;
 }
 
 void rtc_update_cmp(uint64_t delta) {

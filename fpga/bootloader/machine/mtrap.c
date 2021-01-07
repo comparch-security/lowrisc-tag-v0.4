@@ -14,7 +14,7 @@ volatile uint64_t *tohost = (uint64_t *)DEV_MAP__io_ext_host__BASE;
 
 void __attribute__((noreturn)) bad_trap()
 {
-  die("machine mode: unhandlable trap %d @ %p", read_csr(mcause), read_csr(mepc));
+  die("machine mode: unhandlable trap %p @ %p", read_csr(mcause), read_csr(mepc));
 }
 
 static uintptr_t mcall_hart_id()

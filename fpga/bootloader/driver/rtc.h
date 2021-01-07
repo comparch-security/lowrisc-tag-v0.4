@@ -1,5 +1,7 @@
 // See LICENSE for license details.
 
+#ifndef RTC_H
+#define RTC_H
 
 #include <stdint.h>
 #include "dev_map.h"
@@ -20,8 +22,10 @@
 
 
 uint8_t rtc_check_irq(void);
+void rtc_write_cmp(uint64_t cmptime);
 void rtc_update_cmp(uint64_t delta);
 
 
 
 
+#endif
