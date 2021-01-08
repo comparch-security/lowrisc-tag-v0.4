@@ -20,6 +20,20 @@ void sbi_shutdown(void);
 void sbi_console_putchar(unsigned char ch);
 int sbi_console_getchar(void);
 
+static void sbi_send_string(const char * s)
+{
+  const char * pch = s;
+  while (*pch)
+    sbi_console_putchar(*pch++);
+}
+
+static void sbi_send_buf(const char* buf,const long len)
+{
+  long i;
+  for (i=0;i<len;i++)
+    sbi_console_putchar(buf[i]);
+}
+
 void sbi_remote_sfence_vm(unsigned long hart_mask_ptr, unsigned long asid);
 void sbi_remote_sfence_vm_range(unsigned long hart_mask_ptr, unsigned long asid, unsigned long start, unsigned long size);
 void sbi_remote_fence_i(unsigned long hart_mask_ptr);

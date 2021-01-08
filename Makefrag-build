@@ -9,7 +9,7 @@ $(generated_dir)/$(MODEL).$(CONFIG).sv: $(chisel_srcs)
 	cd $(base_dir) && mkdir -p $(generated_dir) && $(SBT) "run $(CHISEL_ARGS) --configDump --noInlineMem"
 	cd $(generated_dir) && \
 	if [ -a $(MODEL).$(CONFIG).conf ]; then \
-	  $(mem_gen) $(generated_dir)/$(MODEL).$(CONFIG).conf >> $(generated_dir)/$(MODEL).$(CONFIG).sv; \
+	 python2.7 $(mem_gen) $(generated_dir)/$(MODEL).$(CONFIG).conf >> $(generated_dir)/$(MODEL).$(CONFIG).sv; \
 	fi
 
 $(generated_dir)/consts.vh: $(generated_dir)/$(MODEL).$(CONFIG).sv
