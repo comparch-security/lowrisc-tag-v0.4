@@ -25,7 +25,7 @@ static void mstatus_init()
   ms = read_csr(mstatus);
   assert(EXTRACT_FIELD(ms, MSTATUS_VM) == VM_CHOICE);
 
-  rtc_write_cmp(-1); //set cmpare time to max so disable rtc2 interrupt(MIP_HOST)
+  rtc2_write_cmp(-1); //set cmpare time to max so disable rtc2 interrupt(MIP_HOST)
   write_csr(mip, 0);
   write_csr(mcause, 0);
   // Enable user/supervisor use of perf counters
