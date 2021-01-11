@@ -148,7 +148,7 @@ void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t stack)
   // write_csr(sptbr, (uintptr_t)root_page_table);
   
   //enable rtc2 interrupt
-  rtc_update_cmp(5000000);
+  rtc2_update_cmp(5000000);
   set_csr(mstatus,MSTATUS_MIE);
 
   mstatus = read_csr(mstatus);

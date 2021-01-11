@@ -73,6 +73,7 @@ void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t stack)
   __attribute__((noreturn));
 void boot_loader();
 void boot_other_hart();
+long probeva(uintptr_t va, uintptr_t sptbr);
 
 static inline void wfi()
 {

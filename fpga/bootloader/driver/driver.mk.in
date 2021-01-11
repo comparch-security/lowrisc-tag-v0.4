@@ -1,7 +1,9 @@
 driver_subproject_deps = \
 
 driver_hdrs = \
+  rtc.h \
   uart.h \
 
 driver_c_srcs = \
+  rtc.c \
   uart.c \

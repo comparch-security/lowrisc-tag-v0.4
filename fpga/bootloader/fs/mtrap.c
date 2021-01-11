@@ -144,13 +144,13 @@ static void request_console_interrupt()
   uart_enable_read_irq();
 }
 
-static void rtc_req_interrupt();
+static void rtc2_req_interrupt();
 
 void console_interrupt()
 {
   //printm("console_interrupt mcause=%p\n", read_csr(mcause));
-  if(rtc_check_irq()) {
-    rtc_req_interrupt();
+  if(rtc2_check_irq()) {
+    rtc2_req_interrupt();
     return;
   }
   if(uart_check_read_irq())
@@ -413,9 +413,9 @@ static void machine_page_fault(uintptr_t* regs, uintptr_t mepc)
   bad_trap();
 }
 
-static void rtc_req_interrupt() {
-  // printm("rtc interrupt.\n");
-  rtc_update_cmp(BBL_PK_RTC2_DELTA);
+static void rtc2_req_interrupt() {
+  // printm("rtc2 interrupt.\n");
+  rtc2_update_cmp(BBL_PK_RTC2_DELTA);
 #ifdef BBL_PK_LIMITED_RUN
   static int exited ;
     uint64_t minstret = read_csr(minstret);
@@ -434,8 +434,8 @@ void trap_from_machine_mode(uintptr_t* regs, uintptr_t dummy, uintptr_t mepc)
   uint8_t   interrupt = mcause >>63;
   //printm("trap_from_machine_mode mcause= %p\n", mcause);
   if(interrupt) { //interrupt
-    if(rtc_check_irq()) {
-      rtc_req_interrupt();
+    if(rtc2_check_irq()) {
+      rtc2_req_interrupt();
     } else {
       printm("machine mode cant not handle interrupt mcause= %p\n", mcause);
       bad_trap();

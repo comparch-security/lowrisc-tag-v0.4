@@ -3,12 +3,14 @@
 #include "frontend.h"
 #include <stdint.h>
 #include <stdarg.h>
+#include "sbi.h"
 
 static void vprintk(const char* s, va_list vl)
 {
   char out[256]; // XXX
   int res = vsnprintf(out, sizeof(out), s, vl);
   file_write(stderr, out, res < sizeof(out) ? res : sizeof(out));
+  sbi_send_buf(out, res < sizeof(out) ? res : sizeof(out));
 }
 
 void printk(const char* s, ...)

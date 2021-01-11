@@ -6,6 +6,7 @@
 #include "mtrap.h"
 #include <stdint.h>
 #include <errno.h>
+#include <vm.h>
 
 typedef struct {
   uintptr_t addr;
@@ -391,6 +392,14 @@ uintptr_t pk_vm_init()
 
   root_page_table = (void*)__page_alloc();
   __map_kernel_range(DRAM_BASE, DRAM_BASE, first_free_paddr - DRAM_BASE, PROT_READ|PROT_WRITE|PROT_EXEC);
+  printm("kernel paddr: %p-%p, vaddr %p-%p\n",DRAM_BASE, first_free_paddr, DRAM_BASE, first_free_paddr);
+
+  // map SBI at top of vaddr space
+  extern char sbi_base;
+  extern char _sbi_end;
+  uintptr_t sbi_vstart = (-RISCV_PGSIZE) & ((uintptr_t)(-1) >> (64 - VA_BITS));
+  __map_kernel_range(sbi_vstart,(uintptr_t)&sbi_base,RISCV_PGSIZE,PROT_READ|PROT_EXEC);
+  printm("sbi paddr: %p-%p, vaddr %p-%p\n",&sbi_base, &_sbi_end, sbi_vstart,sbi_vstart+(&_sbi_end-&sbi_base));
 
   current.mmap_max = current.brk_max =
     MIN(DRAM_BASE, mem_size - (first_free_paddr - DRAM_BASE));

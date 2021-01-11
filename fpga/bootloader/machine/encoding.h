@@ -3,6 +3,8 @@
 #ifndef RISCV_CSR_ENCODING_H
 #define RISCV_CSR_ENCODING_H
 
+#include "dev_map.h"
+
 #define MSTATUS_UIE         0x00000001
 #define MSTATUS_SIE         0x00000002
 #define MSTATUS_HIE         0x00000004
@@ -40,6 +42,7 @@
 #define MIP_STIP            (1 << IRQ_S_TIMER)
 #define MIP_HTIP            (1 << IRQ_H_TIMER)
 #define MIP_MTIP            (1 << IRQ_M_TIMER)
+#define MIP_HOST            (1 << IRQ_HOST)
 
 #define SIP_SSIP MIP_SSIP
 #define SIP_STIP MIP_STIP
@@ -68,7 +71,8 @@
 #define IRQ_COP      12
 #define IRQ_HOST     13
 
-#define CONFIG_STRING_ADDR 0x0000000C
+#define CONFIG_STRING_ADDR (DEV_MAP__io_int_bootrom__BASE + 0x0000000C)
+#define DRAM_BASE          DEV_MAP__mem__BASE
 #define HOST_BASE          0x00004000
 
 // tagged memory configuration

@@ -22,7 +22,8 @@ osd_dir = $(base_dir)/opensocdebug/hardware
 
 BACKEND ?= lowrisc_chip.LowRISCBackend
 #CONFIG ?= DebugL2Config
-CONFIG ?= DefaultL2Config
+CONFIG ?= DebugTagL2Config
+#CONFIG ?= DefaultL2Config
 #CONFIG ?= TagL2Config
 
 include $(base_dir)/Makefrag

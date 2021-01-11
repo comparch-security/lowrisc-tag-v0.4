@@ -3,6 +3,7 @@
 #include "atomic.h"
 #include "bits.h"
 #include "uart.h"
+#include "vm.h"
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,9 +13,44 @@
 volatile uint64_t *tohost = (uint64_t *)DEV_MAP__io_ext_host__BASE;
 #endif
 
+long probeva(uintptr_t va, uintptr_t sptbr) //sptbr has been renamed to satp (SupervisorAddress Translation and Protection)
+{
+  int8_t level,i;
+  uint64_t vpn[4],shift,offset,*addr;
+  printm("va=%p,sptbr=%p\n",va,(uint64_t)sptbr);
+  if(VM_CHOICE==VM_SV48)      level=4;
+  else if(VM_CHOICE==VM_SV39) level=3;
+  else if(VM_CHOICE==VM_SV32) level=2;
+  for(i=level; i>0; i--) {
+    if(i==4)      { shift = 39; }
+    else if(i==3) { shift = 30; }
+    else if(i==2) { shift = 21; }
+    else if(i==1) { shift = 12; }
+
+    vpn[i-1]= 0x1ff & (va >> shift);
+    offset=((uint64_t)(-1) >> (64-shift)) & va;
+
+    if(i==level) addr = (uint64_t*)(((uint64_t)sptbr << RISCV_PGSHIFT) + (vpn[i-1] << 3));
+    else addr = (uint64_t*)(((uint64_t)*addr >> PTE_PPN_SHIFT << RISCV_PGSHIFT) + (vpn[i-1] << 3));
+    printm("vpn[%d]=%p, addr=%p, data=%p\n",i-1,vpn[i-1],addr,*addr);
+    if(!(PTE_V & (*addr))) {
+      printm("PTE not valid\n");
+      break;
+    } else if(((PTE_R | PTE_W  | PTE_X ) & (*addr)) != 0) {
+      addr = (uint64_t*)(((uint64_t)*addr >> PTE_PPN_SHIFT << RISCV_PGSHIFT) + offset);
+      printm("offset=%p, addr=%p, data=%p\n",offset, addr,*addr);
+      break;
+    } else {
+
+    }
+  }
+  return *addr;
+}
+
 void __attribute__((noreturn)) bad_trap()
 {
-  die("machine mode: unhandlable trap %d @ %p", read_csr(mcause), read_csr(mepc));
+  //probeva(read_csr(mepc),read_csr(sptbr));
+  die("machine mode: unhandlable trap %p @ %p", read_csr(mcause), read_csr(mepc));
 }
 
 static uintptr_t mcall_hart_id()

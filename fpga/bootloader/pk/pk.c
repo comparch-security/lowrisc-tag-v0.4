@@ -159,6 +159,7 @@ static void run_loaded_program(size_t argc, char** argv, uintptr_t kstack_top)
 
 static void rest_of_boot_loader(uintptr_t kstack_top)
 {
+  printk("rest_of_boot_loader\n");
   arg_buf args;
   size_t argc = parse_args(&args);
   if (!argc)

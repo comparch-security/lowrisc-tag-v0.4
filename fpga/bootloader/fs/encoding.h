@@ -73,7 +73,7 @@
 
 #define CONFIG_STRING_ADDR (DEV_MAP__io_int_bootrom__BASE + 0x0000000C)
 #define DRAM_BASE          DEV_MAP__mem__BASE
-
+#define HOST_BASE          0x00004000
 
 // tagged memory configuration
 #define TAG_BITS                4

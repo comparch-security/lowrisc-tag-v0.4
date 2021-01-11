@@ -4,6 +4,7 @@
 #include "fp_emulation.h"
 #include "uart.h"
 #include <string.h>
+#include "rtc.h"
 
 pte_t* root_page_table;
 uintptr_t first_free_paddr;
@@ -24,6 +25,9 @@ static void mstatus_init()
   ms = read_csr(mstatus);
   assert(EXTRACT_FIELD(ms, MSTATUS_VM) == VM_CHOICE);
 
+  rtc2_write_cmp(-1); //set cmpare time to max so disable rtc2 interrupt(MIP_HOST)
+  write_csr(mip, 0);
+  write_csr(mcause, 0);
   // Enable user/supervisor use of perf counters
   write_csr(mucounteren, -1);
   write_csr(mscounteren, -1);
