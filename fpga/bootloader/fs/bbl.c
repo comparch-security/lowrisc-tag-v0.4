@@ -346,7 +346,7 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
     // file_chdir("/0:/464.h264ref");
     // file_chdir("/0:/471.omnetpp");
     // file_chdir("/0:/473.astar");
-    file_chdir("/0:/483.xalancbmk");
+    // file_chdir("/0:/483.xalancbmk");
     // file_chdir("/0:/401.bzip2");
     // file_chdir("/0:/458.sjeng");
     // file_chdir("/0:/ehtest");
@@ -389,7 +389,7 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
       // "libquantum 1397 8"
       // "mcf inp.in"
       // "sjeng ref.txt"
-      "Xalan -v t5.xml xalanc.xsl"
+      // "Xalan -v t5.xml xalanc.xsl"
       // "astar BigLakes2048.cfg"
       // "astar rivers.cfg"
       // "omnetpp omnetpp.ini"
@@ -398,7 +398,29 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
       // "h264ref -d sss_encoder_main.cfg"
       // "hmmer nph3.hmm swiss41"
       // "hmmer --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm"
-
+      // "bzip2 input.source 280"
+      // "bzip2 chicken.jpg 30"
+      // "bzip2 liberty.jpg 30"
+      // "bzip2 input.program 280"
+      // "bzip2 text.html 280"
+      // "bzip2 input.combined 200"
+      // "gcc 166.i -o 166.s"
+      // "gcc 200.i -o 200.s"
+      // "gcc c-typeck.i -o c-typeck.s"
+      // "gcc cp-decl.i -o cp-decl.s"
+      // "gcc expr.i -o expr.s"
+      // "gcc expr2.i -o expr2.s"
+      // "gcc g23.i -o g23.s"
+      // "gcc s04.i -o s04.s"
+      // "gcc scilab.i -o scilab.s"
+      // "perlbench -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1"
+      // "perlbench -I./lib diffmail.pl 4 800 10 17 19 300"
+      // "perlbench -I./lib splitmail.pl 1600 12 26 16 4500"
+      // "gobmk --quiet --mode gtp < 13x13.tst"
+      // "gobmk --quiet --mode gtp < nngs.tst"
+      // "gobmk --quiet --mode gtp < score2.tst"
+      // "gobmk --quiet --mode gtp < trevorc.tst"
+      // "gobmk --quiet --mode gtp < trevord.tst"
 
     /***** ref input end *****/
       // "structra.riscv"
