@@ -338,7 +338,7 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
   
   if(read_batch("0:/run.sh",&argc,&args) == -1){
     // file_chdir("/0:/400.perlbench");
-     file_chdir("/0:/403.gcc");
+    //  file_chdir("/0:/403.gcc");
     // file_chdir("/0:/429.mcf");
     // file_chdir("/0:/445.gobmk");
     // file_chdir("/0:/456.hmmer");
@@ -346,21 +346,62 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
     // file_chdir("/0:/464.h264ref");
     // file_chdir("/0:/471.omnetpp");
     // file_chdir("/0:/473.astar");
+    file_chdir("/0:/483.xalancbmk");
+    // file_chdir("/0:/401.bzip2");
+    // file_chdir("/0:/458.sjeng");
+    // file_chdir("/0:/ehtest");
     // file_chdir("/0:/");
     static char argstr [256] = 
+
+     /**** test input ***/
+
       // "hmmer --fixed 0 --mean 325 --num 45000 --sd 200 --seed 0 bombesin.hmm"
-      //"mcf inp.in"
+      // "mcf inp.in"
       // "omnetpp omnetpp.ini"
       // "gobmk --quiet --mode gtp < capture.tst"
+      // "gobmk --quiet --mode gtp < connect.tst"
+      // "gobmk --quiet --mode gtp < connect_rot.tst"
+      // "gobmk --quiet --mode gtp < connection.tst"
+      // "gobmk --quiet --mode gtp < connection_rot.tst"
+      // "gobmk --quiet --mode gtp < cutstone.tst"
+      // "gobmk --quiet --mode gtp < dniwog.tst"
       // "gobmk --mode gtp"
       // "astar lake.cfg"
       // "h264ref -d foreman_test_encoder_baseline.cfg"
       // "perlbench -I. -I./lib attrs.pl"
       // "perlbench -I. -I./lib gv.pl"
+      // "perlbench  -I. -I./lib makerand.pl"
+      // "perlbench  -I. -I./lib pack.pl"
+      // "perlbench  -I. -I./lib regmesg.pl"
+      // "perlbench  -I. -I./lib test.pl"
       // "payload < test.txt"
       // "payload"
-       "gcc cccp.i -o cccp.s"
-      //"libquantum 33 5"
+      //  "gcc cccp.i -o cccp.s"
+      // "Xalan -v test.xml xalanc.xsl"
+      // "libquantum 33 5"
+      // "bzip2 input.program 5"
+      // "bzip2 dryer.jpg 2"
+      // "sjeng test.txt"
+
+    /***** test input end ****/
+
+    /***** ref input ******/
+      // "libquantum 1397 8"
+      // "mcf inp.in"
+      // "sjeng ref.txt"
+      "Xalan -v t5.xml xalanc.xsl"
+      // "astar BigLakes2048.cfg"
+      // "astar rivers.cfg"
+      // "omnetpp omnetpp.ini"
+      // "h264ref -d foreman_ref_encoder_baseline.cfg"
+      // "h264ref -d foreman_ref_encoder_main.cfg"
+      // "h264ref -d sss_encoder_main.cfg"
+      // "hmmer nph3.hmm swiss41"
+      // "hmmer --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm"
+
+
+    /***** ref input end *****/
+      // "structra.riscv"
       ;
     argc = args_parser(argstr,&args); 
 
@@ -371,7 +412,7 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
   current.instret0 = (size_t) -1; // enable instret counter.
 
   load_elf(args.argv[0], &current);
-  supervisor_mmap_display();
+  // supervisor_mmap_display();
 
 
   run_loaded_program(argc,args.argv, kstack_top);
