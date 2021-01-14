@@ -30,6 +30,7 @@ typedef struct {
 extern elf_info current;
 
 void load_elf(const char* fn, elf_info* info);
+int load_elf_from_DRAM(void* blob, size_t size, elf_info* info);
 
 typedef struct
 {

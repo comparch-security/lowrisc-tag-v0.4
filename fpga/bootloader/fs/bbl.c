@@ -322,19 +322,20 @@ extern void supervisor_mmap_display();
 
 static void rest_of_boot_loader(uintptr_t kstack_top)
 {
-  
   long phdrs[128];
   current.phdr = (uintptr_t)phdrs;
   current.phdr_size = sizeof(phdrs);
-  
+  current.t0 = (size_t) -1; // enable time counter.
+  current.instret0 = (size_t) -1; // enable instret counter.
+  arg_buf args;
+  size_t argc ;
+
+ #if(ELFINSD==1)
   /* We need to mount CF twice */
   long fr = file_mount();
   fr = file_mount();
 
   // s_mode_ftest();
-
-  arg_buf args;
-  size_t argc ;
   
   if(read_batch("0:/run.sh",&argc,&args) == -1){
     // file_chdir("/0:/400.perlbench");
@@ -398,6 +399,7 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
       // "h264ref -d sss_encoder_main.cfg"
       // "hmmer nph3.hmm swiss41"
       // "hmmer --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm"
+      // "hello"
 
 
     /***** ref input end *****/
@@ -407,13 +409,15 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
 
   }
 
-
-  current.t0 = (size_t) -1; // enable time counter.
-  current.instret0 = (size_t) -1; // enable instret counter.
-
   load_elf(args.argv[0], &current);
   // supervisor_mmap_display();
-
+#else
+  extern char _payload_start, _payload_end;
+  static char argstr [256] ="empty"; //" " would cause bug
+  argc = args_parser(argstr,&args);
+  if(load_elf_from_DRAM(&_payload_start, &_payload_end-&_payload_start, &current))
+    printk("load payload from dram successed\n");
+#endif
 
   run_loaded_program(argc,args.argv, kstack_top);
 }
