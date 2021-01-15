@@ -37,6 +37,24 @@ class MStatus extends Bundle {
   val uie = Bool()
 }
 
+class CTMen extends Bundle {
+  val mhsupen = UInt(width=4);   //bit 63 [m|h|s|u] priviliage en trace
+  val zero = UInt(width = 47);
+  val dmem_replay = Bool();  //bit 12
+  val dmem_has_data = Bool();
+  val prv_change = Bool();
+  val csr_xcpt = Bool();
+  val csr_eret = Bool();
+  val mem_branch_taken = Bool();
+  val wb_csr = Bool();
+  val wb_xcpt = Bool();
+  val mem_cmd = Bool();
+  val mem = Bool();
+  val branch = Bool();
+  val jalr = Bool();
+  val jal = Bool();      //bit 0
+}
+
 class MIP extends Bundle {
   val irq  = Bool()
   val rocc = Bool()
@@ -129,6 +147,8 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle {
   val interrupt_cause = UInt(OUTPUT, xLen)
   val irq = Bool(INPUT)
 
+  val ctm_ctrl = new CTMen().asOutput
+
   val tag_ctrl = new TagCtrlSig().asOutput
 
   val pfcclient  = new PFCClientIO()
@@ -203,6 +223,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   val reg_instret = WideCounter(64, io.retire)
   val reg_cycle = if (enableCommitLog) reg_instret else WideCounter(64)
 
+  val reset_coretrace = Wire(init=new CTMen().fromBits(0))
+  val reg_coretrace = Reg(init=reset_coretrace)
   val reg_tagctrl = Reg(init=UInt(0, xLen))
   val reg_mutagctrlen = Reg(init = ~UInt(0, xLen))
   val reg_mstagctrlen = Reg(init = ~UInt(0, xLen))
@@ -259,6 +281,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
                                            UInt(0)           ),
     CSRs.mcause ->          (reg_mcause,   UInt(0)           ),
     CSRs.mhartid ->         (UInt(id),     UInt(0)           ),
+    CSRs.coretrace ->       (reg_coretrace.toBits()(xLen-1,0), UInt(0)           ),
     CSRs.swtrace ->         (UInt(0),      UInt(0)           ))
 
   if (usingFPU) {
@@ -400,6 +423,8 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
   io.status.sd := io.status.fs.andR || io.status.xs.andR
   if (xLen == 32)
     io.status.sd_rv32 := io.status.sd
+  io.ctm_ctrl := reg_coretrace
+  io.ctm_ctrl.zero := UInt(0,width = reg_coretrace.zero.getWidth())
 
   when (io.exception || csr_xcpt) {
     def compressVAddr(addr: UInt) =
@@ -504,6 +529,10 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     when (decoded_addr(CSRs.mie))      { reg_mie := wdata & supported_interrupts }
     when (decoded_addr(CSRs.mepc))     { reg_mepc := ~(~wdata | (coreInstBytes-1)); reg_mepc_tag := wtag }
     when (decoded_addr(CSRs.mscratch)) { reg_mscratch := wdata; reg_mscratch_tag := wtag }
+    when (decoded_addr(CSRs.coretrace)){
+      reg_coretrace := new CTMen().fromBits(wdata)
+      reg_coretrace.zero := UInt(0, width=reg_coretrace.zero.getWidth())
+    }
     if (p(MtvecWritable))
       when (decoded_addr(CSRs.mtvec))  { reg_mtvec := wdata >> 2 << 2; reg_mtvec_tag := wtag }
     when (decoded_addr(CSRs.mcause))   { reg_mcause := wdata & UInt((BigInt(1) << (xLen-1)) + 31) /* only implement 5 LSBs and MSB */ }

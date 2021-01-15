@@ -247,6 +247,9 @@ $(SOFTFLOAT_OBJS): %.o:$(SOFTFLOAT_DIR)/%.c $(SOFTFLOAT_HEADERS) $(HEADERS)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -c $< -o $@
 
 $(PAYLOAD): %: %.c $(C_OBJS) $(HEADERS)
+ifeq (payload.o, $(wildcard payload.o))
+	rm ./payload.o
+endif
 ifeq ($(PAYLOAD),nano_payload)
 	$(RISCV_GCC) -o $@ $@.c $(RISCV_GCC_OPTS)
 else

@@ -17,16 +17,18 @@ int throw_test(void) {
 }
 
 int main(void) {
+  int i=0;
+  unsigned long ctmen = CORETRACE_UPEN;
+  ctmen |=  CORETRACE_JALR | CORETRACE_JAL;
   stm_trace(0,0);
   stm_trace(0,1);
   stm_trace(1,0);
   stm_trace(1,1);
-  drainout_ctmfifo();       
   printf("hello world\n");
-  int i=0;
+  write_csr(0x8fe,ctmen);  //enable trace
+  drainout_ctmfifo();
   i=throw_test();
-  drainout_ctmfifo(); 
+  write_csr(0x8fe,0);      //disable trace
   printf("throw_test return %d\n", i);
-  drainout_ctmfifo(); 
   return 1;
 }
