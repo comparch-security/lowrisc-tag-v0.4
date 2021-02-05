@@ -100,7 +100,7 @@ static uint64_t sys_stat(FATFS* fs,const TCHAR*path, struct stat * st)
   time = time * 60 + minute;
   time = time * 60 + second;
 
-  st->st_dev = 0;
+  st->st_dev = fs->drv;
   st->st_rdev = 0;
   // take files with AM_DIR as directories, others as regular files.
   st->st_mode = (finfo->fattrib & AM_DIR)?(S_IFMT & S_IFDIR):(S_IFMT & S_IFREG); 

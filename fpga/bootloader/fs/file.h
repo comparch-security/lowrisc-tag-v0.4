@@ -36,6 +36,7 @@ ssize_t file_lseek(file_t* f, size_t ptr, int dir);
 //int file_truncate(file_t* f, off_t len);
 int file_stat(file_t* f, struct stat* s);
 int file_statat(int dirfd, const char* path, struct stat* s);
+int file_accessat(int dirfd, const char* name, int mode);
 int file_chdir(const char* path);
 char * file_getcwd(char * buf, size_t len);
 int file_fcntl(int fd,int cmd, uint64_t a0);
@@ -48,5 +49,7 @@ file_t* file_get(int fd);
 int fd_close(int fd);
 
 long file_mount();
+
+void file_display();
 
 #endif

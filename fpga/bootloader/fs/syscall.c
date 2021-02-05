@@ -44,6 +44,7 @@ void sys_exit(int code)
 ssize_t sys_read(int fd, char* buf, size_t n)
 {
   // printk("sys read at fd %d into vaddr %p\n",fd, buf);
+  // printk("#syscall %s, fd= %d, buf= %p, n= %lu\n","read", fd, buf, n);
   ssize_t r = -EBADF;
   file_t* f = file_get(fd);
 
@@ -61,6 +62,7 @@ ssize_t sys_read(int fd, char* buf, size_t n)
 ssize_t sys_pread(int fd, char* buf, size_t n, off_t offset)
 {
   // printk("sys pread at fd %d from offset %lu \n",fd,offset);
+  // printk("#syscall %s, fd= %d, buf= %p, n= %lu, offset= %lu\n","pread", fd, buf, n, offset);
   ssize_t r = -EBADF;
   file_t* f = file_get(fd);
 
@@ -78,6 +80,7 @@ ssize_t sys_write(int fd, const char* buf, size_t n)
 {
   // printk("sys write at fd %d from vaddr %p of length %ld\n",fd, buf,n);
   // printk("data write: %s\n",buf);
+    // printk("#syscall %s, fd= %d, buf= %p, n= %d\n","write", fd, buf, n);
   ssize_t r = -EBADF;
   
   if (fd == 1 || fd == 2)
@@ -114,6 +117,7 @@ static int at_kfd(int dirfd)
 int sys_openat(int dirfd, const char* name, int flags, int mode)
 {
   // printk("sys open file at %s.\n",name);
+  // printk("#syscall %s, dirfd= %d, name= %s, flag= %#x, mode= %d\n","openat", dirfd, name, flags, mode);
   int kfd = at_kfd(dirfd);
   if (kfd != -1) {
     file_t* file = file_openat(kfd, name, flags);
@@ -133,7 +137,9 @@ int sys_open(const char* name, int flags, int mode)
 
 int sys_close(int fd)
 {
+  // printk("#syscall %s, fd= %d\n","close", fd);
   int ret = fd_close(fd);
+  // file_display();
   if (ret < 0)
     return -EBADF;
   return ret;
@@ -153,6 +159,7 @@ int sys_renameat(int old_fd, const char *old_path, int new_fd, const char *new_p
 
 int sys_fstat(int fd, void* st)
 {
+  // printk("#syscall %s, fd= %d, st= %p\n","fstat", fd, st);
   int r = -EBADF;
   file_t* f = file_get(fd);
 
@@ -161,15 +168,48 @@ int sys_fstat(int fd, void* st)
     r = file_stat(f, (struct stat*)st);
     file_decref(f);
   }
+  else if (fd >= 0 && fd <= 2) 
+  {
+    
+    if (fd == 0) 
+    {
+      ((struct stat*)st)->st_mode = S_IFCHR |S_IRWXG | S_IRWXO | S_IRWXU;
+    }
+    else 
+    {
+      ((struct stat*)st)->st_mode = S_IFREG |S_IRWXG | S_IRWXO | S_IRWXU;
+    }
+
+    ((struct stat*)st)->st_dev = 0;
+    ((struct stat*)st)->st_rdev = 0;
+    ((struct stat*)st)->st_ino = 0;
+    ((struct stat*)st)->st_nlink = 1;
+    ((struct stat*)st)->st_uid = 0;
+    ((struct stat*)st)->st_gid = 0;
+    ((struct stat*)st)->st_blocks = 0;
+    ((struct stat*)st)->st_blksize = 0;
+    ((struct stat*)st)->st_size = 0;
+    ((struct stat*)st)->st_atime = 0;
+    ((struct stat*)st)->st_ctime = 0;
+    
+
+    r = 0;
+  }
+    
+
+  // printk("#syscall fstat returns %d\n",r);
+  // file_display();
 
   return r;
 }
 
 int sys_fcntl(int fd, int cmd, int arg)
 {
+  // printk("#syscall %s, fd= %d, cmd= %d, arg= %d\n","fcntl", fd, cmd, arg);
   int r = -EBADF;
   
   r = file_fcntl(fd,cmd,arg);
+  // file_display();
 
   return r;
 }
@@ -205,6 +245,7 @@ int sys_dup(int fd)
 
 ssize_t sys_lseek(int fd, size_t ptr, int dir)
 {
+  // printk("#syscall %s, fd= %d, ptr= %lu, dir= %d\n","lseek", fd, ptr, dir);
   // printk("sys lseek at fd %d, at offset %ld, beingging from DIR %d\n",fd,ptr,dir);
   ssize_t r = -EBADF;
   file_t* f = file_get(fd);
@@ -231,10 +272,14 @@ long sys_lstat(const char* name, void* st)
 
 long sys_fstatat(int dirfd, const char* name, void* st, int flags)
 {
+  // printk("#syscall %s, dirfd= %d, name= %s, st= %p, flags= %d\n","fstatat", dirfd, name,st, flags);
   int kfd = at_kfd(dirfd);
   if (kfd != -1) {
     // flags are ignored.
-    return file_statat(dirfd, name, (struct stat *)st);
+    int ret = file_statat(dirfd, name, (struct stat *)st);
+  // printk("#syscall fstatat success and returns %ld\n", ret);
+  // file_display();
+    return ret;
   }
   return -EBADF;
 }
@@ -246,11 +291,16 @@ long sys_stat(const char* name, void* st)
 
 long sys_faccessat(int dirfd, const char *name, int mode)
 {
-  // int kfd = at_kfd(dirfd);
-  // if (kfd != -1) {
-  //   size_t name_size = strlen(name)+1;
-  //   return frontend_syscall(SYS_faccessat, kfd, va2pa(name), name_size, mode, 0, 0, 0);
-  // }
+  // printk("#syscall %s, dirfd= %d, name= %s, mode= %d\n","faccessat", dirfd, name, mode);
+  // printk("faccessat %s, with mode %d\n",name,mode);
+  int kfd = at_kfd(dirfd);
+  if (kfd != -1) {
+    size_t name_size = strlen(name)+1;
+    // printk("#syscall faccessat returns %ld\n",0l);
+    return file_accessat(kfd,name,mode);
+  }
+  // return -EBADF;
+  // return -EINVAL;
   return -EBADF;
 }
 
@@ -280,10 +330,13 @@ long sys_link(const char* old_name, const char* new_name)
 
 long sys_unlinkat(int dirfd, const char* name, int flags)
 {
+  // printk("#syscall %s, dirfd= %d, name= %s, flags= %d\n","unlinkat", dirfd, name, flags);
   int kfd = at_kfd(dirfd);
   if (kfd != -1) {
     size_t name_size = strlen(name)+1;
-    return file_unlinkat(dirfd,name,flags);
+    int ret = file_unlinkat(dirfd,name,flags);
+    // file_display();
+    return ret;
   }
   return -EBADF;
 }
@@ -310,6 +363,7 @@ long sys_mkdir(const char* name, int mode)
 
 uintptr_t sys_getcwd(char* buf, size_t size)
 {
+  // printk("#syscall %s, buf= %p, size= %lu\n","getcwd", buf, size);
   populate_mapping(buf, size, PROT_WRITE);
   // return frontend_syscall(SYS_getcwd, va2pa(buf), size, 0, 0, 0, 0, 0);
   // return -EBADF;
@@ -469,7 +523,7 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, unsigned l
     [SYS_gettimeofday] = sys_gettimeofday,
     [SYS_times] = sys_times,
     [SYS_writev] = sys_writev,
-    // [SYS_faccessat] = sys_faccessat,
+    [SYS_faccessat] = sys_faccessat,
     [SYS_fcntl] = sys_fcntl,
     // [SYS_ftruncate] = sys_ftruncate,
     [SYS_getdents] = sys_getdents,

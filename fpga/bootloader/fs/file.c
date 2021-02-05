@@ -190,6 +190,13 @@ int fd_close(int fd)
   return 0;
 }
 
+void inline file_display () {
+  // int i; 
+  // for (i = 0; i< MAX_FILES; i++){
+  //   printk("files[%d].offset=%ld;refcnt=%ld;name=%s\n",i,files[i].offset,files[i].refcnt,filenames[i]);
+  // }
+}
+
 void file_init()
 {
   int i;
@@ -197,6 +204,7 @@ void file_init()
     files[i].offset = 0;
     files[i].refcnt = 0;
   }
+
   // static FATFS fs_loc;
 
   // FRESULT fr;
@@ -305,6 +313,22 @@ ssize_t file_pwrite(file_t* f, const void* buf, size_t size, off_t offset)
   return wsize;
 }
 
+void stat_display(struct stat * s){
+  printk("struct s @%p\n",s);
+  printk("%s: %#x\n","st_mode",s->st_mode);
+  printk("%s: %d\n","st_ino",s->st_ino);
+  printk("%s: %#x\n","st_dev",s->st_dev);
+  printk("%s: %d\n","st_nlink",s->st_nlink);
+  printk("%s: %d\n","st_uid",s->st_uid);
+  printk("%s: %d\n","st_gid",s->st_gid);
+  printk("%s: %p\n","st_size",s->st_size);
+  printk("%s: %ld\n","st_blocks",s->st_blocks);
+  printk("%s: %ld\n","st_blksize",s->st_blksize);
+  printk("%s: %p\n","st_atime",s->st_atime);
+  printk("%s: %p\n","st_mtime",s->st_mtime);
+  printk("%s: %p\n","st_ctime",s->st_ctime);
+}
+
 int file_stat(file_t * f, struct stat* s)
 {
  populate_mapping(s, sizeof(*s), PROT_WRITE);
@@ -326,10 +350,12 @@ int file_stat(file_t * f, struct stat* s)
  }
 
  s->st_mode |= S_IRWXG | S_IRWXO | S_IRWXU ;
- s->st_ino = 0; // not supported;
+ s->st_ino = (f-files); // not supported;
  s->st_nlink = 1; // not supported;
  s->st_uid = 0;
  s->st_gid = 0;
+
+//  stat_display(s);
 
  return 0;
 
@@ -361,7 +387,35 @@ int file_statat(int dirfd, const char* path,struct stat * s)
  s->st_uid = 0;
  s->st_gid = 0;
 
+//  stat_display(s);
+
  return 0;
+}
+
+int file_accessat(int dirfd, const char* name, int mode)
+{
+  static struct stat s;
+  populate_mapping(&s, sizeof(s),PROT_WRITE);
+  erase_leading_backslash(name);
+  //Abuse: use frontend syscall SYS_stat to check whether the file exists.
+  // If it exists, then all accesses to it are permitted.
+  FRESULT rt = (FRESULT) frontend_syscall(SYS_stat,va2pa(&Fs_Local[0]),va2pa(name),va2pa(&s),0,0,0,0);
+  // printk("faccessat: f_stat returns %ld\n",rt);
+  switch(rt){
+    case FR_NO_PATH:
+    case FR_NO_FILE:
+      return -ENOENT;
+    case FR_INVALID_NAME:
+      return -ENOTDIR;
+    case FR_DISK_ERR:
+      return -EFAULT;
+    case FR_OK:
+      break;
+    default:
+      return -EINVAL;
+  }
+
+  return 0;
 }
 
 int file_truncate(file_t* f, off_t len)
