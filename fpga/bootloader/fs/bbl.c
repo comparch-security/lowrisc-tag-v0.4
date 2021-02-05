@@ -271,7 +271,7 @@ static int args_parser(char * str, arg_buf * args){
   }
 
   if (argc != new_argc){
-    printk("After dealing with stdin/out redirection, total number of args: %d\n",argc);
+    printk("After dealing with stdin/out redirection, total number of args: %d\n",new_argc);
     for(int i = 0; i < new_argc; i++){
       printk("argv[%d] is %s\n",i,args->argv[i]);
     }
@@ -349,7 +349,25 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
     // file_chdir("/0:/483.xalancbmk");
     // file_chdir("/0:/401.bzip2");
     // file_chdir("/0:/458.sjeng");
+    // file_chdir("/0:/410.bwaves");
+    // file_chdir("/0:/416.gamess");
+    // file_chdir("/0:/433.milc");
+    // file_chdir("/0:/434.zeusmp");
+    // file_chdir("/0:/435.gromacs");
+    // file_chdir("/0:/436.cactusADM");
+    // file_chdir("/0:/437.leslie3d");
+    // file_chdir("/0:/444.namd");
+    // file_chdir("/0:/447.dealII");
+    file_chdir("/0:/450.soplex");
+    // file_chdir("/0:/453.povray");
+    // file_chdir("/0:/454.calculix");
+    // file_chdir("/0:/459.GemsFDTD");
+    // file_chdir("/0:/465.tonto");
+    // file_chdir("/0:/470.lbm");
+    // file_chdir("/0:/481.wrf");
+    // file_chdir("/0:/482.sphinx3");
     // file_chdir("/0:/ehtest");
+    // file_chdir("/0:/openftest");
     // file_chdir("/0:/");
     static char argstr [256] = 
 
@@ -422,8 +440,31 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
       // "gobmk --quiet --mode gtp < trevorc.tst"
       // "gobmk --quiet --mode gtp < trevord.tst"
 
+      // "bwaves"
+      // "gamess < cytosine.2.config"
+      // "gamess < h2ocu2+.gradient.config"
+      // "gamess < triazolium.config"
+      // "milc < su3imp.in"
+      // "zeusmp"
+      // "gromacs -silent -deffnm gromacs -nice 0"
+      // "cactusADM benchADM.par"
+      // "leslie3d < leslie3d.in"
+      // "namd --input namd.input --iterations 38 --output namd.out"
+      // "dealII 23"
+      "soplex -s1 -e -m45000 pds-50.mps"
+      // "soplex -m3500 ref.mps"
+      // "povray SPEC-benchmark-ref.ini"
+      // "calculix -i  hyperviscoplastic"
+      // "GemsFDTD"
+      // "tonto"
+      // "lbm 3000 reference.dat 0 0 100_100_130_ldc.of"
+      // "wrf"
+      // "sphinx_livepretend ctlfile . args.an4"
+
+
     /***** ref input end *****/
       // "structra.riscv"
+      // "openfile"
       ;
     argc = args_parser(argstr,&args); 
 
