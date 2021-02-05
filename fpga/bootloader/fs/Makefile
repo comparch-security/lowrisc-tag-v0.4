@@ -11,10 +11,11 @@ endif
 default: all
 
 TARGET = bbl
+PAYLOAD ?= nano_payload
 
-all: $(TARGET)
+all: $(PAYLOAD) $(TARGET)
 
-junk += $(TARGET) $(TARGET).hex
+junk += $(TARGET) $(TARGET).hex $(PAYLOAD)
 
 .PHONY: all
 
@@ -22,16 +23,22 @@ junk += $(TARGET) $(TARGET).hex
 # Build rules
 #--------------------------------------------------------------------
 
+ELFINSD ?= 1
 DRIVER_DIR = ../driver
 SOFTFLOAT_DIR = ../softfloat
-FPGA_DIR ?= ../../board/genesys2/
-#FPGA_DIR ?= ../../board/kc705/
-#FPGA_DIR ?= ../../board/nexys4_ddr/
+#FPGA_DIR ?= ../../../vcs
+#FPGA_DIR ?= ../../../vsim
+FPGA_DIR ?= ../../board/genesys2
+#FPGA_DIR ?= ../../board/kc705
+#FPGA_DIR ?= ../../board/nexys4_ddr
 GEN_DIR = $(FPGA_DIR)/generated-src
-PAYLOAD_DIR ?= ../payload
+#PAYLOAD_DIR ?= ../payload
 RISCV_PREFIX=riscv64-unknown-elf-
+LINUX_PREFIX=riscv64-unknown-linux-gnu-
 RISCV_GCC = $(RISCV_PREFIX)gcc
-RISCV_GCC_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks  -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
+LINUX_GPP = $(LINUX_PREFIX)g++
+RISCV_GCC_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD)  -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
+LINUX_GPP_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -static -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
 RISCV_LINK_OPTS = -nostartfiles -nostdlib -static -T bbl.lds -lgcc
 RISCV_DUMP = $(RISCV_PREFIX)objdump
 RISCV_DUMP_OPTS = -D -S -l
@@ -76,6 +83,7 @@ S_OBJS = \
 	entry.o \
 	sbi_entry.o \
 	fp_asm.o \
+	payload.o \
 
 	
 HEADERS += \
@@ -238,7 +246,17 @@ $(MISALIGN_EMU_OBJS): %.o: %.c $(HEADERS)
 $(SOFTFLOAT_OBJS): %.o:$(SOFTFLOAT_DIR)/%.c $(SOFTFLOAT_HEADERS) $(HEADERS)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -c $< -o $@
 
-$(TARGET): $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) 
+$(PAYLOAD): %: %.c $(C_OBJS) $(HEADERS)
+ifeq (payload.o, $(wildcard payload.o))
+	rm ./payload.o
+endif
+ifeq ($(PAYLOAD),nano_payload)
+	$(RISCV_GCC) -o $@ $@.c $(RISCV_GCC_OPTS)
+else
+	$(LINUX_GPP) -o $@ $@.c $(LINUX_GPP_OPTS)
+endif
+
+$(TARGET): $(PAYLOAD) $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS)
 	$(RISCV_GCC) -o $@ $(C_OBJS) $(S_OBJS) $(DRIVER_OBJS) $(RISCV_LINK_OPTS)
 	cp $(TARGET) $(FPGA_DIR)
 
@@ -250,8 +268,6 @@ hex: $(TARGET).hex
 $(TARGET).hex: $(TARGET)
 	elf2hex 16 32768 $< > $@
 
-payload: 
-	$(MAKE) -C $(PAYLOAD_DIR)
 
 .PHONY: dump payload
 

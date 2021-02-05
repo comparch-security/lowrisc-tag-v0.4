@@ -91,6 +91,7 @@ static void stm_log_handler(struct osd_context *ctx, void* arg, uint16_t* packet
 
     uint32_t timestamp;
     uint16_t id;
+    static uint32_t misscount=0;
 
     timestamp = (packet[4] << 16) | packet[3];
     id = packet[5];
@@ -100,28 +101,35 @@ static void stm_log_handler(struct osd_context *ctx, void* arg, uint16_t* packet
         if (packet[0] != 7) {
             assert((packet[2] >> 11) & 0x1);
 
-            fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
+            misscount = misscount + (packet[3] & 0x3ff);
+            //fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
             return;
         }
 
         value = ((uint32_t)packet[7] << 16) | packet[6];
+        if(misscount>0)  { fprintf(fh, "Overflow, missed %d events\n", misscount); misscount=0; }
         fprintf(fh, "%08x %04x %08x\n", timestamp, id, (uint32_t)value);
     } else {
         if (packet[0] != 9) {
             assert((packet[2] >> 11) & 0x1);
 
-            fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
+            misscount = misscount + (packet[3] & 0x3ff);
+            //fprintf(fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
             return;
         }
         value = ((uint64_t)packet[9] << 48) | ((uint64_t)packet[8] << 32) | ((uint64_t)packet[7] << 16) | packet[6];
+        if(misscount>0)  { fprintf(fh, "Overflow, missed %d events\n", misscount); misscount=0; }
         fprintf(fh, "%08x %04x %016lx\n", timestamp, id, value);
     }
+
+    if(misscount > 0xffff) { fprintf(fh, "Overflow, missed %d events\n", misscount); misscount = 0; }
 
     // Additionally convert printf() into character strings inside the log
     if (id == 4) {
         stm_simprint(ctx, desc, timestamp, value);
     }
 
+    fflush(fh);
     return;
 }
 
@@ -160,11 +168,12 @@ static void ctm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packe
     uint8_t modechange, call, ret, overflow;
     uint8_t mode;
     uint64_t pc, npc;
+    static uint32_t misscount=0;
 
     overflow = (packet[2] >> 11) & 0x1;
-
     if (overflow) {
-        fprintf(log->fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
+        misscount = misscount+(packet[3] & 0x3ff);
+        //fprintf(log->fh, "Overflow, missed %d events\n", packet[3] & 0x3ff);
         return;
     }
 
@@ -189,10 +198,12 @@ static void ctm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packe
         fprintf(log->fh, "%08x %d %d %d %d %016lx %016lx\n", timestamp, modechange, call, ret, mode, pc, npc);
     } else {
         if (modechange) {
+            if(misscount)  { fprintf(log->fh, "Overflow, missed %d events\n", misscount); misscount=0; }
             fprintf(log->fh, "%08x change mode to %d\n", timestamp, mode);
         } else if (call) {
             for (size_t f = 0; f < log->num_funcs; f++) {
                 if (log->funcs[f].addr == npc) {
+                    if(misscount)  { fprintf(log->fh, "Overflow, missed %d events\n", misscount); misscount=0; }
                     fprintf(log->fh, "%08x enter %s\n", timestamp, log->funcs[f].name);
                     break;
                 }
@@ -211,24 +222,28 @@ static void ctm_log_handler (struct osd_context *ctx, void* arg, uint16_t* packe
 
             for (size_t f = 1; f <= log->num_funcs; f++) {
                 if (log->funcs[f].addr == npc) {
+                    if(misscount)  { fprintf(log->fh, "Overflow, missed %d events\n", misscount); misscount=0; }
                     fprintf(log->fh, "%08x enter %s\n", timestamp, log->funcs[f].name);
                     break;
                 }
 
                 if (log->funcs[f].addr > pc) {
                     if (log->funcs[f-1].name != to) {
+                        if(misscount)  { fprintf(log->fh, "Overflow, missed %d events\n", misscount); misscount=0; }
                         fprintf(log->fh, "%08x leave %s\n", timestamp, log->funcs[f-1].name);
                     }
                     break;
                 }
                 if (f == log->num_funcs) {
                     if (log->funcs[log->num_funcs-1].name != to) {
+                        if(misscount)  { fprintf(log->fh, "Overflow, missed %d events\n", misscount); misscount=0; }
                         fprintf(log->fh, "%08x leave %s\n", timestamp, log->funcs[log->num_funcs-1].name);
                     }
                 }
             }
         }
     }
+    fflush(log->fh);
     return;
 }
 

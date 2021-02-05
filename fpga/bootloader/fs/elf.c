@@ -158,3 +158,63 @@ void load_elf(const char* fn, elf_info* info)
 fail:
   panic("couldn't open ELF program: %s!", fn);
 }
+
+int load_elf_from_DRAM(void* blob, size_t size, elf_info* info)
+{
+  Elf_Ehdr* eh = blob;
+  if (sizeof(*eh) > size ||
+      !(eh->e_ident[0] == '\177' && eh->e_ident[1] == 'E' &&
+        eh->e_ident[2] == 'L'    && eh->e_ident[3] == 'F'))
+    goto fail;
+
+#ifdef __riscv64
+  assert(IS_ELF64(*eh));
+#else
+  assert(IS_ELF32(*eh));
+#endif
+
+  uintptr_t min_vaddr = -1;
+  size_t phdr_size = eh->e_phnum * sizeof(Elf_Phdr);
+  if (phdr_size > info->phdr_size)
+    goto fail;
+  memcpy((void*)info->phdr, (void*)((long)blob+(long)eh->e_phoff), phdr_size);
+  info->phnum = eh->e_phnum;
+  info->phent = sizeof(Elf_Phdr);
+  Elf_Phdr* ph = (typeof(ph))info->phdr;
+  for (int i = 0; i < eh->e_phnum; i++)
+    if (ph[i].p_type == PT_LOAD && ph[i].p_memsz && ph[i].p_vaddr < min_vaddr)
+      min_vaddr = ph[i].p_vaddr;
+  min_vaddr = ROUNDDOWN(min_vaddr, RISCV_PGSIZE);
+  uintptr_t bias = 0;
+  if (eh->e_type == ET_DYN)
+    bias = first_free_paddr - min_vaddr;
+  min_vaddr += bias;
+  info->entry = eh->e_entry + bias;
+  int flags = MAP_FIXED | MAP_PRIVATE;
+  for (int i = eh->e_phnum - 1; i >= 0; i--) {
+    if(ph[i].p_type == PT_LOAD && ph[i].p_memsz) {
+      uintptr_t prepad = ph[i].p_vaddr % RISCV_PGSIZE;
+      uintptr_t vaddr = ph[i].p_vaddr + bias;
+      if (vaddr + ph[i].p_memsz > info->brk_min)
+        info->brk_min = vaddr + ph[i].p_memsz;
+      if (ph[i].p_offset + ph[i].p_filesz > size)
+        goto fail;
+      int flags2 = flags | (prepad ? MAP_POPULATE : 0);
+        if (__do_mmap(vaddr - prepad, ph[i].p_filesz + prepad, -1, flags2, 0, ph[i].p_offset - prepad) != vaddr - prepad)
+        goto fail;
+      printk("elf memcpy(%p,%p,%p)\n",(void*)vaddr, blob + ph[i].p_offset , ph[i].p_filesz);
+      memcpy((void*)vaddr, blob + ph[i].p_offset, ph[i].p_filesz);
+      memset((void*)vaddr - prepad, 0, prepad);
+      //printk("memset(%p,%p,%p)\n",(void*)vaddr + ph[i].p_filesz, 0 , ph[i].p_memsz - ph[i].p_filesz);
+      //memset((void*)vaddr + ph[i].p_filesz, 0, ph[i].p_memsz - ph[i].p_filesz); //  ../bbl/kernel_elf.c : load_kernel_elf --> bug?
+      size_t mapped = ROUNDUP(ph[i].p_filesz + prepad, RISCV_PGSIZE) - prepad;
+      if (ph[i].p_memsz > mapped){
+        if (__do_mmap(vaddr + mapped, ph[i].p_memsz - mapped, -1, flags|MAP_ANONYMOUS, 0, 0) != vaddr + mapped)
+          goto fail;
+      }
+    }
+  }
+  return 1;
+fail:
+    die("failed to load payload");
+}

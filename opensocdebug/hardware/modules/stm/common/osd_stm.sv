@@ -110,7 +110,7 @@ module osd_stm
             .fifo_ready     (fifo_ready));
 
    osd_fifo
-     #(.WIDTH(EW+1), .DEPTH(8))
+     #(.WIDTH(EW+1), .DEPTH(16))
    u_buffer(.clk     (clk),
             .rst     (rst),
             .in_data ({fifo_overflow, fifo_data}),

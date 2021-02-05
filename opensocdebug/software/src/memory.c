@@ -32,8 +32,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-//static const size_t BULK_MAX = 0x3f00;
-static const size_t BULK_MAX = 0x10;
+static const size_t BULK_MAX = 0x3f00;
+//static const size_t BULK_MAX = 0x10;
 
 static int memory_write_bulk(struct osd_context *ctx, uint16_t modid,
                              uint64_t addr,
@@ -249,7 +249,7 @@ int osd_memory_write(struct osd_context *ctx, uint16_t modid, uint64_t addr,
     size_t blocksize = mem->data_width >> 3;
 
     size_t prolog, bulk, epilog;
-    uint32_t delay;
+    //uint32_t delay;
     calculate_parts(addr, size, blocksize, &prolog, &bulk, &epilog);
 
     if (prolog) {
@@ -263,7 +263,7 @@ int osd_memory_write(struct osd_context *ctx, uint16_t modid, uint64_t addr,
             if ((i+s) > size) s = bulk - i;
 
             memory_write_bulk(ctx, modid, addr+prolog+i, &data[prolog+i], s);
-           for (delay = 0; delay < 10000000; delay++);
+           //for (delay = 0; delay < 10000000; delay++);
         }
     }
 

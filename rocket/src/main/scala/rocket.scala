@@ -758,28 +758,28 @@ class Rocket(id:Int)(implicit p: Parameters) extends CoreModule()(p) {
       id, isRead, isWrite,
       isCsrRead, isCsrWrite, isCsrTrap
     )(io.dbgrst))
-    ctm.io.wb_valid := wb_valid
+    ctm.io.wb_valid := wb_valid & (csr.io.ctm_ctrl.mhsupen & UIntToOH(csr.io.status.prv)).orR()
     ctm.io.wb_pc := wb_reg_pc
     ctm.io.wb_wdata := rf_wdata
-    ctm.io.wb_jal := wb_ctrl.jal
-    ctm.io.wb_jalr := wb_ctrl.jalr
-    ctm.io.wb_br := wb_ctrl.branch
-    ctm.io.wb_mem := wb_ctrl.mem
+    ctm.io.wb_jal := wb_ctrl.jal & csr.io.ctm_ctrl.jal
+    ctm.io.wb_jalr := wb_ctrl.jalr & csr.io.ctm_ctrl.jalr
+    ctm.io.wb_br := wb_ctrl.branch & csr.io.ctm_ctrl.branch
+    ctm.io.wb_mem := wb_ctrl.mem & csr.io.ctm_ctrl.mem
     ctm.io.wb_mem_cmd := wb_ctrl.mem_cmd
-    ctm.io.wb_xcpt := wb_reg_xcpt
-    ctm.io.wb_csr := wb_ctrl.csr =/= CSR.N
+    ctm.io.wb_xcpt := wb_reg_xcpt & csr.io.ctm_ctrl.wb_xcpt
+    ctm.io.wb_csr := wb_ctrl.csr =/= CSR.N & csr.io.ctm_ctrl.wb_csr
     ctm.io.wb_csr_cmd := wb_ctrl.csr
     ctm.io.wb_csr_addr := csr.io.rw.addr
-    ctm.io.mem_br_taken := mem_br_taken
+    ctm.io.mem_br_taken := mem_br_taken & csr.io.ctm_ctrl.mem_branch_taken
     ctm.io.mem_npc := mem_npc
-    ctm.io.csr_eret := csr.io.eret
-    ctm.io.csr_xcpt := csr.io.csr_xcpt
-    ctm.io.csr_prv := csr.io.status.prv
+    ctm.io.csr_eret := csr.io.eret & csr.io.ctm_ctrl.csr_eret
+    ctm.io.csr_xcpt := csr.io.csr_xcpt & csr.io.ctm_ctrl.csr_xcpt
+    ctm.io.csr_prv := Vec(PRV.SZ, csr.io.ctm_ctrl.prv_change).toBits() & csr.io.status.prv
     ctm.io.csr_wdata := wb_reg_wdata
     ctm.io.csr_evec := csr.io.evec
     ctm.io.csr_time := csr.io.time
-    ctm.io.dmem_has_data := dmem_resp_valid
-    ctm.io.dmem_replay := io.dmem.resp.bits.replay
+    ctm.io.dmem_has_data := dmem_resp_valid & csr.io.ctm_ctrl.dmem_has_data
+    ctm.io.dmem_replay := io.dmem.resp.bits.replay & csr.io.ctm_ctrl.dmem_replay
     ctm.io.dmem_rdata := io.dmem.resp.bits.data
     ctm.io.dmem_wdata := io.dmem.resp.bits.store_data
     ctm.io.dmem_addr := io.dmem.resp.bits.addr

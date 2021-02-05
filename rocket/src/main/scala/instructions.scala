@@ -310,6 +310,7 @@ object CSRs {
   val mtagctrl = 0xbf0
   val mutagctrlen = 0x7f0
   val mstagctrlen = 0x7f1
+  val coretrace = 0x8fe
   val swtrace = 0x8ff
   val pfcr = 0x402 //pfc_read
   val pfcc = 0x403 //pfc_config
