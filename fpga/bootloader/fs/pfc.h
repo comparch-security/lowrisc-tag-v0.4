@@ -22,3 +22,4 @@ typedef struct {
 void get_pfc(pfc_response * ppfc);
 void pfc_diff (pfc_response * result, pfc_response * decline);
 void pfc_display(pfc_response * ppfc);
+void pfc_log(pfc_response * ppfc, char * fname, int code);

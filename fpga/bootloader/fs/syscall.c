@@ -9,12 +9,84 @@
 // #include "uart.h"
 #include "sbi.h"
 #include "pfc.h"
+#include <stdarg.h>
+#include <fcntl.h>
+
+#define M_STR(a) #a
+#define M_STR2(a) M_STR(a)
 
 typedef long (*syscall_t)(long, long, long, long, long, long, long);
 
 #define CLOCK_FREQ 1000000000
 
+
+
 extern pfc_response pfc0,pfc;
+extern int vsnprintf(char* out, size_t n, const char* s, va_list vl);
+
+static int vfprintk(file_t* fhdl, const char* s, va_list vl)
+{
+  char out[256];
+  int res = vsnprintf(out,sizeof(out),s,vl);
+  file_write(fhdl,out,res < sizeof(out) ? res : sizeof(out));
+  return res;
+}
+
+static int fprintk(file_t* fhdl, const char* s, ...)
+{
+  va_list vl;
+  va_start(vl,s);
+
+  int ret = vfprintk(fhdl,s,vl);
+
+  va_end(vl);
+  return ret;
+}
+
+
+void pfc_log(pfc_response * ppfc, char * fname, int code) 
+{
+
+  file_chdir("/0:/output");
+  file_t * fhdl = file_open(fname,O_WRONLY|O_TRUNC);
+  if(!fhdl) return;
+
+uint64_t * pfcresp = ppfc->resp;
+uint64_t instret = ppfc -> instret;
+
+  fprintk(fhdl,"exit code: %d\n",code);
+
+
+#ifdef ENA_PFC
+
+  fprintk(fhdl,"instret: %15lld\n\n",instret);
+
+  fprintk(fhdl,"L1I_read,     L1I_readmiss\n");
+  fprintk(fhdl,"%lld  %10lld\n\n", pfcresp[0], pfcresp[1]);
+  fprintk(fhdl,"L1D_read,     L1D_readmiss,     L1D_write,     L1D_writemiss,     L1D_writeback\n");
+  fprintk(fhdl,"%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[2],pfcresp[3],pfcresp[4],pfcresp[5],pfcresp[6]);
+
+#if(L2Banks!=0)
+  fprintk(fhdl,"L2_read,      L2_readmiss,      L2_write,      L2_writeback\n");
+  fprintk(fhdl,"%lld  %10lld  %10lld  %10lld\n\n", pfcresp[7],pfcresp[8],pfcresp[9],pfcresp[10]);
+#endif
+
+#if(ADD_TC)
+  fprintk(fhdl,"TC_readTT,   TC_readTTmiss,    TC_writeTT,   TC_writeTTmiss,    TC_writeTTback\n");
+  fprintk(fhdl,"%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[11],pfcresp[12],pfcresp[13],pfcresp[14],pfcresp[15]);
+  fprintk(fhdl,"TC_readTM0,  TC_readTM0miss,   TC_writeTM0,  TC_writeTM0miss,   TC_writeTM0back\n");
+  fprintk(fhdl,"%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[16],pfcresp[17],pfcresp[18],pfcresp[19],pfcresp[20]);
+  fprintk(fhdl,"TC_readTM1,  TC_readTM1miss,   TC_writeTM1,  TC_writeTM1miss,   TC_writeTM1back\n");
+  fprintk(fhdl,"%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[21],pfcresp[22],pfcresp[23],pfcresp[24],pfcresp[25]);
+#endif
+
+#endif
+
+extern file_t files[];
+fd_close(fhdl-files);
+
+}
+
 void sys_exit(int code)
 {
   size_t cycle = rdcycle(),instret=rdinstret();
@@ -37,6 +109,7 @@ void sys_exit(int code)
 
   pfc_diff(&pfc, &pfc0);
   pfc_display(&pfc);
+  pfc_log(&pfc,"ref" M_STR2(ELFINPNUM) ".log",code);
 
   die(code);
 }

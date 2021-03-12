@@ -48,6 +48,15 @@ void do_panic(const char* s, ...) __attribute__((noreturn));
 void kassert_fail(const char* s) __attribute__((noreturn));
 void die(int) __attribute__((noreturn));
 
+#ifndef ELFDIRNUM 
+  #define ELFDIRNUM 5
+#endif 
+
+#ifndef ELFINPNUM
+  #define ELFINPNUM 0
+#endif 
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

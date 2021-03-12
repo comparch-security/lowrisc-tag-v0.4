@@ -24,6 +24,8 @@ junk += $(TARGET) $(TARGET).hex $(PAYLOAD)
 #--------------------------------------------------------------------
 
 ELFINSD ?= 1
+ELFDIRNUM ?= 5
+ELFINPNUM ?= 0
 DRIVER_DIR = ../driver
 SOFTFLOAT_DIR = ../softfloat
 #FPGA_DIR ?= ../../../vcs
@@ -37,8 +39,8 @@ RISCV_PREFIX=riscv64-unknown-elf-
 LINUX_PREFIX=riscv64-unknown-linux-gnu-
 RISCV_GCC = $(RISCV_PREFIX)gcc
 LINUX_GPP = $(LINUX_PREFIX)g++
-RISCV_GCC_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD)  -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
-LINUX_GPP_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -static -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
+RISCV_GCC_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD) -DELFDIRNUM=$(ELFDIRNUM) -DELFINPNUM=$(ELFINPNUM) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
+LINUX_GPP_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -static -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD)  -DELFDIRNUM=$(ELFDIRNUM) -DELFINPNUM=$(ELFINPNUM) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
 RISCV_LINK_OPTS = -nostartfiles -nostdlib -static -T bbl.lds -lgcc
 RISCV_DUMP = $(RISCV_PREFIX)objdump
 RISCV_DUMP_OPTS = -D -S -l
@@ -83,7 +85,7 @@ S_OBJS = \
 	entry.o \
 	sbi_entry.o \
 	fp_asm.o \
-	payload.o \
+	# payload.o \
 
 	
 HEADERS += \

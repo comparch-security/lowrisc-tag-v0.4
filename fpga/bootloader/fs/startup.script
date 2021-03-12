@@ -1,0 +1,9 @@
+reset -halt
+terminal 2
+wait 1
+mem loadelf bbl 3
+wait 1
+start
+wait 1800
+reset -halt
+quit
