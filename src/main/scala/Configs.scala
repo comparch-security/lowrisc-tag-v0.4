@@ -305,7 +305,7 @@ class BaseConfig extends Config (
         )
       case TLKey("L2toTC") =>
         site(TLKey("L2toMem")).copy(
-          coherencePolicy = new MICoherence(new NullRepresentation(site(NBanks))),
+          //coherencePolicy = new MICoherence(new NullRepresentation(site(NBanks))),
           maxManagerXacts = site(TCMemTransactors) + 1
         )
       case TLKey("TCtoMem") =>
