@@ -105,21 +105,21 @@ input = [
       "gamess < h2ocu2+.gradient.config",
       "gamess < triazolium.config",
       "milc < su3imp.in",
-      "zeusmp",
-      "gromacs -silent -deffnm gromacs -nice 0",
+      "zeusmp", #invalid
+      "gromacs -silent -deffnm gromacs -nice 0", #invalid
       "cactusADM benchADM.par",
       "leslie3d < leslie3d.in",
       "namd --input namd.input --iterations 38 --output namd.out",
       "dealII 23",
-      "soplex -s1 -e -m45000 pds-50.mps",
-      "soplex -m3500 ref.mps",
+      "soplex -s1 -e -m45000 pds-50.mps", #invalid
+      "soplex -m3500 ref.mps", #invalid
       "povray SPEC-benchmark-ref.ini",
       "calculix -i  hyperviscoplastic",
       "GemsFDTD",
-      "tonto",
+      "tonto", #invalid
       "lbm 3000 reference.dat 0 0 100_100_130_ldc.of",
       "wrf",
-      "sphinx_livepretend ctlfile . args.an4"
+      "sphinx_livepretend ctlfile . args.an4" #invalid
     ]
 
 
@@ -161,6 +161,8 @@ def test_route(i):
     #system call for make
     commd = "make clean && ELFDIRNUM={} ELFINPNUM={} make && osd-cli -s startup.script"
     os.system(commd.format(d,i))
+    commd2 = "mv xterm.log ref{}.output"
+    os.system(commd2.format(i))
 
     # osd.wait(2)
     # osd.reset(halt=True)
@@ -178,7 +180,10 @@ def test_route(i):
 def main():
     # init_osd()
 
-    for i in [2,6,14,19,27,30,35,49,52]:
+    # rng = [v for v in range(3,35) if (v != 6 and v != 14 and v != 19)]
+    rng = [36,37,38,42,43,44,48,49]
+
+    for i in rng:
         test_route(i)
 
 if __name__ == '__main__':

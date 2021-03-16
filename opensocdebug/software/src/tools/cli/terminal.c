@@ -94,7 +94,7 @@ int terminal_open(struct osd_context *ctx, uint16_t mod_id, struct terminal **te
 
     if ((t->child = fork()) == 0) {
         char command[256];
-        snprintf(command, 256, "xterm -title test -e bash -l -c 'osd_term %s'", name);
+        snprintf(command, 256, "xterm -title ref -l -lf $TOP/fpga/bootloader/fs/xterm.log -e bash -l -c 'osd_term %s'", name);
         int rv = system(command);
         exit(rv);
     }

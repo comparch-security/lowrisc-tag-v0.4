@@ -109,7 +109,10 @@ void sys_exit(int code)
 
   pfc_diff(&pfc, &pfc0);
   pfc_display(&pfc);
-  pfc_log(&pfc,"ref" M_STR2(ELFINPNUM) ".log",code);
+  if (!code )
+    pfc_log(&pfc,"ref" M_STR2(ELFINPNUM) ".log",code);
+  else 
+    pfc_log(&pfc,"ref" M_STR2(ELFINPNUM) ".err",code);
 
   die(code);
 }
