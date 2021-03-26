@@ -3,6 +3,7 @@
 import re
 import sys 
 import os 
+import csv
 import __future__
 
 dir = [
@@ -99,8 +100,67 @@ input = [
       "sphinx_livepretend ctlfile . args.an4" #invalid
     ]
 
+inputAbbr = [
+	"462.libquantum.1397",
+	"429.mcf.inp",
+	"458.sjeng.ref",
+	"483.xalancbmk.t5",
+	"473.astar.BigLakes2048",
+	"473.astar.rivers",
+	"471.omnetpp.omnetpp",
+	"464.h264ref.foreman_ref_encoder_baseline",
+	"464.h264ref.foreman_ref_encoder_main",
+	"464.h264ref.sss_encoder_main",
+	"456.hmmer.nph3",
+	"456.hmmer.retro",
+	"401.bzip2.input.source",
+	"401.bzip2.chicken",
+	"401.bzip2.liberty",
+	"401.bzip2.input.program",
+	"401.bzip2.text",
+	"401.bzip2.input.combined",
+	"403.gcc.166",
+	"403.gcc.200",
+	"403.gcc.c-typeck",
+	"403.gcc.cp-decl",
+	"403.gcc.expr",
+	"403.gcc.expr2",
+	"403.gcc.g23",
+	"403.gcc.s04",
+	"403.gcc.scilab",
+	"400.perlbench.checkspam.2500",
+	"400.perlbench.diffmail.4",
+	"400.perlbench.splitmail.1600",
+	"445.gobmk.13x13",
+	"445.gobmk.nngs",
+	"445.gobmk.score2",
+	"445.gobmk.trevorc",
+	"445.gobmk.trevord",
+	"410.bwaves",
+	"416.gamess.cytosine",
+	"416.gamess.h2ocu2+",
+	"416.gamess.triazolium",
+	"433.milc.su3imp",
+	"434.zeusmp",
+	"435.gromacs.gromacs",
+	"436.cactusADM.benchADM",
+	"437.leslie3d.leslie3d",
+	"444.namd.namd",
+	"447.dealII.23",
+	"450.soplex.pds-50",
+	"450.soplex.ref",
+	"453.povray.SPEC-benchmark-ref",
+	"454.calculix.hyperviscoplastic",
+	"459.GemsFDTD",
+	"465.tonto",
+	"470.lbm.100_100_130_ldc",
+	"481.wrf"
+]
+
+
 
 PatInst=re.compile( r"instret: +(?P<Instret>\d+)")
+PatCycle=re.compile(r"total time: +(?P<Cycle>\d+)")
 PatL1I =re.compile( r"L1I_read,     L1I_readmiss\n(?P<L1IReadAcc>\d+) +(?P<L1IReadMiss>\d+)")
 PatL1D =re.compile( r"L1D_read,     L1D_readmiss,     L1D_write,     L1D_writemiss,     L1D_writeback\n(?P<L1DReadAcc>\d+) +(?P<L1DReadMiss>\d+) +(?P<L1DWriteAcc>\d+) +(?P<L1DWriteMiss>\d+) +(?P<L1DWriteBack>\d+)")
 PatL2  =re.compile( r"L2_read,      L2_readmiss,      L2_write,      L2_writeback\n(?P<L2ReadAcc>\d+) +(?P<L2ReadMiss>\d+) +(?P<L2WriteAcc>\d+) +(?P<L2WriteMiss>\d+)")
@@ -110,12 +170,17 @@ PatTM1 =re.compile( r"TC_readTM1,  TC_readTM1miss,   TC_writeTM1,  TC_writeTM1mi
 
 PatFname = re.compile( r"ref(?P<InputNum>\d+).log")
 PatFnCons= re.compile( r"ref\d+.log")
-titlestr = "No,Bench,instret,L1I_read,L1I_readmiss,L1D_read,L1D_readmiss,L1D_write,L1D_writemiss,L1D_writeback,L2_read,L2_readmiss,L2_write,L2_writeback,TC_readTT,TC_readTTmiss,TC_writeTT,TC_writeTTmiss,TC_writeTTback,TC_readTM0,TC_readTM0miss,TC_writeTM0,TC_writeTM0miss,TC_writeTM0back,TC_readTM1,TC_readTM1miss,TC_writeTM1,TC_writeTM1miss,TC_writeTM1back,Command"
+titlestr = "Case,cycle,instret,L1I_read,L1I_readmiss,L1D_read,L1D_readmiss,L1D_write,L1D_writemiss,L1D_writeback,L2_read,L2_readmiss,L2_write,L2_writeback,TC_readTT,TC_readTTmiss,TC_writeTT,TC_writeTTmiss,TC_writeTTback,TC_readTM0,TC_readTM0miss,TC_writeTM0,TC_writeTM0miss,TC_writeTM0back,TC_readTM1,TC_readTM1miss,TC_writeTM1,TC_writeTM1miss,TC_writeTM1back"
 title = titlestr.split(',')
+sumTitle = ["Bench","Cases"]
+sumTitle.extend(title[1:])
 
 # global vars: g_stat output
 g_stat = []
-output = "stat.txt"
+g_sumup = {}
+g_casecnt = {}
+output = "stat.csv"
+sumupOutput = "sum.csv"
 
 def readFile(filename):
   f_info = PatFname.match(filename).groupdict();
@@ -123,6 +188,8 @@ def readFile(filename):
   
   with open(filename) as file:
     content = file.read()
+    f_Cycle_stat = PatCycle.findall(content)
+    # print (f_Cycle_stat)
     f_Inst_stat = PatInst.findall(content)
     # print (f_Inst_stat)
     f_L1I_stat = PatL1I.findall(content)
@@ -153,11 +220,12 @@ def readFile(filename):
             d = id
             f_benchname = folder.split('/')[-1]
             break
-
+    f_casename = inputAbbr[i]
     # print (f_cmd )
     # print (d) 
     # print (f_benchname)
-    retval = [str(i),f_benchname]
+    retval = [f_casename]
+    retval.extend(f_Cycle_stat)
     retval.extend(f_Inst_stat)
     retval.extend(f_L1I_stat[0])
     retval.extend(f_L1D_stat[0])
@@ -165,7 +233,7 @@ def readFile(filename):
     retval.extend(f_TT_stat[0])
     retval.extend(f_TM0_stat[0])
     retval.extend(f_TM1_stat[0])
-    retval.append(f_cmd)
+    # retval.append(f_cmd)
 
     # print(retval)
     return retval 
@@ -177,6 +245,21 @@ def stat ():
     # print (files)
     for f in files :
         g_stat.append(readFile(f))
+    # sum up test case in the same bench. Add case count
+    for entry in g_stat[1:]:
+        f_benchname = '.'.join(entry[0].split('.')[:2])
+        # print (f_benchname)
+        if (g_sumup.has_key(f_benchname)):
+            # print (zip(g_sumup[f_benchname],entry[1:]))
+            updatedBench = [ (a + int(b)) for (a,b) in zip(g_sumup[f_benchname],entry[1:]) ]
+            g_sumup[f_benchname] = updatedBench
+        else :
+            g_sumup[f_benchname] = [int(it) for it in entry[1:]]
+        g_casecnt[f_benchname] = g_casecnt.get(f_benchname,0) + 1
+    # print (g_sumup)
+    # print (g_casecnt)
+
+
 
 
 #Main statements
@@ -186,9 +269,22 @@ stat()
 if len(sys.argv) == 2 :
     output = sys.argv[1];
 
-with open(output,"w+") as fout:
-    for line in g_stat:
-        print ("\t".join(line))
-        fout.write("\t".join(line)+"\n")
+with open(output,"w") as fout:
+    writer = csv.writer(fout,dialect='excel')
+    writer.writerows(g_stat)
+    # for line in g_stat:
+    #     print ("\t".join(line))
+    #     fout.write("\t".join(line)+"\n")
+
+with open(sumupOutput,"w") as sumout:
+    sumWriter = csv.writer(sumout,dialect='excel')
+    # print (sumTitle)
+    sumWriter.writerow(sumTitle)
+    for bench in g_sumup:
+        sumEntry = [bench,g_casecnt[bench]]
+        sumEntry.extend(g_sumup[bench])
+        # print (sumEntry)
+        sumWriter.writerow(sumEntry)
+
 
 print ("Done!")
