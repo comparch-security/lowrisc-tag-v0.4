@@ -53,9 +53,10 @@ void pfc_log(pfc_response * ppfc, char * fname, int code)
 
 uint64_t * pfcresp = ppfc->resp;
 uint64_t instret = ppfc -> instret;
+uint64_t cycles = ppfc -> cycles;
 
   fprintk(fhdl,"exit code: %d\n",code);
-
+  fprintk(fhdl,"total time: %15lld\n",cycles);
 
 #ifdef ENA_PFC
 
@@ -91,7 +92,13 @@ void sys_exit(int code)
 {
   size_t cycle = rdcycle(),instret=rdinstret();
   get_pfc(&pfc);
+  static int already_exited = 0;
   printk("program exited.\n");
+  
+  if(!already_exited) 
+    already_exited = 1;
+  else die(code);
+  
   if (current.t0)
     printk("%ld cycles\n", cycle - current.t0);
   // if (current.instret0)

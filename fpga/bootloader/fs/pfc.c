@@ -9,6 +9,7 @@ void get_pfc(pfc_response * ppfc)
 
 uint64_t * pfcresp = ppfc->resp;
 ppfc->instret = rdinstret();
+ppfc->cycles = rdcycle();
 
 #if(ENA_PFC) 
   asm volatile ("csrw 0x404, %0" :: "r"(pfc_fullmap));
@@ -79,6 +80,7 @@ ppfc->instret = rdinstret();
 void pfc_diff (pfc_response * result, pfc_response * decline)
 {
     result->instret -= decline->instret;
+    result->cycles -= decline->cycles;
     for (int i = 0 ; i < pfc_total_resp; i ++)
         result->resp[i] -= decline->resp[i];
 }
@@ -88,11 +90,13 @@ void pfc_display(pfc_response * ppfc)
 
 uint64_t * pfcresp = ppfc->resp;
 uint64_t instret = ppfc -> instret;
+uint64_t cycles = ppfc -> cycles;
 
 
 #ifdef ENA_PFC
 
   printk("instret: %15lld\n\n",instret);
+  printk("total time: %15lld\n",cycles);
 
   printk("L1I_read,     L1I_readmiss\n");
   printk("%lld  %10lld\n\n", pfcresp[0], pfcresp[1]);

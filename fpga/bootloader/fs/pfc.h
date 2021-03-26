@@ -17,6 +17,7 @@ typedef struct {
 #define pfc_total_resp 26  //Tile + L2Banks + TC=7+4+15
     uint64_t resp[pfc_total_resp]; 
     uint64_t instret;
+    uint64_t cycles;
 } pfc_response;
 
 void get_pfc(pfc_response * ppfc);
