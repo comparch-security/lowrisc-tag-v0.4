@@ -293,7 +293,7 @@ class BaseConfig extends Config (
         )
       case TLKey("L2toMem") =>
         TileLinkParameters(
-          coherencePolicy = new MEICoherence(site(L2DirectoryRepresentation)),
+          coherencePolicy = new MICoherence(site(L2DirectoryRepresentation)),
           nManagers = 1,
           nCachingClients = site(NBanks),
           nCachelessClients = 0,

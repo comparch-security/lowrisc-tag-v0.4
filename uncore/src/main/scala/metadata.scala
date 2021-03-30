@@ -326,20 +326,22 @@ object ManagerMetadata {
 class HierarchicalMetadata(implicit p: Parameters) extends CoherenceMetadata()(p) {
   val inner: ManagerMetadata = new ManagerMetadata()(p.alterPartial({case TLId => p(InnerTLId)}))
   val outer: ClientMetadata = new ClientMetadata()(p.alterPartial({case TLId => p(OuterTLId)}))
+  val dirty = Bool()
   def ===(rhs: HierarchicalMetadata): Bool = 
-    this.inner === rhs.inner && this.outer === rhs.outer
+    this.inner === rhs.inner && this.outer === rhs.outer && this.dirty === rhs.dirty
   def =/=(rhs: HierarchicalMetadata): Bool = !this.===(rhs)
 }
 
 /** Factories for HierarchicalMetadata, including on reset */
 object HierarchicalMetadata {
-  def apply(inner: ManagerMetadata, outer: ClientMetadata)
+  def apply(inner: ManagerMetadata, outer: ClientMetadata, dirty: Bool)
            (implicit p: Parameters): HierarchicalMetadata = {
     val m = Wire(new HierarchicalMetadata)
     m.inner := inner
     m.outer := outer
+    m.dirty := dirty
     m
   }
   def onReset(implicit p: Parameters): HierarchicalMetadata = 
-    apply(ManagerMetadata.onReset, ClientMetadata.onReset)
+    apply(ManagerMetadata.onReset, ClientMetadata.onReset, Bool(false))
 }

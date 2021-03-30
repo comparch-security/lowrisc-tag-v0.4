@@ -69,7 +69,7 @@
 #define IRQ_HOST     13
 
 #define CONFIG_STRING_ADDR 0x0000000C
-#define HOST_BASE          0x00004000
+#define HOST_BASE          0x00006000
 
 // tagged memory configuration
 #define TAG_BITS                4

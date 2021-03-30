@@ -626,10 +626,14 @@ class L2VoluntaryReleaseTracker(trackerId: Int)(implicit p: Parameters) extends 
   io.meta.write.bits.idx := xact.addr_block(idxMSB,idxLSB)
   io.meta.write.bits.way_en := xact_way_en
   io.meta.write.bits.data.tag := xact.addr_block >> UInt(tagLSB)
-  io.meta.write.bits.data.coh.inner := xact_old_meta.coh.inner.onRelease(xact)
-  io.meta.write.bits.data.coh.outer := Mux(xact.hasData(),
-                                         xact_old_meta.coh.outer.onHit(M_XWR),
-                                         xact_old_meta.coh.outer)
+  io.meta.write.bits.data.coh := HierarchicalMetadata(
+                                   xact_old_meta.coh.inner.onRelease(xact),
+                                   Mux(xact.hasData(),
+                                     xact_old_meta.coh.outer.onHit(M_XWR),
+                                     xact_old_meta.coh.outer),
+                                   Mux(xact.hasData(),
+                                     Bool(true),
+                                     xact_old_meta.coh.dirty))
 
   // State machine updates and transaction handler metadata intialization
   when(state === s_idle && io.inner.release.valid && io.alloc.irel) {
@@ -684,6 +688,7 @@ class L2AcquireTracker(trackerId: Int)(implicit p: Parameters) extends L2XactTra
   val xact_vol_ir_r_type = Reg{ io.irel().r_type }
   val xact_vol_ir_src = Reg{ io.irel().client_id }
   val xact_vol_ir_client_xact_id = Reg{ io.irel().client_xact_id }
+  val xact_hasData = Reg{ Bool() }
 
   // Miss queue holds transaction metadata used to make grants
   val ignt_q = Module(new Queue(
@@ -788,7 +793,8 @@ class L2AcquireTracker(trackerId: Int)(implicit p: Parameters) extends L2XactTra
   // Defined here because of Chisel default wire demands, used in s_meta_resp
   val pending_coh_on_hit = HierarchicalMetadata(
     io.meta.resp.bits.meta.coh.inner,
-    io.meta.resp.bits.meta.coh.outer.onHit(xact_op_code))
+    io.meta.resp.bits.meta.coh.outer.onHit(xact_op_code),
+    Mux(isWrite(xact_op_code), Bool(true), io.meta.resp.bits.meta.coh.dirty))
 
   val pending_coh_on_miss = HierarchicalMetadata.onReset
 
@@ -938,7 +944,10 @@ class L2AcquireTracker(trackerId: Int)(implicit p: Parameters) extends L2XactTra
                               pending_coh.inner.onRelease(io.irel()), // Drop sharer
                               Mux(io.irel().hasData(), // Dirty writeback
                                 pending_coh.outer.onHit(M_XWR),
-                                pending_coh.outer))
+                                pending_coh.outer),
+                              Mux(io.irel().hasData(), // Dirty writeback
+                                Bool(true),
+                                pending_coh.dirty))
   updatePendingCohWhen(io.inner.release.fire(), pending_coh_on_irel)
   mergeDataInner(io.inner.release)
   when(io.inner.release.fire() && irel_can_merge) {
@@ -982,7 +991,8 @@ class L2AcquireTracker(trackerId: Int)(implicit p: Parameters) extends L2XactTra
   io.outer.grant.ready := state === s_busy
   val pending_coh_on_ognt = HierarchicalMetadata(
                               ManagerMetadata.onReset,
-                              pending_coh.outer.onGrant(io.outer.grant.bits, xact_op_code))
+                              pending_coh.outer.onGrant(io.outer.grant.bits, xact_op_code),
+                              isWrite(xact_op_code) || xact_hasData)
   updatePendingCohWhen(ognt_data_done, pending_coh_on_ognt)
   mergeDataOuter(io.outer.grant)
 
@@ -1067,7 +1077,10 @@ class L2AcquireTracker(trackerId: Int)(implicit p: Parameters) extends L2XactTra
                               pending_coh.inner.onGrant(io.ignt()),
                               Mux(ognt_data_done,
                                 pending_coh_on_ognt.outer,
-                                pending_coh.outer))
+                                pending_coh.outer),
+                              Mux(ognt_data_done,
+                                pending_coh_on_ognt.dirty,
+                                pending_coh.dirty))
   updatePendingCohWhen(io.inner.grant.fire() && io.ignt().last(), pending_coh_on_ignt)
 
   // We must wait for as many Finishes as we sent Grants
@@ -1083,6 +1096,7 @@ class L2AcquireTracker(trackerId: Int)(implicit p: Parameters) extends L2XactTra
                                         
   // State machine updates and transaction handler metadata intialization
   when(state === s_idle && io.inner.acquire.valid && io.alloc.iacq) {
+    xact_hasData := io.iacq().hasData()
     xact_addr_block := io.iacq().addr_block
     xact_allocate := io.iacq().allocate()
     xact_amo_shift_bytes := io.iacq().amo_shift_bytes()
@@ -1262,7 +1276,10 @@ class L2WritebackUnit(trackerId: Int)(implicit p: Parameters) extends L2XactTrac
                               xact.coh.inner.onRelease(io.irel()), // Drop sharer
                               Mux(io.irel().hasData(), // Dirty writeback
                                 xact.coh.outer.onHit(M_XWR),
-                                xact.coh.outer))
+                                xact.coh.outer),
+                              Mux(io.irel().hasData(), // Dirty writeback
+                                Bool(true),
+                                xact.coh.dirty))
   when(io.inner.release.fire()) {
     xact.coh := pending_coh_on_irel
     when(io.irel().hasData()) {
@@ -1328,10 +1345,12 @@ class L2WritebackUnit(trackerId: Int)(implicit p: Parameters) extends L2XactTrac
     pending_reads := ~UInt(0, width = innerDataBeats)
     pending_resps := UInt(0)
     pending_orel_data := UInt(0)
-    state := Mux(needs_inner_probes, s_inner_probe, s_busy)
+    //state := Mux(needs_inner_probes, s_inner_probe, s_busy)
+    state := Mux(needs_inner_probes, s_inner_probe, Mux(io.wb.req.bits.coh.dirty, s_busy, s_wb_resp))
   }
   when(state === s_inner_probe && !(pending_iprbs.orR || pending_irels || pending_vol_ignt)) {
     state := Mux(xact.coh.outer.requiresVoluntaryWriteback(), s_busy, s_wb_resp)
+    //state := Mux(xact.coh.dirty, s_busy, s_wb_resp)
   }
   when(state === s_busy && orel_data_done) {
     state := Mux(io.orel().requiresAck(), s_outer_grant, s_wb_resp)
