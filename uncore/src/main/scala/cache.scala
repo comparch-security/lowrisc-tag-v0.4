@@ -495,11 +495,11 @@ class TSHRFile(implicit p: Parameters) extends L2HellaCacheModule()(p)
   io.outer <> outer_arb.io.out
 
   // Wire local memory arrays
-  doInternalOutputArbitration(io.meta.read, trackerList.map(_.io.meta.read))
+  doInternalOutputArbitration(io.meta.read, trackerList.map(_.io.meta.read) :+ wb.io.meta.read)
   doInternalOutputArbitration(io.meta.write, trackerList.map(_.io.meta.write))
   doInternalOutputArbitration(io.data.read, trackerList.map(_.io.data.read) :+ wb.io.data.read)
   doInternalOutputArbitration(io.data.write, trackerList.map(_.io.data.write))
-  doInternalInputRouting(io.meta.resp, trackerList.map(_.io.meta.resp))
+  doInternalInputRouting(io.meta.resp, trackerList.map(_.io.meta.resp) :+ wb.io.meta.resp)
   doInternalInputRouting(io.data.resp, trackerList.map(_.io.data.resp) :+ wb.io.data.resp)
 }
 
@@ -1192,13 +1192,15 @@ class L2WritebackIO(implicit p: Parameters) extends L2HellaCacheBundle()(p) {
 class L2WritebackUnitIO(implicit p: Parameters) extends HierarchicalXactTrackerIO()(p) {
   val wb = new L2WritebackIO().flip
   val data = new L2DataRWIO
+  val meta = new L2MetaRWIO
 }
 
 class L2WritebackUnit(trackerId: Int)(implicit p: Parameters) extends L2XactTracker()(p) {
   val io = new L2WritebackUnitIO
   pinAllReadyValidLow(io)
 
-  val s_idle :: s_inner_probe :: s_busy :: s_outer_grant :: s_wb_resp :: Nil = Enum(UInt(), 5)
+  //val s_idle :: s_inner_probe :: s_busy :: s_outer_grant :: s_wb_resp :: Nil = Enum(UInt(), 5)
+  val s_idle :: s_inner_probe :: s_meta_read :: s_meta_resp :: s_busy :: s_outer_grant :: s_wb_resp :: Nil = Enum(UInt(), 7)
   val state = Reg(init=s_idle)
 
   val xact = Reg(new L2WritebackReq)
@@ -1293,6 +1295,14 @@ class L2WritebackUnit(trackerId: Int)(implicit p: Parameters) extends L2XactTrac
     }
   }
 
+  io.meta.write.valid   := Bool(false)
+  io.meta.read.valid    := state === s_meta_read
+  io.meta.read.bits.id  := UInt(trackerId)
+  io.meta.read.bits.idx := xact.idx
+  io.meta.read.bits.tag := xact.tag
+  io.meta.read.bits.way_en := xact.way_en
+
+
   // If a release didn't write back data, have to read it from data array
   pending_reads := (pending_reads &
                      dropPendingBit(io.data.read) &
@@ -1349,8 +1359,12 @@ class L2WritebackUnit(trackerId: Int)(implicit p: Parameters) extends L2XactTrac
     state := Mux(needs_inner_probes, s_inner_probe, Mux(io.wb.req.bits.coh.dirty, s_busy, s_wb_resp))
   }
   when(state === s_inner_probe && !(pending_iprbs.orR || pending_irels || pending_vol_ignt)) {
-    state := Mux(xact.coh.outer.requiresVoluntaryWriteback(), s_busy, s_wb_resp)
-    //state := Mux(xact.coh.dirty, s_busy, s_wb_resp)
+    //state := Mux(xact.coh.outer.requiresVoluntaryWriteback(), s_busy, s_wb_resp)
+    state := Mux(xact.coh.dirty, s_busy, s_meta_read)
+  }
+  when(state === s_meta_read && io.meta.read.ready) { state := s_meta_resp }
+  when(state === s_meta_resp && io.meta.resp.valid) {
+    state := Mux(io.meta.resp.bits.meta.coh.dirty, s_busy, s_wb_resp)
   }
   when(state === s_busy && orel_data_done) {
     state := Mux(io.orel().requiresAck(), s_outer_grant, s_wb_resp)
