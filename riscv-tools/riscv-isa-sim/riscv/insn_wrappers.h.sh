@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 
 #--------------------------------------
 # if bash failed have a try to use dash
