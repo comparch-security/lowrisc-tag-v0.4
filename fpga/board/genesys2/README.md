@@ -1,11 +1,9 @@
-lowRISC Xilinx KC705 Board Developement Demo
+README for Gensys-2 board
 ========================================================
-
-(Not a stand-alone git repo. Please clone https://github.com/lowrisc/lowrisc-chip.git to have this as a submodule of <lowrisc-chip>/fpga/board/kc705)
 
 Requirement:
 
-  **Vivado 2015.3** and **lowRISC develope environment**
+  **Vivado 2018.3**
 
 How to run the demo:
 --------------------------------------------------------
@@ -21,6 +19,20 @@ How to run the demo:
 * Open the Vivado GUI
 
         make vivado
+
+Run SoCDebug:
+--------------------------------------------------------
+
+        # terminal 1
+        opensocdebugd uart device=/dev/ttyUSB0 speed=3000000
+        
+        # terminal 2
+        osd-cli
+        osd> reset -halt
+        osd> terminal 2
+        osd> mem loadelf boot.bin 3
+        osd> start
+
 
 Other Make targets
 --------------------------------------------------------
