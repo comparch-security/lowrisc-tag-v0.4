@@ -1,0 +1,6 @@
+*.o
+*.output
+*.d
+bbl
+nano_payload
+

@@ -1,0 +1,9 @@
+*.jou
+*.log
+*.str
+lowrisc-chip-imp
+generated-src
+bbl
+src/boot.bmm
+src/boot.mem
+

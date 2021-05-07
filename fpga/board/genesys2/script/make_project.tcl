@@ -113,7 +113,7 @@ set_property verilog_define [list FPGA FPGA_FULL GENESYS2] [get_filesets sources
 set_property "top" "chip_top" [get_filesets sources_1]
 
 #UART
-create_ip -name axi_uart16550 -vendor xilinx.com -library ip -version 2.0 -module_name axi_uart16550_0
+create_ip -name axi_uart16550 -vendor xilinx.com -library ip -module_name axi_uart16550_0
 set_property -dict [list \
                         CONFIG.UART_BOARD_INTERFACE {Custom} \
                         CONFIG.C_S_AXI_ACLK_FREQ_HZ_d {200} \
@@ -143,7 +143,7 @@ generate_target {instantiation_template} \
     [get_files $proj_dir/$project_name.srcs/sources_1/ip/mig_7series_0/mig_7series_0.xci]
 
 # AXI clock converter due to the clock difference
-create_ip -name axi_clock_converter -vendor xilinx.com -library ip -version 2.1 -module_name axi_clock_converter_0
+create_ip -name axi_clock_converter -vendor xilinx.com -library ip -module_name axi_clock_converter_0
 set_property -dict [list \
                         CONFIG.ADDR_WIDTH {30} \
                         CONFIG.DATA_WIDTH $mem_data_width \
