@@ -31,9 +31,9 @@ RISCV_LINK_OPTS = -nostdlib -nostartfiles -ffast-math -lc -lgcc
 
 default: all
 
-TARGETS = boot dram hello sdcard trace jump flash pfc
+TARGETS = boot dram hello sdcard trace jump flash pfc spec
 
-DRIVER_TARGETS = syscalls spi uart memory elf diskio ff
+DRIVER_TARGETS = syscalls spi uart memory elf diskio ff unicode
 
 HEADERS += $(wildcard $(DRIVER_DIR)/*.h) $(GEN_DIR)/dev_map.h
 

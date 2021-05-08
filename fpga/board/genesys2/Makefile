@@ -224,7 +224,7 @@ program-cfgmem-updated: $(project_name)/$(project_name).runs/impl_1/chip_top.new
 # Load examples
 #--------------------------------------------------------------------
 
-EXAMPLES = hello trace boot dram sdcard jump flash selftest tag pfc
+EXAMPLES = hello trace boot dram sdcard jump flash selftest tag pfc spec
 
 examples/Makefile:
 	-mkdir examples
