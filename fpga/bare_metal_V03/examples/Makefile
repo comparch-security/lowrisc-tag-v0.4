@@ -33,7 +33,7 @@ default: all
 
 TARGETS = boot dram hello sdcard trace jump flash pfc spec
 
-DRIVER_TARGETS = syscalls spi uart memory elf diskio ff unicode
+DRIVER_TARGETS = syscalls spi uart memory elf diskio ff unicode fan
 
 HEADERS += $(wildcard $(DRIVER_DIR)/*.h) $(GEN_DIR)/dev_map.h
 

@@ -91,6 +91,10 @@ module chip_top
    `endif
 `endif
 
+`ifdef ADD_FAN
+   output       fan_pwm,
+`endif
+
    // clock and reset
    input         clk_p,
    input         clk_n,
@@ -108,6 +112,10 @@ module chip_top
 
    // interrupt line
    logic [63:0]                interrupt;
+
+   // temperature signal from the ADC
+   logic [11:0]                device_temp;
+   
 
    /////////////////////////////////////////////////////////////
    // NASTI/Lite on-chip interconnects
@@ -297,6 +305,7 @@ module chip_top
       .ddr3_cs_n            ( ddr_cs_n               ),
       .ddr3_dm              ( ddr_dm                 ),
       .ddr3_odt             ( ddr_odt                ),
+      .device_temp          ( device_temp            ),
  `elsif NEXYS4
       .sys_clk_i            ( mig_sys_clk            ),
       .sys_rst              ( clk_locked             ),
@@ -894,9 +903,29 @@ module chip_top
 `endif
 
    /////////////////////////////////////////////////////////////
+   // Fan control
+
+   nasti_channel
+     #(
+       .ADDR_WIDTH  ( `ROCKET_PADDR_WIDTH       ),
+       .DATA_WIDTH  ( `LOWRISC_IO_DAT_WIDTH     ))
+   io_fan_lite();
+
+`ifdef ADD_FAN
+   fan_ctl fan
+     (
+      .clk          ( clk          ),
+      .rstn         ( rstn         ),
+      .nasti        ( io_fan_lite  ),
+      .device_temp  ( device_temp  ),
+      .fan_pwm      ( fan_pwm      )
+      );
+`endif
+
+   /////////////////////////////////////////////////////////////
    // IO crossbar
 
-   localparam NUM_DEVICE = 3;
+   localparam NUM_DEVICE = 4;
 
    // output of the IO crossbar
    nasti_channel
@@ -906,7 +935,7 @@ module chip_top
        .DATA_WIDTH  ( `LOWRISC_IO_DAT_WIDTH     ))
    io_cbo_lite();
 
-   nasti_channel ios_dmm3(), ios_dmm4(), ios_dmm5(), ios_dmm6(), ios_dmm7(); // dummy channels
+   nasti_channel ios_dmm4(), ios_dmm5(), ios_dmm6(), ios_dmm7(); // dummy channels
 
    nasti_channel_slicer #(NUM_DEVICE)
    io_slicer (
@@ -914,7 +943,7 @@ module chip_top
               .slave_0  ( io_host_lite  ),
               .slave_1  ( io_uart_lite  ),
               .slave_2  ( io_spi_lite   ),
-              .slave_3  ( ios_dmm3      ),
+              .slave_3  ( io_fan_lite   ),
               .slave_4  ( ios_dmm4      ),
               .slave_5  ( ios_dmm5      ),
               .slave_6  ( ios_dmm6      ),
@@ -954,6 +983,11 @@ module chip_top
 `ifdef ADD_SPI
    defparam io_crossbar.BASE2 = `DEV_MAP__io_ext_spi__BASE;
    defparam io_crossbar.MASK2 = `DEV_MAP__io_ext_spi__MASK;
+`endif
+
+`ifdef ADD_FAN
+   defparam io_crossbar.BASE3 = `DEV_MAP__io_ext_fan__BASE ;
+   defparam io_crossbar.MASK3 = `DEV_MAP__io_ext_fan__MASK ;
 `endif
 
    /////////////////////////////////////////////////////////////

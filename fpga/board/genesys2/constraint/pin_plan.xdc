@@ -62,3 +62,7 @@ set_property IOSTANDARD LVCMOS33 [get_ports led[6]]
 set_property PACKAGE_PIN W23 [get_ports led[7]]
 set_property IOSTANDARD LVCMOS33 [get_ports led[7]]
 
+#fan
+set_property PACKAGE_PIN W19 [get_ports fan_pwm]
+set_property IOSTANDARD LVCMOS33 [get_ports fan_pwm]
+

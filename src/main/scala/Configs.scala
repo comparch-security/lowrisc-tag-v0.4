@@ -12,6 +12,7 @@ import scala.math.max
 import cde.{Parameters, Config, Dump, Knob, CDEMatchError}
 
 case object UseHost extends Field[Boolean]
+case object UseFAN extends Field[Boolean]
 case object UseUART extends Field[Boolean]
 case object UseSPI extends Field[Boolean]
 case object UseBootRAM extends Field[Boolean]
@@ -54,6 +55,10 @@ class BaseConfig extends Config (
       if (site(UseSPI)) {
         entries += AddrMapEntry("spi", MemSize(1<<13, 1<<13, MemAttr(AddrMapProt.RW)))
         Dump("ADD_SPI", 1)
+      }
+      if (site(UseFAN)) {
+        entries += AddrMapEntry("fan", MemSize(1<<6, 1<<13, MemAttr(AddrMapProt.R)))
+        Dump("ADD_FAN", 1)
       }
       new AddrMap(entries)
     }
@@ -330,6 +335,7 @@ class BaseConfig extends Config (
       // IO devices
       case RAMSize => BigInt(1L << 31)  // 2 GB
       case UseHost => false
+      case UseFAN => false
       case UseUART => false
       case UseSPI => false
       case UseBootRAM => false
@@ -405,6 +411,12 @@ class WithDebugConfig extends Config (
 class WithHostConfig extends Config (
   (pname,site,here) => pname match {
     case UseHost => true
+  }
+)
+
+class WithFANConfig extends Config (
+  (pname,site,here) => pname match {
+    case UseFAN => true
   }
 )
 
@@ -487,7 +499,7 @@ class With6BitTags extends Config(
 
 class BasicFPGAConfig extends
     //Config(new WithTagConfig ++ new WithBootRAMConfig ++ new WithL2 ++ new BaseConfig)
-    Config(new WithTagConfig ++ new WithSPIConfig ++ new WithBootRAMConfig ++ new WithFlashConfig ++ new WithL2 ++ new BaseConfig)
+    Config(new WithTagConfig ++ new WithSPIConfig ++ new WithBootRAMConfig ++ new WithL2 ++ new BaseConfig)
     //Config(new WithSPIConfig ++ new WithBootRAMConfig ++ new WithFlashConfig ++ new WithL2 ++ new BaseConfig)
 
 class FPGAConfig extends
@@ -509,10 +521,10 @@ class KC705DebugConfig extends
   Config(new With1GRamConfig ++ new FPGADebugConfig)
 
 class GENESYS2Config extends
-  Config(new With1GRamConfig ++ new FPGAConfig)
+  Config(new WithFANConfig ++ new With1GRamConfig ++ new FPGAConfig)
 
 class GENESYS2DebugConfig extends
-  Config(new With1GRamConfig ++ new FPGADebugConfig)
+  Config(new WithFANConfig ++ new With1GRamConfig ++ new FPGADebugConfig)
 
 class Nexys4VideoConfig extends
     Config(new With512MRamConfig ++ new FPGAConfig)

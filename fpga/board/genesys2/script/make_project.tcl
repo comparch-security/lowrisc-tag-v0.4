@@ -98,6 +98,7 @@ set files [list \
                [file normalize $glip_dir/common/logic/fifo/verilog/fifo_singleclock_fwft.sv] \
                [file normalize $glip_dir/common/logic/fifo/verilog/fifo_singleclock_noc.sv] \
                [file normalize $glip_dir/common/logic/fifo/verilog/fifo_singleclock_standard.sv] \
+               [file normalize $base_dir/src/main/verilog/fan.sv] \
              ]
 add_files -norecurse -fileset [get_filesets sources_1] $files
 
@@ -240,7 +241,7 @@ set_property include_dirs [list \
                                [file normalize $proj_dir/$project_name.srcs/sources_1/ip/mig_7series_0/mig_7series_0/example_design/sim] \
                               ] $obj
 #set_property verilog_define [list FPGA FPGA_FULL KC705] $obj
-set_property verilog_define [list FPGA] $obj
+set_property verilog_define [list FPGA GENESYS2] $obj
 
 set_property -name {xsim.elaborate.xelab.more_options} -value {-cc gcc -sv_lib dpi} -objects $obj
 set_property "top" "tb" $obj
