@@ -67,11 +67,10 @@ module fan_ctl
        cnt = cnt + 1;
 
    always @(cnt, temperature)
-     if     (temperature > 60) fan_pwm = 1;
-     else if(temperature > 55) fan_pwm = cnt > (1 << cbit) * 80 / 100;
-     else if(temperature > 50) fan_pwm = cnt > (1 << cbit) * 85 / 100;
-     else if(temperature > 48) fan_pwm = cnt > (1 << cbit) * 90 / 100;
-     else if(temperature > 45) fan_pwm = cnt > (1 << cbit) * 95 / 100;
+     if     (temperature >= 60) fan_pwm = 1;
+     else if(temperature >= 55) fan_pwm = cnt > (1 << cbit) * 80 / 100;
+     else if(temperature >= 50) fan_pwm = cnt > (1 << cbit) * 85 / 100;
+     else if(temperature >= 45) fan_pwm = cnt > (1 << cbit) * 90 / 100;
      else                      fan_pwm = 0;
 
 endmodule

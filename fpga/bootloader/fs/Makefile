@@ -85,9 +85,7 @@ S_OBJS = \
 	entry.o \
 	sbi_entry.o \
 	fp_asm.o \
-	# payload.o \
 
-	
 HEADERS += \
 	$(wildcard *.h) \
 	$(GEN_DIR)/dev_map.h \
@@ -227,7 +225,6 @@ junk += \
 	$(patsubst %.o, %.d, $(FP_EMU_OBJS)) \
 	$(patsubst %.h, %.d, $(HEADERS)) \
 	$(patsubst %.h, %.o, $(HEADERS)) \
-	
 
 #--------------------------------------------------------------------
 # Building Targets

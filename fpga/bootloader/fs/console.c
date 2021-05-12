@@ -56,6 +56,7 @@ void dump_tf(trapframe_t* tf)
 
 void die(int code)
 {
+  sbi_shutdown();
   while (1);
 }
 

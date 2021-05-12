@@ -6,6 +6,7 @@
 #include <string.h>
 #include "bits.h"
 #include "rtc.h"
+#include "rtcctrl.h"
 #include "ff.h"
 
 
@@ -116,7 +117,7 @@ void init_first_hart()
   uart_init(); // init early if need to debug config string
   parse_config_string();
   memory_init();
-  uart_init();
+  //uart_init();
   // f_mount(&FatFs,"0:",1);
   // f_mount(&FatFs,"0:",1);
   boot_loader();
@@ -148,6 +149,7 @@ void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t stack)
   // write_csr(sptbr, (uintptr_t)root_page_table);
   
   //enable rtc2 interrupt
+  start_instret = read_csr(minstret);
   rtc2_update_cmp(5000000);
   set_csr(mstatus,MSTATUS_MIE);
 

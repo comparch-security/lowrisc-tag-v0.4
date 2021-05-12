@@ -56,7 +56,7 @@ int main (void)
       printf("Can't read or create current.txt!");
       return 1;
     } else {
-      f_puts("0", &fil);
+      f_puts("1", &fil);
       f_close(&fil);
     }
   } else {

@@ -176,6 +176,14 @@
   asm volatile ("csrw swtrace, %0" :: "r"(id)); \
   }
 
+#define jump_to_bram() \
+  { \
+  asm volatile ("jr %0": :"r" ((uint64_t)DEV_MAP__io_ext_bram__BASE)); \
+  }
+
+extern char *case_buffer;
+extern char *spec_case;
+
 #define rdtime() read_csr(time)
 #define rdcycle() read_csr(cycle)
 #define rdinstret() read_csr(instret)

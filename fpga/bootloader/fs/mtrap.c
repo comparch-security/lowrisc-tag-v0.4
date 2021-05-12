@@ -187,6 +187,8 @@ static uintptr_t mcall_htif_syscall(uintptr_t magic_mem)
 // WS need change
 void poweroff()
 {
+  putstring("========================== power off ============================\n");
+  jump_to_bram();
   while (1) {
 #ifdef DEV_MAP__io_ext_host__BASE
     *tohost = 1;
@@ -413,15 +415,19 @@ static void machine_page_fault(uintptr_t* regs, uintptr_t mepc)
   bad_trap();
 }
 
+uint64_t start_instret = 0;
+
 static void rtc2_req_interrupt() {
   // printm("rtc2 interrupt.\n");
   rtc2_update_cmp(BBL_PK_RTC2_DELTA);
 #ifdef BBL_PK_LIMITED_RUN
   static int exited ;
     uint64_t minstret = read_csr(minstret);
-  if (minstret >= BBL_PK_MINSTRET_TERMINATE){
+  if (minstret - start_instret >= BBL_PK_MINSTRET_TERMINATE){
     if(!exited){
       exited = 1;
+      write_csr(stagctrl, 0);
+      write_csr(mtagctrl,  0);
       redirect_trap(read_csr(mepc),read_csr(mstatus));
     }
   }

@@ -53,8 +53,7 @@ void dump_uarch_counters()
 }
 
 #define MAX_ARGS 64
-typedef union {
-  uint64_t buf[MAX_ARGS];
+typedef struct {
   char* argv[MAX_ARGS];
 } arg_buf;
 
@@ -208,23 +207,29 @@ void s_mode_ftest(void)
  
 }
 
-static int args_parser(char * str, arg_buf * args){
-  static char buf [256];
-  strncpy(buf,str,256);
+char *case_buffer = (char *)(DEV_MAP__io_ext_bram__BASE + DEV_MAP__io_ext_bram__MASK + 1 - 128);
+char *spec_case;
+char *case_dir;
 
-
+static int args_parser(arg_buf * args){
   int argc = 0;
-  char* arg = strtok(buf," ");
-  do {
-    if (strlen(arg) == 0) 
-      continue;
-    args->argv[argc++] = arg;
-  }while((arg = strtok(NULL," ")) != NULL);
 
-  printk("total number of args: %d\n",argc);
+  printk("the original cfg string %s\n",case_buffer);
+  
+  spec_case = strtok(case_buffer," \n\r");
+  case_dir = strtok(NULL," \n\r");
+
+  do{
+    args->argv[argc++] = strtok(NULL," \n\r");
+  } while(args->argv[argc-1] && strlen(args->argv[argc-1]) > 0);
+
+  argc--;
+
+  printk("%d arguments in total: ", argc);
   for(int i = 0; i < argc; i++){
-    printk("argv[%d] is %s\n",i,args->argv[i]);
+    printk("%s ", args->argv[i]);
   }
+  printk("\n");
 
   for (int i = 0; i< argc; i++){
     if (args->argv[i] == NULL)
@@ -235,87 +240,38 @@ static int args_parser(char * str, arg_buf * args){
       int ret = file_reopen(0,args->argv[i+1],O_RDONLY);
       if (ret) printk("file reopen failed, fd = %d, fname = %s\n",0,args->argv[i+1]);
 
-      args->argv[i] = args->argv[i+1] = NULL;
+      args->argv[i] = NULL;
+      args->argv[i+1] = NULL;
     }
-
     else if (strncmp(args->argv[i],">",1) == 0) {
       // redirect stdout
       int ret = file_reopen(1,args->argv[i+1],O_WRONLY|O_CREAT);
       if (ret ) printk("file reopen failed, fd = %d, fname = %s\n",1,args->argv[i+1]);
     
-      args->argv[i] = args->argv[i+1] = NULL;
+      args->argv[i] = NULL;
+      args->argv[i+1] = NULL;
     }
 
   }
 
   //rearrange parameters
-  for (int i = 0; i< argc; i++)
+  int new_argc = 0;
+  for (int i = 0; i<argc; i++)
   {
-    if (args->argv[i] == NULL){
-      for (int j = i+1; j< argc; j++){
-        if (args->argv[j] != NULL){
-          args->argv[i] = args->argv[j];
-          args->argv[j] = NULL;
-        }
-      }
-    }
+    if(args->argv[i] != NULL)
+      args->argv[new_argc++] = args->argv[i];
   }
 
-  size_t new_argc = argc;
-  for (int i = 0; i< argc;i++)
-  {
-    if (args->argv[i] == 0){
-      new_argc = i;
-      break;
+  if(new_argc != argc) {
+    argc = new_argc;
+    printk("%d arguments in total: ", argc);
+    for(int i = 0; i < argc; i++){
+      printk("%s ", args->argv[i]);
     }
+    printk("\n");
   }
-
-  if (argc != new_argc){
-    printk("After dealing with stdin/out redirection, total number of args: %d\n",new_argc);
-    for(int i = 0; i < new_argc; i++){
-      printk("argv[%d] is %s\n",i,args->argv[i]);
-    }
-  }
-  
-  argc = new_argc;
 
   return argc;
-}
-
-static int read_batch(const char * bn,size_t * pargc, arg_buf * args)
-{
-  if(!bn)
-    return -1;
-  
-  static char buf [1024];
-
-  file_t * batch = file_open(bn,O_RDONLY);
-  if(!batch) return -1;
-
-  ssize_t rsize = file_read(batch,buf,1024);
-  if(rsize < 0) {
-    file_decref(batch);
-    file_decref(batch);
-    return -1;
-  }
-
-  char * command = strtok(buf,"\n");
-  // batch has two lines, the first line is a cd command.
-  if (strncmp("cd",command,2) == 0){
-    char * pnonspace = command + 2; // find the first non-blank char
-    while(*pnonspace && *pnonspace == ' ')
-      pnonspace++;
-    
-    if(*pnonspace) file_chdir(pnonspace);
-  }
-
-  command = strtok(NULL,"\n");
-  if(!command) return -1;
-
-  // the second line of batch, running SPEC benchmark;
-  *pargc = args_parser(command,args);
-
-  return 0;  
 }
 
 extern void supervisor_mmap_display();
@@ -330,269 +286,13 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
   arg_buf args;
   size_t argc ;
 
- #if(ELFINSD==1)
   /* We need to mount CF twice */
   long fr = file_mount();
   fr = file_mount();
-
-  // s_mode_ftest();
-
-
-
-  const static char * dirs [] = {
-    "/0:/400.perlbench",
-    "/0:/403.gcc",
-    "/0:/429.mcf",
-    "/0:/445.gobmk",
-    "/0:/456.hmmer",
-    "/0:/462.libquantum",
-    "/0:/464.h264ref",
-    "/0:/471.omnetpp",
-    "/0:/473.astar",
-    "/0:/483.xalancbmk",
-    "/0:/401.bzip2",
-    "/0:/458.sjeng",
-    "/0:/410.bwaves",
-    "/0:/416.gamess",
-    "/0:/433.milc",
-    "/0:/434.zeusmp",
-    "/0:/435.gromacs",
-    "/0:/436.cactusADM",
-    "/0:/437.leslie3d",
-    "/0:/444.namd",
-    "/0:/447.dealII",
-    "/0:/450.soplex",
-    "/0:/453.povray",
-    "/0:/454.calculix",
-    "/0:/459.GemsFDTD",
-    "/0:/465.tonto",
-    "/0:/470.lbm",
-    "/0:/481.wrf",
-    "/0:/482.sphinx3",
-    "/0:/ehtest",
-    "/0:/openftest",
-    "/0:/"
-  };
-
-  static char * argstrset [] = {
-      "libquantum 1397 8",
-      "mcf inp.in",
-      "sjeng ref.txt",
-      "Xalan -v t5.xml xalanc.xsl",
-      "astar BigLakes2048.cfg",
-      "astar rivers.cfg",
-      "omnetpp omnetpp.ini",
-      "h264ref -d foreman_ref_encoder_baseline.cfg",
-      "h264ref -d foreman_ref_encoder_main.cfg",
-      "h264ref -d sss_encoder_main.cfg",
-      "hmmer nph3.hmm swiss41",
-      "hmmer --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm",
-      "bzip2 input.source 280",
-      "bzip2 chicken.jpg 30",
-      "bzip2 liberty.jpg 30",
-      "bzip2 input.program 280",
-      "bzip2 text.html 280",
-      "bzip2 input.combined 200",
-      "gcc 166.i -o 166.s",
-      "gcc 200.i -o 200.s",
-      "gcc c-typeck.i -o c-typeck.s",
-      "gcc cp-decl.i -o cp-decl.s",
-      "gcc expr.i -o expr.s",
-      "gcc expr2.i -o expr2.s",
-      "gcc g23.i -o g23.s",
-      "gcc s04.i -o s04.s",
-      "gcc scilab.i -o scilab.s",
-      "perlbench -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1",
-      "perlbench -I./lib diffmail.pl 4 800 10 17 19 300",
-      "perlbench -I./lib splitmail.pl 1600 12 26 16 4500",
-      "gobmk --quiet --mode gtp < 13x13.tst",
-      "gobmk --quiet --mode gtp < nngs.tst",
-      "gobmk --quiet --mode gtp < score2.tst",
-      "gobmk --quiet --mode gtp < trevorc.tst",
-      "gobmk --quiet --mode gtp < trevord.tst",
-
-      "bwaves",
-      "gamess < cytosine.2.config",
-      "gamess < h2ocu2+.gradient.config",
-      "gamess < triazolium.config",
-      "milc < su3imp.in",
-      "zeusmp",
-      "gromacs -silent -deffnm gromacs -nice 0",
-      "cactusADM benchADM.par",
-      "leslie3d < leslie3d.in",
-      "namd --input namd.input --iterations 38 --output namd.out",
-      "dealII 23",
-      "soplex -s1 -e -m45000 pds-50.mps",
-      "soplex -m3500 ref.mps",
-      "povray SPEC-benchmark-ref.ini",
-      "calculix -i  hyperviscoplastic",
-      "GemsFDTD",
-      "tonto",
-      "lbm 3000 reference.dat 0 0 100_100_130_ldc.of",
-      "wrf",
-      "sphinx_livepretend ctlfile . args.an4"
-      
-  };
-  
-  if(read_batch("0:/run.sh",&argc,&args) == -1){
-
-#ifdef ELFDIRNUM
-    file_chdir(dirs[(ELFDIRNUM)]);
-#else
-    // file_chdir("/0:/400.perlbench");
-    // file_chdir("/0:/403.gcc");
-    // file_chdir("/0:/429.mcf");
-    // file_chdir("/0:/445.gobmk");
-    // file_chdir("/0:/456.hmmer");
-    // file_chdir("/0:/462.libquantum");
-    // file_chdir("/0:/464.h264ref");
-    // file_chdir("/0:/471.omnetpp");
-    // file_chdir("/0:/473.astar");
-    // file_chdir("/0:/483.xalancbmk");
-    // file_chdir("/0:/401.bzip2");
-    // file_chdir("/0:/458.sjeng");
-    // file_chdir("/0:/410.bwaves");
-    // file_chdir("/0:/416.gamess");
-    // file_chdir("/0:/433.milc");
-    // file_chdir("/0:/434.zeusmp");
-    // file_chdir("/0:/435.gromacs");
-    // file_chdir("/0:/436.cactusADM");
-    // file_chdir("/0:/437.leslie3d");
-    // file_chdir("/0:/444.namd");
-    // file_chdir("/0:/447.dealII");
-    // file_chdir("/0:/450.soplex");
-    // file_chdir("/0:/453.povray");
-    // file_chdir("/0:/454.calculix");
-    // file_chdir("/0:/459.GemsFDTD");
-    // file_chdir("/0:/465.tonto");
-    // file_chdir("/0:/470.lbm");
-    // file_chdir("/0:/481.wrf");
-    // file_chdir("/0:/482.sphinx3");
-    // file_chdir("/0:/ehtest");
-    // file_chdir("/0:/openftest");
-    // file_chdir("/0:/");
-#endif
-    static char argstr_st [256] = 
-      ""
-
-     /**** test input ***/
-
-      // "hmmer --fixed 0 --mean 325 --num 45000 --sd 200 --seed 0 bombesin.hmm"
-      // "mcf inp.in"
-      // "omnetpp omnetpp.ini"
-      // "gobmk --quiet --mode gtp < capture.tst"
-      // "gobmk --quiet --mode gtp < connect.tst"
-      // "gobmk --quiet --mode gtp < connect_rot.tst"
-      // "gobmk --quiet --mode gtp < connection.tst"
-      // "gobmk --quiet --mode gtp < connection_rot.tst"
-      // "gobmk --quiet --mode gtp < cutstone.tst"
-      // "gobmk --quiet --mode gtp < dniwog.tst"
-      // "gobmk --mode gtp"
-      // "astar lake.cfg"
-      // "h264ref -d foreman_test_encoder_baseline.cfg"
-      // "perlbench -I. -I./lib attrs.pl"
-      // "perlbench -I. -I./lib gv.pl"
-      // "perlbench  -I. -I./lib makerand.pl"
-      // "perlbench  -I. -I./lib pack.pl"
-      // "perlbench  -I. -I./lib regmesg.pl"
-      // "perlbench  -I. -I./lib test.pl"
-      // "payload < test.txt"
-      // "payload"
-      //  "gcc cccp.i -o cccp.s"
-      // "Xalan -v test.xml xalanc.xsl"
-      // "libquantum 33 5"
-      // "bzip2 input.program 5"
-      // "bzip2 dryer.jpg 2"
-      // "sjeng test.txt"
-
-    /***** test input end ****/
-
-    /***** ref input ******/
-      // "libquantum 1397 8"
-      // "mcf inp.in"
-      // "sjeng ref.txt"
-      // "Xalan -v t5.xml xalanc.xsl"
-      // "astar BigLakes2048.cfg"
-      // "astar rivers.cfg"
-      // "omnetpp omnetpp.ini"
-      // "h264ref -d foreman_ref_encoder_baseline.cfg"
-      // "h264ref -d foreman_ref_encoder_main.cfg"
-      // "h264ref -d sss_encoder_main.cfg"
-      // "hmmer nph3.hmm swiss41"
-      // "hmmer --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm"
-      // "bzip2 input.source 280"
-      // "bzip2 chicken.jpg 30"
-      // "bzip2 liberty.jpg 30"
-      // "bzip2 input.program 280"
-      // "bzip2 text.html 280"
-      // "bzip2 input.combined 200"
-      // "gcc 166.i -o 166.s"
-      // "gcc 200.i -o 200.s"
-      // "gcc c-typeck.i -o c-typeck.s"
-      // "gcc cp-decl.i -o cp-decl.s"
-      // "gcc expr.i -o expr.s"
-      // "gcc expr2.i -o expr2.s"
-      // "gcc g23.i -o g23.s"
-      // "gcc s04.i -o s04.s"
-      // "gcc scilab.i -o scilab.s"
-      // "perlbench -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1"
-      // "perlbench -I./lib diffmail.pl 4 800 10 17 19 300"
-      // "perlbench -I./lib splitmail.pl 1600 12 26 16 4500"
-      // "gobmk --quiet --mode gtp < 13x13.tst"
-      // "gobmk --quiet --mode gtp < nngs.tst"
-      // "gobmk --quiet --mode gtp < score2.tst"
-      // "gobmk --quiet --mode gtp < trevorc.tst"
-      // "gobmk --quiet --mode gtp < trevord.tst"
-
-      // "bwaves"
-      // "gamess < cytosine.2.config"
-      // "gamess < h2ocu2+.gradient.config"
-      // "gamess < triazolium.config"
-      // "milc < su3imp.in"
-      // "zeusmp"
-      // "gromacs -silent -deffnm gromacs -nice 0"
-      // "cactusADM benchADM.par"
-      // "leslie3d < leslie3d.in"
-      // "namd --input namd.input --iterations 38 --output namd.out"
-      // "dealII 23"
-      // "soplex -s1 -e -m45000 pds-50.mps"
-      // "soplex -m3500 ref.mps"
-      // "povray SPEC-benchmark-ref.ini"
-      // "calculix -i  hyperviscoplastic"
-      // "GemsFDTD"
-      // "tonto"
-      // "lbm 3000 reference.dat 0 0 100_100_130_ldc.of"
-      // "wrf"
-      // "sphinx_livepretend ctlfile . args.an4"
-      
-
-
-    /***** ref input end *****/
-      // "structra.riscv"
-      // "openfile"
-      // "hello"
-      ;
-
-char * argstr =
-#ifdef ELFINPNUM
-    argstrset[(ELFINPNUM)];
-#else
-    argstr_st;
-#endif
-
-    argc = args_parser(argstr,&args); 
-
-  }
-
+  argc = args_parser(&args);
+  file_chdir(case_dir);
   load_elf(args.argv[0], &current);
   // supervisor_mmap_display();
-#else
-  extern char _payload_start, _payload_end;
-  static char argstr [256] ="empty"; //" " would cause bug
-  argc = args_parser(argstr,&args);
-  if(load_elf_from_DRAM(&_payload_start, &_payload_end-&_payload_start, &current))
-    printk("load payload from dram successed\n");
-#endif
 
   run_loaded_program(argc,args.argv, kstack_top);
 }

@@ -620,13 +620,18 @@ void vm_init()
   uintptr_t sbi_start = (uintptr_t)&sbi_base;
   uintptr_t sbi_term = (uintptr_t)sbi_top_paddr();
   uintptr_t sbi_vstart = (uintptr_t)((((DEV_MAP__mem__MASK + 1) << RISCV_PGSHIFT) -(sbi_term - sbi_start)));
-  printm("sbi paddr: %p-%p, vaddr %p-%p\n",sbi_start,sbi_term,sbi_vstart,(1lu<<40));
+  //printm("sbi paddr: %p-%p, vaddr %p-%p\n",sbi_start,sbi_term,sbi_vstart,(1lu<<40));
   
   __map_kernel_range(sbi_vstart,sbi_start,sbi_term - sbi_start,PROT_READ|PROT_EXEC);
-  
 
-  // vm_display();
-  // mmap_display(root_page_table);
+  __map_kernel_range((uintptr_t)(DEV_MAP__io_ext_bram__BASE),
+                     (uintptr_t)(DEV_MAP__io_ext_bram__BASE),
+                     (uintptr_t)(DEV_MAP__io_ext_bram__MASK + 1),
+                     PROT_READ|PROT_WRITE|PROT_EXEC);
+
+  
+  //vm_display();
+  //mmap_display(root_page_table);
 }
 
 uintptr_t pk_vm_init()
