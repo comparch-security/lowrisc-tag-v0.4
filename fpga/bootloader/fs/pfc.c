@@ -1,8 +1,7 @@
 #include "bbl.h"
 #include "pfc.h"
 
-pfc_response pfc;
-
+pfc_response pfc[3];
 
 void get_pfc(pfc_response * ppfc)
 {
@@ -77,12 +76,22 @@ ppfc->cycles = rdcycle();
 #endif
 }
 
-void pfc_diff (pfc_response * result, pfc_response * decline)
+void pfc_diff (pfc_response *start, pfc_response *end, pfc_response *result)
 {
-    result->instret -= decline->instret;
-    result->cycles -= decline->cycles;
+    result->instret = end->instret - start->instret;
+    result->cycles  = end->cycles  - start->cycles;
     for (int i = 0 ; i < pfc_total_resp; i ++)
-        result->resp[i] -= decline->resp[i];
+        result->resp[i] = end->resp[i] - start->resp[i];
+}
+
+void pfc_log(int code) 
+{
+
+  get_pfc(&pfc[code]);
+  if(code !=0) {
+    pfc_diff(&pfc[0], &pfc[1], &pfc[2]);
+    //pfc_display(&pfc[2]);
+  }
 }
 
 void pfc_display(pfc_response * ppfc)
@@ -95,7 +104,7 @@ uint64_t cycles = ppfc -> cycles;
 
 #ifdef ENA_PFC
 
-  printk("instret: %15lld\n\n",instret);
+  printk("instret: %15lld\n",instret);
   printk("total time: %15lld\n",cycles);
 
   printk("L1I_read,     L1I_readmiss\n");

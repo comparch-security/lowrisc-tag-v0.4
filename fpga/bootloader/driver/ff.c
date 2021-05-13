@@ -23,7 +23,6 @@
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of device I/O functions */
 
-
 /*--------------------------------------------------------------------------
 
    Module Private Definitions
@@ -3665,7 +3664,6 @@ FRESULT f_open (
 	FSIZE_t ofs;
 #endif
 	DEF_NAMBUF
-
 
 	if (!fp) return FR_INVALID_OBJECT;
 

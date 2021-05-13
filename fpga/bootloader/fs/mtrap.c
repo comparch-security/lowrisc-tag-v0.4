@@ -4,6 +4,7 @@
 #include "bits.h"
 #include "uart.h"
 #include "rtc.h"
+#include "pfc.h"
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -423,18 +424,17 @@ static void machine_page_fault(uintptr_t* regs, uintptr_t mepc)
 uint64_t start_instret = 0;
 
 static void rtc2_req_interrupt() {
-  // printm("rtc2 interrupt.\n");
+  //printm("rtc2 interrupt.\n");
+  static int exited ;  
+  uint64_t minstret = read_csr(minstret);
+  //printm("... update RTC2 ... \n");
   rtc2_update_cmp(BBL_PK_RTC2_DELTA);
-#ifdef BBL_PK_LIMITED_RUN
-  static int exited ;
-    uint64_t minstret = read_csr(minstret);
   if (minstret - start_instret >= BBL_PK_MINSTRET_TERMINATE){
     if(!exited){
       exited = 1;
       redirect_trap(read_csr(mepc),read_csr(mstatus));
     }
   }
-#endif 
 }
 
 void trap_from_machine_mode(uintptr_t* regs, uintptr_t dummy, uintptr_t mepc)

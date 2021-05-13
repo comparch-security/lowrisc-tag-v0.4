@@ -13,8 +13,6 @@
 #include "elf.h"
 #include "pfc.h"
 
-pfc_response pfc0,pfc;
-
 elf_info current;
 #define NUM_COUNTERS 18
 static int uarch_counters_enabled;
@@ -67,7 +65,7 @@ static void init_tf(trapframe_t* tf, long pc, long sp)
 
 static void run_loaded_program(size_t argc, char** argv, uintptr_t kstack_top)
 {
-  printk("begin running loaded program.\n");
+  //printk("begin running loaded program.\n");
   // copy phdrs to user stack
   size_t stack_top = current.stack_top - current.phdr_size;
   memcpy((void*)stack_top, (void*)current.phdr, current.phdr_size);
@@ -82,7 +80,7 @@ static void run_loaded_program(size_t argc, char** argv, uintptr_t kstack_top)
   }
   stack_top &= -sizeof(void*);
   
-  printk("before init stack\n");
+  printk("-------------------------------\n");
 
   struct {
     long key;
@@ -128,17 +126,16 @@ static void run_loaded_program(size_t argc, char** argv, uintptr_t kstack_top)
   if (current.instret0) // count instret if so requested
     current.instret0 = rdinstret();
 
-  get_pfc(&pfc0);
-
   start_uarch_counters();
 
   trapframe_t tf;
   // init_tf(&tf, 0x3f2bd0 , stack_top);
   init_tf(&tf, current.entry, stack_top);
-  printk("current entry is %p\n",current.entry);
+  //printk("current entry is %p\n",current.entry);
   __clear_cache(0, 0);
   write_csr(sscratch, kstack_top);
-  printk("before starting user mode.\n");
+  //printk("before starting user mode.\n");
+  pfc_log(0);
   start_user(&tf);
 }
 
@@ -214,7 +211,7 @@ char *case_dir;
 static int args_parser(arg_buf * args){
   int argc = 0;
 
-  printk("the original cfg string %s\n",case_buffer);
+  //printk("the original cfg string %s\n",case_buffer);
   
   spec_case = strtok(case_buffer," \n\r");
   case_dir = strtok(NULL," \n\r");
@@ -267,11 +264,11 @@ static int args_parser(arg_buf * args){
 
   if(new_argc != argc) {
     argc = new_argc;
-    printk("%d arguments in total: ", argc);
-    for(int i = 0; i < argc; i++){
-      printk("%s ", args->argv[i]);
-    }
-    printk("\n");
+    //printk("%d arguments in total: ", argc);
+    //for(int i = 0; i < argc; i++){
+    //  printk("%s ", args->argv[i]);
+    //}
+    //printk("\n");
   }
 
   return argc;

@@ -11,7 +11,7 @@
 #include "mtrap.h"
 // #include <string.h>
 
-#define MAX_FILES 32
+#define MAX_FILES 64
 file_t files[MAX_FILES];
 spinlock_t file_lock = SPINLOCK_INIT;
 spinlock_t refcnt_lock = SPINLOCK_INIT;
@@ -97,6 +97,7 @@ int file_reopen(int fd, const char* fn,int flags)
     if(flags & O_EXCL) mode |= FA_CREATE_NEW;
     else if (flags & O_TRUNC) mode |= FA_CREATE_ALWAYS;
     else if (flags & O_CREAT) mode |= FA_OPEN_ALWAYS;
+    else if (flags & O_APPEND) mode |= FA_OPEN_APPEND;
 
     if (fd == 0){
       mode = FA_READ;
@@ -150,8 +151,9 @@ void file_decref(file_t* f)
 {
   long flags = spinlock_lock_irqsave(&refcnt_lock);
   long prev = f->refcnt;
-  f->refcnt = prev - 1;
-  if (prev == 2)
+  if(prev > 2)
+    f->refcnt = prev - 1;
+  else if(prev <= 2)
   {
     f->refcnt = 0;
     f->offset = 0;
@@ -239,6 +241,7 @@ file_t* file_openat(int dirfd, const char* fn, int flags)
   if(flags & O_EXCL) mode |= FA_CREATE_NEW;
   else if (flags & O_TRUNC) mode |= FA_CREATE_ALWAYS;
   else if (flags & O_CREAT) mode |= FA_OPEN_ALWAYS;
+  else if (flags & O_APPEND) mode |= FA_OPEN_APPEND;
 
   // FRESULT rt = f_open(&f->fd, fn, mode); /* check mode */
   FRESULT rt = (FRESULT) frontend_syscall(SYS_open,va2pa(&f->fd),va2pa(fn),mode,0,0,0,0);

@@ -3,12 +3,12 @@
 #include "syscall.h"
 #include "bbl.h"
 #include "file.h"
+#include "pfc.h"
 #include "vm.h"
 #include <string.h>
 #include <errno.h>
 // #include "uart.h"
 #include "sbi.h"
-#include "pfc.h"
 #include <stdarg.h>
 #include <fcntl.h>
 
@@ -19,9 +19,6 @@ typedef long (*syscall_t)(long, long, long, long, long, long, long);
 
 #define CLOCK_FREQ 1000000000
 
-
-
-extern pfc_response pfc0,pfc;
 extern int vsnprintf(char* out, size_t n, const char* s, va_list vl);
 
 static int vfprintk(file_t* fhdl, const char* s, va_list vl)
@@ -43,63 +40,31 @@ static int fprintk(file_t* fhdl, const char* s, ...)
   return ret;
 }
 
-
-void pfc_log(pfc_response * ppfc, char * fname, int code) 
-{
-
-  //file_chdir("/0:/output");
-  //file_t * fhdl = file_open(fname,O_WRONLY|O_TRUNC);
-  //if(!fhdl) return;
-
-  uint64_t * pfcresp = ppfc->resp;
-  uint64_t instret = ppfc->instret;
-  uint64_t cycles = ppfc->cycles;
-
-  printk("exit code: %d\n",code);
-  printk("total time: %15lld\n",cycles);
-
-#ifdef ENA_PFC
-
-  printk("instret: %15lld\n\n",instret);
-
-  printk("L1I_read,     L1I_readmiss\n");
-  printk("%lld  %10lld\n\n", pfcresp[0], pfcresp[1]);
-  printk("L1D_read,     L1D_readmiss,     L1D_write,     L1D_writemiss,     L1D_writeback\n");
-  printk("%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[2],pfcresp[3],pfcresp[4],pfcresp[5],pfcresp[6]);
-
-#if(L2Banks!=0)
-  printk("L2_read,      L2_readmiss,      L2_write,      L2_writeback\n");
-  printk("%lld  %10lld  %10lld  %10lld\n\n", pfcresp[7],pfcresp[8],pfcresp[9],pfcresp[10]);
-#endif
-
-#if(ADD_TC)
-  printk("TC_readTT,   TC_readTTmiss,    TC_writeTT,   TC_writeTTmiss,    TC_writeTTback\n");
-  printk("%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[11],pfcresp[12],pfcresp[13],pfcresp[14],pfcresp[15]);
-  printk("TC_readTM0,  TC_readTM0miss,   TC_writeTM0,  TC_writeTM0miss,   TC_writeTM0back\n");
-  printk("%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[16],pfcresp[17],pfcresp[18],pfcresp[19],pfcresp[20]);
-  printk("TC_readTM1,  TC_readTM1miss,   TC_writeTM1,  TC_writeTM1miss,   TC_writeTM1back\n");
-  printk("%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[21],pfcresp[22],pfcresp[23],pfcresp[24],pfcresp[25]);
-#endif
-
-#endif
-
-}
-
 void sys_exit(int code)
 {
-  size_t cycle = rdcycle(),instret=rdinstret();
-  get_pfc(&pfc);
+  printk("enter sys_exit()\n");
   static int already_exited = 0;
-  printk("program exited.\n");
-  
   if(!already_exited) 
     already_exited = 1;
   else die(code);
+
+  pfc_log(1);
+  file_t *pfl = file_open("/result.dat", O_RDWR|O_CREAT);
+  if(NULL == pfl) {
+    printk("Fail to open the result file!\n");
+  } else {
+    file_lseek(pfl, 0, SEEK_END);
+    printk("Begin write to the result file...\n");
+    fprintk(pfl, spec_case);
+    fprintk(pfl, " %15lld %15lld", pfc[2].instret, pfc[2].cycles);
+    for (int i = 0 ; i < pfc_total_resp; i ++)
+      fprintk(pfl, " %15lld", pfc[2].resp[i]);
+    fprintk(pfl, "\n");
+    file_decref(pfl);
+  }
+
+  printk("program exited. Run %ld instructions in %ld cycles.\n\n", pfc[2].instret, pfc[2].cycles);
   
-  if (current.t0)
-    printk("%ld cycles\n", cycle - current.t0);
-  // if (current.instret0)
-  //   printk("%ld instrets\n", instret - current.instret0);
   dump_uarch_counters();
   if(code) {
     char str[] = "error! exit(0xFFFFFFFFFFFFFFFF)\n";
@@ -110,10 +75,6 @@ void sys_exit(int code)
     }
     sbi_send_string(str);
   }    
-
-  pfc_diff(&pfc, &pfc0);
-  pfc_display(&pfc);
-  pfc_log(&pfc,"ref" M_STR2(ELFINPNUM) ".log",code);
   die(code);
 }
 

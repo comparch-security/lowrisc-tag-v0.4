@@ -18,9 +18,9 @@ typedef struct file
   unsigned refcnt;
 } file_t;
 extern file_t files[];
-#define stdin  (files + 0)
-#define stdout (files + 1)
-#define stderr (files + 2)
+//#define stdin  (files + 0)
+//#define stdout (files + 1)
+//#define stderr (files + 2)
 
 #define AT_FDCWD -100
 

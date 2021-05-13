@@ -152,6 +152,7 @@ void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t stack)
   start_instret = read_csr(minstret);
   rtc2_update_cmp(5000000);
   set_csr(mstatus,MSTATUS_MIE);
+  //printm("... initialize RTC2 ... \n");
 
   mstatus = read_csr(mstatus);
   mepc = read_csr(mepc);

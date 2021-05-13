@@ -20,7 +20,9 @@ typedef struct {
     uint64_t cycles;
 } pfc_response;
 
+extern pfc_response pfc[3];
+
 void get_pfc(pfc_response * ppfc);
-void pfc_diff (pfc_response * result, pfc_response * decline);
+void pfc_diff (pfc_response *start, pfc_response *end, pfc_response *result);
 void pfc_display(pfc_response * ppfc);
-void pfc_log(pfc_response * ppfc, char * fname, int code);
+void pfc_log(int code);

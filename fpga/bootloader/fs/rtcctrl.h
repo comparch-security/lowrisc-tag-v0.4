@@ -1,8 +1,7 @@
 #ifndef _BBL_PK_RTC_CTRL
 #define _BBL_PK_RTC_CTRL
 
-#define BBL_PK_RTC2_DELTA 0x100000lu
-//#define BBL_PK_RTC2_DELTA 0x100000000lu
+#define BBL_PK_RTC2_DELTA 500000000lu
 
 #define BBL_PK_LIMITED_RUN
 
@@ -11,8 +10,7 @@ extern uint64_t start_instret;
 #ifdef BBL_PK_LIMITED_RUN
 
 // #define BBL_PK_MINSTRET_WARMUP 0         //saved for future use.
-#define BBL_PK_MINSTRET_TERMINATE 0x10000000 //saved for future use.
-//#define BBL_PK_MINSTRET_TERMINATE 10000000000lu
+#define BBL_PK_MINSTRET_TERMINATE 10000000000lu
 
 #else 
 
