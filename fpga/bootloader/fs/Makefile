@@ -96,7 +96,8 @@ DRIVER_OBJS = \
 	rtc.o \
 	diskio.o \
 	ff.o \
-	unicode.o \
+	ffunicode.o \
+	ffsystem.o \
 
 DRIVER_HEADERS += \
 	$(wildcard $(DRIVER_DIR)/*.h) \

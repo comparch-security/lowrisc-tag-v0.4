@@ -6,6 +6,7 @@
 #include <string.h>
 #include "sbi.h"
 #include "mcall.h"
+#include "file.h"
 
 extern int vsnprintf(char* out, size_t n, const char* s, va_list vl);
 
@@ -56,6 +57,8 @@ void dump_tf(trapframe_t* tf)
 
 void die(int code)
 {
+  if(file_umount())
+    printk("fail to umount the SD before die!\n");
   sbi_shutdown();
   while (1);
 }

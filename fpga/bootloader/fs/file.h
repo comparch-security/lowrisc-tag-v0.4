@@ -49,7 +49,7 @@ file_t* file_get(int fd);
 int fd_close(int fd);
 
 long file_mount();
-
+long file_umount();
 void file_display();
 
 #endif

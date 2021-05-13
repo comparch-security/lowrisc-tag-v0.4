@@ -218,6 +218,7 @@ static int args_parser(arg_buf * args){
   
   spec_case = strtok(case_buffer," \n\r");
   case_dir = strtok(NULL," \n\r");
+  file_chdir(case_dir);
 
   do{
     args->argv[argc++] = strtok(NULL," \n\r");
@@ -237,6 +238,8 @@ static int args_parser(arg_buf * args){
 
     if (strncmp(args->argv[i],"<",1) == 0) {
       // redirect stdin.
+      char dir[256];
+      printk("current directory: %s\n", file_getcwd(dir, 256));
       int ret = file_reopen(0,args->argv[i+1],O_RDONLY);
       if (ret) printk("file reopen failed, fd = %d, fname = %s\n",0,args->argv[i+1]);
 
@@ -290,7 +293,6 @@ static void rest_of_boot_loader(uintptr_t kstack_top)
   long fr = file_mount();
   fr = file_mount();
   argc = args_parser(&args);
-  file_chdir(case_dir);
   load_elf(args.argv[0], &current);
   // supervisor_mmap_display();
 

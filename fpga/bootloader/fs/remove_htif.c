@@ -61,7 +61,7 @@ extern void* memset(void* dest, int byte, size_t len);
 static uint64_t sys_stat(FATFS* fs,const TCHAR*path, struct stat * st)
 {
   uint32_t blksize ;
-  DRESULT dr = disk_ioctl(fs->drv,GET_BLOCK_SIZE,&blksize);
+  DRESULT dr = disk_ioctl(fs->pdrv,GET_BLOCK_SIZE,&blksize);
   if(dr != RES_OK){
     printm("disk_ioctl GET_BLOCK_SIZE failed. Errcode %ld.\n",dr);
     return FR_DISK_ERR;
@@ -72,7 +72,8 @@ static uint64_t sys_stat(FATFS* fs,const TCHAR*path, struct stat * st)
 
   FRESULT fr = f_stat(path,&fno);
   if(fr != FR_OK ){
-    printm("f_stat of path %s failed. Errcode %ld.\n",path,fr);
+    if(fr != FR_NO_FILE && fr != FR_NO_PATH)
+      printm("f_stat of path %s failed. Errcode %ld.\n",path,fr);
     return fr;
   }
 
@@ -100,7 +101,7 @@ static uint64_t sys_stat(FATFS* fs,const TCHAR*path, struct stat * st)
   time = time * 60 + minute;
   time = time * 60 + second;
 
-  st->st_dev = fs->drv;
+  st->st_dev = fs->pdrv;
   st->st_rdev = 0;
   // take files with AM_DIR as directories, others as regular files.
   st->st_mode = (finfo->fattrib & AM_DIR)?(S_IFMT & S_IFDIR):(S_IFMT & S_IFREG); 

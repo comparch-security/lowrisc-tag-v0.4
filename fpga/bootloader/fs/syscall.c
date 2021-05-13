@@ -83,9 +83,6 @@ void pfc_log(pfc_response * ppfc, char * fname, int code)
 
 #endif
 
-  //extern file_t files[];
-  //fd_close(fhdl-files);
-
 }
 
 void sys_exit(int code)
@@ -189,7 +186,6 @@ static int at_kfd(int dirfd)
   file_t* dir = file_get(dirfd);
   if (dir == NULL)
     return -1;
-  extern file_t files [];
   return (dir - files);
 }
 

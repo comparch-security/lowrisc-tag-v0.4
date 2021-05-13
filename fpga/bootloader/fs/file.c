@@ -16,8 +16,8 @@ file_t files[MAX_FILES];
 spinlock_t file_lock = SPINLOCK_INIT;
 spinlock_t refcnt_lock = SPINLOCK_INIT;
 FATFS Fs_Local [2];
-static char croot[_MAX_LFN];
-static char filenames [MAX_FILES][_MAX_LFN];
+static char croot[FF_MAX_LFN];
+static char filenames [MAX_FILES][FF_MAX_LFN];
 
 #define erase_leading_backslash(path) \
   if((path) && *(path)=='/') \
@@ -26,7 +26,7 @@ static char filenames [MAX_FILES][_MAX_LFN];
 
 int file_chdir(const char* path)
 {
-  erase_leading_backslash(path);
+  //erase_leading_backslash(path);
   FRESULT fr = (FRESULT)frontend_syscall(SYS_chdir,va2pa(path),0,0,0,0,0,0);
   if(fr != FR_OK){
     printk("chdir failed at path %s, errcode %ld.\n",path,fr);
@@ -62,7 +62,7 @@ int file_fcntl(int fd, int cmd, uint64_t a0)
 
 int file_unlinkat(int dirfd, const char* pathname, int flags)
 {
-  erase_leading_backslash(pathname);
+  //erase_leading_backslash(pathname);
   FRESULT fr = (FRESULT)frontend_syscall(SYS_unlink,va2pa(pathname),0,0,0,0,0,0);
   if (fr != FR_OK){
     printk("unlink failed. path is %s, errcode %ld.\n",pathname,fr);
@@ -87,7 +87,7 @@ int file_reopen(int fd, const char* fn,int flags)
   else 
     f = file_get(fd);
 
-  erase_leading_backslash(fn);
+  //erase_leading_backslash(fn);
 
   if (f ){
     uint8_t mode = 0;
@@ -111,7 +111,7 @@ int file_reopen(int fd, const char* fn,int flags)
       file_decref(f);
       return -1;
     } else {
-      strncpy(filenames[fd],fn,_MAX_LFN);
+      strncpy(filenames[fd],fn,FF_MAX_LFN);
       return 0;
     }
 
@@ -124,6 +124,14 @@ int file_reopen(int fd, const char* fn,int flags)
 long file_mount()
 {
   FRESULT fr = (FRESULT) frontend_syscall(SYS_mount,va2pa(&Fs_Local[0]),va2pa("0:"),1,0,0,0,0);
+  // if(fr != FR_OK) printk("fail to mount SD file system, Err code %d.\n",fr);
+  // else printk("SD file system successfully mounted.\n");
+  return (long) fr;
+}
+
+long file_umount()
+{
+  FRESULT fr = (FRESULT) frontend_syscall(SYS_mount,0,va2pa("0:"),0,0,0,0,0);
   // if(fr != FR_OK) printk("fail to mount SD file system, Err code %d.\n",fr);
   // else printk("SD file system successfully mounted.\n");
   return (long) fr;
@@ -148,7 +156,7 @@ void file_decref(file_t* f)
     f->refcnt = 0;
     f->offset = 0;
     // f_close(&f->fd);
-    memset(filenames[(f - files)],0,_MAX_LFN);
+    memset(filenames[(f - files)],0,FF_MAX_LFN);
     frontend_syscall(SYS_close,va2pa(&f->fd),0,0,0,0,0,0);
   }
   spinlock_unlock_irqrestore(&refcnt_lock,flags);
@@ -222,7 +230,7 @@ file_t* file_openat(int dirfd, const char* fn, int flags)
   if (f == NULL)
     return f;
 
-  erase_leading_backslash(fn);
+  //erase_leading_backslash(fn);
   
   uint8_t mode = 0;
   if((flags & O_ACCMODE) == O_RDONLY) mode = FA_READ;
@@ -239,7 +247,7 @@ file_t* file_openat(int dirfd, const char* fn, int flags)
     file_decref(f);
     return NULL;
   } else {
-    strncpy(filenames[(f-files)],fn,_MAX_LFN);
+    strncpy(filenames[(f-files)],fn,FF_MAX_LFN);
     return f;
   }
 }
@@ -364,7 +372,7 @@ int file_stat(file_t * f, struct stat* s)
 int file_statat(int dirfd, const char* path,struct stat * s)
 {
   populate_mapping(s, sizeof(*s), PROT_WRITE);
-  erase_leading_backslash(path);
+  //erase_leading_backslash(path);
  FRESULT rt = (FRESULT) frontend_syscall(SYS_stat,va2pa(&Fs_Local[0]),va2pa(path),va2pa(s),0,0,0,0);
 //  printk("fstatat: f_stat returns %ld\n",rt);
  switch(rt){
@@ -396,7 +404,7 @@ int file_accessat(int dirfd, const char* name, int mode)
 {
   static struct stat s;
   populate_mapping(&s, sizeof(s),PROT_WRITE);
-  erase_leading_backslash(name);
+  //erase_leading_backslash(name);
   //Abuse: use frontend syscall SYS_stat to check whether the file exists.
   // If it exists, then all accesses to it are permitted.
   FRESULT rt = (FRESULT) frontend_syscall(SYS_stat,va2pa(&Fs_Local[0]),va2pa(name),va2pa(&s),0,0,0,0);

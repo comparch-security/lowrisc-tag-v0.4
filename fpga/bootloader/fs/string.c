@@ -45,6 +45,21 @@ size_t strlen(const char *s)
   return p - s;
 }
 
+int memcmp(const void * ptr1, const void * ptr2, size_t num)
+{
+  unsigned char c1, c2;
+  const uint8_t *p1 = (const uint8_t *)ptr1;
+  const uint8_t *p2 = (const uint8_t *)ptr2;
+
+  do {
+    c1 = *p1++;
+    c2 = *p2++;
+    num--;
+  } while (c1 == c2 && num > 0);
+
+  return c1 - c2;
+}
+
 int strcmp(const char* s1, const char* s2)
 {
   unsigned char c1, c2;

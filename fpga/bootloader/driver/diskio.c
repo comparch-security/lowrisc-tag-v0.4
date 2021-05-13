@@ -1,42 +1,13 @@
 /*-----------------------------------------------------------------------*/
-/* MMCv3/SDv1/SDv2/SDHC (in SPI mode) control module                     */
+/* Low level disk I/O module SKELETON for FatFs     (C)ChaN, 2019        */
 /*-----------------------------------------------------------------------*/
-/*
- *  Copyright (C) 2014, ChaN, all right reserved.
- *
- * * This software is a free software and there is NO WARRANTY.
- * * No restriction on use. You can use, modify and redistribute it for
- *   personal, non-profit or commercial products UNDER YOUR RESPONSIBILITY.
- * * Redistributions of source code must retain the above copyright notice.
- *
- * Copyright (c) 2015, University of Cambridge.
- * All Rights Reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University of Cambridge nor the
- *    names of its contributors may be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * IN NO EVENT SHALL UNIVERSITY OF CAMBRIDGE BE LIABLE TO ANY PARTY FOR DIRECT,
- * INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS,
- * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF REGENTS
- * HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * UNIVERSITY OF CAMBRIDGE SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT
- * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY,
- * PROVIDED HEREUNDER IS PROVIDED "AS IS". UNIVERSITY OF CAMBRIDGE HAS NO
- * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
- * MODIFICATIONS.
- */
-/*------------------------------------------------------------------------*/
+/* If a working storage control module is available, it should be        */
+/* attached to the FatFs via a glue function rather than modifying it.   */
+/* This is an example of glue functions to attach various exsisting      */
+/* storage control modules to the FatFs module with a defined API.       */
+/*-----------------------------------------------------------------------*/
 
+#include "ff.h"			/* Obtains integer types */
 #include "diskio.h"
 #include "spi.h"
 
@@ -221,7 +192,7 @@ int rcvr_datablock (
 /* Send a data packet to MMC                                             */
 /*-----------------------------------------------------------------------*/
 
-#if _USE_WRITE
+#if FF_FS_READONLY == 0
 static
 int xmit_datablock (
                     const uint8_t *buff,   /* 512 byte data block to be transmitted */
@@ -314,8 +285,8 @@ uint8_t send_cmd (     /* Returns R1 resp (bit7==1:Send failed) */
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_initialize (
-                         uint8_t pdrv       /* Physical drive nmuber (0) */
-                         )
+	BYTE pdrv				/* Physical drive nmuber to identify the drive */
+)
 {
   uint8_t n, cmd, ty, ocr[4];
   uint32_t timeout;
@@ -387,11 +358,11 @@ DSTATUS disk_status (
 /*-----------------------------------------------------------------------*/
 
 DRESULT disk_read (
-                   uint8_t pdrv,          /* Physical drive nmuber (0) */
-                   uint8_t *buff,         /* Pointer to the data buffer to store read data */
-                   uint32_t sector,       /* Start sector number (LBA) */
-                   uint32_t count          /* Sector count (1..128) */
-                   )
+	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
+	BYTE *buff,		/* Data buffer to store read data */
+	LBA_t sector,	/* Start sector in LBA */
+	UINT count		/* Number of sectors to read */
+)
 {
   uint8_t cmd;
 
@@ -420,13 +391,14 @@ DRESULT disk_read (
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
-#if _USE_WRITE
+#if FF_FS_READONLY == 0
+
 DRESULT disk_write (
-                    uint8_t pdrv,          /* Physical drive nmuber (0) */
-                    const uint8_t *buff,   /* Pointer to the data to be written */
-                    uint32_t sector,       /* Start sector number (LBA) */
-                    uint32_t count          /* Sector count (1..128) */
-                    )
+	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
+	const BYTE *buff,	/* Data to be written */
+	LBA_t sector,		/* Start sector in LBA */
+	UINT count			/* Number of sectors to write */
+)
 {
   if (pdrv || !count) return RES_PARERR;
   if (Stat & STA_NOINIT) return RES_NOTRDY;
@@ -461,12 +433,11 @@ DRESULT disk_write (
 /* Miscellaneous Functions                                               */
 /*-----------------------------------------------------------------------*/
 
-#if _USE_IOCTL
 DRESULT disk_ioctl (
-                    uint8_t pdrv,      /* Physical drive nmuber (0) */
-                    uint8_t cmd,       /* Control code */
-                    void *buff      /* Buffer to send/receive control data */
-                    )
+	BYTE pdrv,		/* Physical drive nmuber (0..) */
+	BYTE cmd,		/* Control code */
+	void *buff		/* Buffer to send/receive control data */
+)
 {
   DRESULT res;
   uint8_t n, csd[16], *ptr = buff;
@@ -568,4 +539,3 @@ DRESULT disk_ioctl (
 
   return res;
 }
-#endif

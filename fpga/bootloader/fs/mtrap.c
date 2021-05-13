@@ -188,6 +188,11 @@ static uintptr_t mcall_htif_syscall(uintptr_t magic_mem)
 void poweroff()
 {
   putstring("========================== power off ============================\n");
+  clear_csr(mie, -1);
+  clear_csr(mip, -1);
+  write_csr(stagctrl, 0);
+  write_csr(mtagctrl, 0);
+  clear_csr(mip, MIP_SSIP);
   jump_to_bram();
   while (1) {
 #ifdef DEV_MAP__io_ext_host__BASE
@@ -426,8 +431,6 @@ static void rtc2_req_interrupt() {
   if (minstret - start_instret >= BBL_PK_MINSTRET_TERMINATE){
     if(!exited){
       exited = 1;
-      write_csr(stagctrl, 0);
-      write_csr(mtagctrl,  0);
       redirect_trap(read_csr(mepc),read_csr(mstatus));
     }
   }
