@@ -350,7 +350,7 @@ int main(int argc, char* argv[]) {
             return 0;
         }
     }
-
+    osd_reset_system(ctx, 1);  //auto reset -halt
     while (1) {
         if (line) {
             free(line);

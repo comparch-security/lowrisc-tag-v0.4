@@ -116,8 +116,12 @@ int main(int argc, char* argv[]) {
             if (rv == 0) {
                 break;
             }
-            INFO("rv = %d, size = %d", rv, size);
-            assert(rv == (int) size*2);
+
+            if(rv != size*2) {
+               int rvagain = recv(clientsocket, &packet[(rv/2)+1], size*2-rv, 0);
+               assert(rvagain>0);
+               assert((rv + rvagain)== (int) size*2); 
+            }
 
             if (packet[1] == 0xffff) {
                 // This is a daemon packet
