@@ -614,7 +614,7 @@ class CSRFile(id:Int)(implicit p: Parameters) extends CoreModule()(p)
     val read_next  = Wire(init=read_coun+UInt(1))
     val resp_coun  = Reg(UInt(width=6))
     //val resp_array = SeqMem(63, Bits(width=64))  //use sram store pfcManager resp.data
-    val resp_array = Reg((Vec(16, Bits(width=64))))
+    val resp_array = Reg((Vec(64, Bits(width=64))))
     val array_out  = Wire(Bits(width=64))   //fifo_out
     val resp_bitm  = Wire(Bits(width=64))   //resp bit map
     val reqfired   = Reg(init=Bool(false))  //pfc_req has fired

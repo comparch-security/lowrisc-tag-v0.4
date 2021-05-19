@@ -76,6 +76,14 @@ class TagCachePerform extends Bundle {
   val writeTM1         = Bool(INPUT)
   val writeTM1_miss    = Bool(INPUT)
   val writeTM1_back    = Bool(INPUT)
+  val acqTTfromMem     = Bool(INPUT) //acquire channel get tag table from mem
+  val acqTM0fromMem    = Bool(INPUT) //acquire channel get tag map0  from mem
+  val acqTM1fromMem    = Bool(INPUT) //acquire channel get tag map1  from mem
+  val acqTfromMemT     = Bool(INPUT) //acquire channel get tag from mem total
+  val acqTTtoMem       = Bool(INPUT) //acquire channel put tag table to mem
+  val acqTM0toMem      = Bool(INPUT) //acquire channel put tag map0 to mem
+  val acqTM1toMem      = Bool(INPUT) //acquire channel put tag map1 to mem
+  val acqTtoMemT       = Bool(INPUT) //acquire channel put tag to mem total
 }
 
 class TileCachePerformIO extends Bundle {
@@ -237,7 +245,7 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
     val update  = new TagCachePerform()
   }
 
-  val pfcManager = Module(new PFCManager(15))
+  val pfcManager = Module(new PFCManager(23))
   io.manager <> pfcManager.io.manager
   pfcManager.io.update(0) := io.update.readTT
   pfcManager.io.update(1) := io.update.readTT_miss
@@ -254,6 +262,14 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(12) := io.update.writeTM1
   pfcManager.io.update(13) := io.update.writeTM1_miss
   pfcManager.io.update(14) := io.update.writeTM1_back
+  pfcManager.io.update(15) := io.update.acqTTfromMem
+  pfcManager.io.update(16) := io.update.acqTM0fromMem
+  pfcManager.io.update(17) := io.update.acqTM1fromMem
+  pfcManager.io.update(18) := io.update.acqTfromMemT
+  pfcManager.io.update(19) := io.update.acqTTtoMem
+  pfcManager.io.update(20) := io.update.acqTM0toMem
+  pfcManager.io.update(21) := io.update.acqTM1toMem
+  pfcManager.io.update(22) := io.update.acqTtoMemT
 
   if(PFCEmitLog) {
     val resp_pfc = io.manager.resp.bits.data
@@ -274,6 +290,14 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
       when(resp_bitmapUI===UInt(12)) { printf("PFCResp: TC writeTM1 = %d\n",      resp_pfc)}
       when(resp_bitmapUI===UInt(13)) { printf("PFCResp: TC writeTM1miss = %d\n",  resp_pfc)}
       when(resp_bitmapUI===UInt(14)) { printf("PFCResp: TC writeTM1back = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(15)) { printf("PFCResp: TC acqTTfromMem = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(16)) { printf("PFCResp: TC acqTM0fromMem = %d\n", resp_pfc)}
+      when(resp_bitmapUI===UInt(17)) { printf("PFCResp: TC acqTM1fromMem = %d\n", resp_pfc)}
+      when(resp_bitmapUI===UInt(18)) { printf("PFCResp: TC acqTfromMemT = %d\n",  resp_pfc)}
+      when(resp_bitmapUI===UInt(19)) { printf("PFCResp: TC acqTTtoMem = %d\n",    resp_pfc)}
+      when(resp_bitmapUI===UInt(20)) { printf("PFCResp: TC acqTM0toMem = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(21)) { printf("PFCResp: TC acqTM1toMem = %d\n",   resp_pfc)}
+      when(resp_bitmapUI===UInt(22)) { printf("PFCResp: TC acqTtoMemT = %d\n",    resp_pfc)}
     }
   }
 }

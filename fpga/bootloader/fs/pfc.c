@@ -13,7 +13,8 @@ ppfc->cycles = rdcycle();
 #if(ENA_PFC) 
   asm volatile ("csrw 0x404, %0" :: "r"(pfc_fullmap));
   asm volatile ("csrw 0x403, %0" :: "r"(tilepfc_conf));
-  asm volatile ("addi x0, x0, 0");
+  asm volatile ("addi x0, x0, 0");   asm volatile ("addi x0, x0, 0");
+  asm volatile ("addi x0, x0, 0");   asm volatile ("addi x0, x0, 0");
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[0]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[1]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[2]));
@@ -27,7 +28,8 @@ ppfc->cycles = rdcycle();
 #if(L2Banks!=0)
   asm volatile ("csrw 0x404, %0" :: "r"(pfc_fullmap));
   asm volatile ("csrw 0x403, %0" :: "r"(l2b0pfc_conf));
-  asm volatile ("addi x0, x0, 0");
+  asm volatile ("addi x0, x0, 0");   asm volatile ("addi x0, x0, 0");
+  asm volatile ("addi x0, x0, 0");   asm volatile ("addi x0, x0, 0");
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[7]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[8]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[9]));
@@ -55,7 +57,8 @@ ppfc->cycles = rdcycle();
 #if(ADD_TC)
   asm volatile ("csrw 0x404, %0" :: "r"(pfc_fullmap));
   asm volatile ("csrw 0x403, %0" :: "r"(tcpfc_conf));
-  __asm__("addi x0, x0, 0");
+  asm volatile ("addi x0, x0, 0");   asm volatile ("addi x0, x0, 0");
+  asm volatile ("addi x0, x0, 0");   asm volatile ("addi x0, x0, 0");
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[11]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[12]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[13]));
@@ -71,6 +74,14 @@ ppfc->cycles = rdcycle();
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[23]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[24]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[25]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[26]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[27]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[28]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[29]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[30]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[31]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[32]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[33]));
 #endif
 
 #endif
@@ -90,7 +101,7 @@ void pfc_log(int code)
   get_pfc(&pfc[code]);
   if(code !=0) {
     pfc_diff(&pfc[0], &pfc[1], &pfc[2]);
-    //pfc_display(&pfc[2]);
+    pfc_display(&pfc[2]);
   }
 }
 
@@ -124,6 +135,10 @@ uint64_t cycles = ppfc -> cycles;
   printk("%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[16],pfcresp[17],pfcresp[18],pfcresp[19],pfcresp[20]);
   printk("TC_readTM1,  TC_readTM1miss,   TC_writeTM1,  TC_writeTM1miss,   TC_writeTM1back\n");
   printk("%lld  %10lld  %10lld  %10lld  %10lld\n\n", pfcresp[21],pfcresp[22],pfcresp[23],pfcresp[24],pfcresp[25]);
+  printk("TC_acqTTfromMem, TC_acqTM0fromMem, TC_acqTM1fromMem, TC_acqTfromMemT\n");
+  printk("%lld  %10lld  %10lld  %10lld \n\n", pfcresp[26],pfcresp[27],pfcresp[28],pfcresp[29]);
+  printk("TC_acqTTtoMem,   TC_acqTM0toMem,   TC_acqTM1toMem,   TC_acqTtoMemT\n");
+  printk("%lld  %10lld  %10lld  %10lld \n\n", pfcresp[30],pfcresp[31],pfcresp[32],pfcresp[33]);
 #endif
 
 #endif

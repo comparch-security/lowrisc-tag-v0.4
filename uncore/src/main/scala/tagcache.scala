@@ -221,6 +221,7 @@ class TCWritebackUnit(id: Int)(implicit p: Parameters) extends TCModule()(p) wit
     val addr_block = Vec(nTagTransactors, UInt(width=tlBlockAddrBits)).asInput
     val addr_match = Vec(nTagTransactors, Bool()).asOutput
     val mtActive = UInt(INPUT, nMemTransactors)
+    val pfc = new TagCachePerform().flip()
   }
 
   // check          empty line, check whether it is safe to avoid writeback
@@ -246,6 +247,11 @@ class TCWritebackUnit(id: Int)(implicit p: Parameters) extends TCModule()(p) wit
   io.data.read.bits.row := read_cnt
 
   io.data.write.valid := Bool(false)
+
+  io.pfc.acqTTtoMem    := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0)) && !tgHelper.is_map(io.tl.acquire.bits.full_addr())
+  io.pfc.acqTM0toMem   := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0)) && tgHelper.is_map(io.tl.acquire.bits.full_addr()) && !tgHelper.is_top(io.tl.acquire.bits.full_addr())
+  io.pfc.acqTM1toMem   := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0)) && tgHelper.is_top(io.tl.acquire.bits.full_addr())
+  io.pfc.acqTtoMemT    := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0))
 
   when(state === s_IDLE) {
     data_buffer := Vec.fill(refillCycles)(UInt(0, rowBits))
@@ -374,6 +380,10 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   io.pfc.writeTM1        := io.meta.resp.valid && xact.pfc.writeTM1
   io.pfc.writeTM1_miss   := miss && xact.pfc.writeTM1_miss
   io.pfc.writeTM1_back   := io.wb.req.fire() && isTM1wbaddr
+  io.pfc.acqTTfromMem    := io.tl.acquire.fire() && !tgHelper.is_map(xact.addr)
+  io.pfc.acqTM0fromMem   := io.tl.acquire.fire() &&  tgHelper.is_map(xact.addr) && !tgHelper.is_top(xact.addr)
+  io.pfc.acqTM1fromMem   := io.tl.acquire.fire() &&  tgHelper.is_top(xact.addr)
+  io.pfc.acqTfromMemT    := io.tl.acquire.fire()
 
   // metadata read
   io.meta.read.bits.id := UInt(id)
@@ -1246,6 +1256,14 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   pfc.io.update.writeTM1      := tagTrackers.map(_.io.pfc.writeTM1).reduce(_||_)
   pfc.io.update.writeTM1_miss := tagTrackers.map(_.io.pfc.writeTM1_miss).reduce(_||_)
   pfc.io.update.writeTM1_back := tagTrackers.map(_.io.pfc.writeTM1_back).reduce(_||_)
+  pfc.io.update.acqTTfromMem  := tagTrackers.map(_.io.pfc.acqTTfromMem).reduce(_||_)
+  pfc.io.update.acqTM0fromMem := tagTrackers.map(_.io.pfc.acqTM0fromMem).reduce(_||_)
+  pfc.io.update.acqTM1fromMem := tagTrackers.map(_.io.pfc.acqTM1fromMem).reduce(_||_)
+  pfc.io.update.acqTfromMemT  := tagTrackers.map(_.io.pfc.acqTfromMemT).reduce(_||_)
+  pfc.io.update.acqTTtoMem    := wb.io.pfc.acqTTtoMem
+  pfc.io.update.acqTM0toMem   := wb.io.pfc.acqTM0toMem
+  pfc.io.update.acqTM1toMem   := wb.io.pfc.acqTM1toMem
+  pfc.io.update.acqTtoMemT    := wb.io.pfc.acqTtoMemT
 }
 
 
