@@ -76,34 +76,95 @@
 #define HOST_BASE          0x00004000
 
 // tagged memory configuration
-#define TAG_BITS                4
-#define TAG_INST_BITS           2
-
-#define TMASK_ALU_CHECK         (0x000000000000000f)
-#define TMASK_ALU_PROP          (0x00000000000000f0)
-#define TMASK_LOAD_CHECK        (0x0000000000000f00)
-#define TMASK_LOAD_PROP         (0x000000000000f000)
-#define TMASK_STORE_CHECK       (0x00000000000f0000)
-#define TMASK_STORE_PROP        (0x0000000000f00000)
-#define TMASK_STORE_KEEP        (0x000000000f000000)
-#define TMASK_CFLOW_DIR_TGT     (0x0000000030000000)
-#define TMASK_CFLOW_INDIR_TGT   (0x00000000c0000000)
-#define TMASK_JMP_CHECK         (0x0000000f00000000)
-#define TMASK_JMP_PROP          (0x000000f000000000)
-#define TMASK_FETCH_CHECK       (0x0000030000000000)
+#define TAG_BITS                2
+#define TAG_INST_BITS           1
 
 #define TSHIM_ALU_CHECK         0
-#define TSHIM_ALU_PROP          4
-#define TSHIM_LOAD_CHECK        8
-#define TSHIM_LOAD_PROP         12
-#define TSHIM_STORE_CHECK       16
-#define TSHIM_STORE_PROP        20
-#define TSHIM_STORE_KEEP        24
-#define TSHIM_CFLOW_DIR_TGT     28
-#define TSHIM_CFLOW_INDIR_TGT   30
-#define TSHIM_JMP_CHECK         32
-#define TSHIM_JMP_PROP          36
-#define TSHIM_FETCH_CHECK       40
+#define TSHIM_ALU_PROP          (TSHIM_ALU_CHECK + TAG_BITS)
+#define TSHIM_LOAD_CHECK        (TSHIM_ALU_PROP + TAG_BITS)
+#define TSHIM_LOAD_PROP         (TSHIM_LOAD_CHECK + TAG_BITS)
+#define TSHIM_STORE_CHECK       (TSHIM_LOAD_PROP + TAG_BITS)
+#define TSHIM_STORE_PROP        (TSHIM_STORE_CHECK + TAG_BITS)
+#define TSHIM_STORE_KEEP        (TSHIM_STORE_PROP + TAG_BITS)
+#define TSHIM_CFLOW_DIR_TGT     (TSHIM_STORE_KEEP + TAG_BITS)
+#define TSHIM_CFLOW_INDIR_TGT   (TSHIM_CFLOW_DIR_TGT + TAG_INST_BITS)
+#define TSHIM_JMP_CHECK         (TSHIM_CFLOW_INDIR_TGT + TAG_INST_BITS)
+#define TSHIM_JMP_PROP          (TSHIM_JMP_CHECK + TAG_BITS)
+#define TSHIM_FETCH_CHECK       (TSHIM_JMP_PROP + TAG_BITS)
+
+
+#define TMASK_ALU_CHECK         (((0x1 << TAG_BITS) - 1) << TSHIM_ALU_CHECK)
+#define TMASK_ALU_PROP          (((0x1 << TAG_BITS) - 1) << TSHIM_ALU_PROP)
+#define TMASK_LOAD_CHECK        (((0x1 << TAG_BITS) - 1) << TSHIM_LOAD_CHECK)
+#define TMASK_LOAD_PROP         (((0x1 << TAG_BITS) - 1) << TSHIM_LOAD_PROP)
+#define TMASK_STORE_CHECK       (((0x1 << TAG_BITS) - 1) << TSHIM_STORE_CHECK)
+#define TMASK_STORE_PROP        (((0x1 << TAG_BITS) - 1) << TSHIM_STORE_PROP)
+#define TMASK_STORE_KEEP        (((0x1 << TAG_BITS) - 1) << TSHIM_STORE_KEEP)
+#define TMASK_CFLOW_DIR_TGT     (((0x1 << TAG_INST_BITS) - 1) << TSHIM_CFLOW_DIR_TGT)
+#define TMASK_CFLOW_INDIR_TGT   (((0x1 << TAG_INST_BITS) - 1) << TSHIM_CFLOW_INDIR_TGT)
+#define TMASK_JMP_CHECK         (((0x1 << TAG_BITS) - 1) << TSHIM_JMP_CHECK)
+#define TMASK_JMP_PROP          (((0x1 << TAG_BITS) - 1) << TSHIM_JMP_PROP)
+#define TMASK_FETCH_CHECK       (((0x1 << TAG_INST_BITS) - 1) << TSHIM_FETCH_CHECK)
+
+
+
+////--------- tag bits 4 ------------
+// #define TMASK_ALU_CHECK         (0x000000000000000f)
+// #define TMASK_ALU_PROP          (0x00000000000000f0)
+// #define TMASK_LOAD_CHECK        (0x0000000000000f00)
+// #define TMASK_LOAD_PROP         (0x000000000000f000)
+// #define TMASK_STORE_CHECK       (0x00000000000f0000)
+// #define TMASK_STORE_PROP        (0x0000000000f00000)
+// #define TMASK_STORE_KEEP        (0x000000000f000000)
+// #define TMASK_CFLOW_DIR_TGT     (0x0000000030000000)
+// #define TMASK_CFLOW_INDIR_TGT   (0x00000000c0000000)
+// #define TMASK_JMP_CHECK         (0x0000000f00000000)
+// #define TMASK_JMP_PROP          (0x000000f000000000)
+// #define TMASK_FETCH_CHECK       (0x0000030000000000)
+////---------- tag bits 4 -----------
+// #define TSHIM_ALU_CHECK         0
+// #define TSHIM_ALU_PROP          4
+// #define TSHIM_LOAD_CHECK        8
+// #define TSHIM_LOAD_PROP         12
+// #define TSHIM_STORE_CHECK       16
+// #define TSHIM_STORE_PROP        20
+// #define TSHIM_STORE_KEEP        24
+// #define TSHIM_CFLOW_DIR_TGT     28
+// #define TSHIM_CFLOW_INDIR_TGT   30
+// #define TSHIM_JMP_CHECK         32
+// #define TSHIM_JMP_PROP          36
+// #define TSHIM_FETCH_CHECK       40
+
+////--------- tag bits 2 ------------
+// #define TMASK_ALU_CHECK         (0x0000000000000003)
+// #define TMASK_ALU_PROP          (0x000000000000000C)
+// #define TMASK_LOAD_CHECK        (0x0000000000000030)
+// #define TMASK_LOAD_PROP         (0x00000000000000C0)
+// #define TMASK_STORE_CHECK       (0x0000000000000300)
+// #define TMASK_STORE_PROP        (0x0000000000000C00)
+// #define TMASK_STORE_KEEP        (0x0000000000003000)
+// #define TMASK_CFLOW_DIR_TGT     (0x0000000000004000)
+// #define TMASK_CFLOW_INDIR_TGT   (0x0000000000008000)
+// #define TMASK_JMP_CHECK         (0x0000000000030000)
+// #define TMASK_JMP_PROP          (0x00000000000C0000)
+// #define TMASK_FETCH_CHECK       (0x0000000000100000)
+////---------- tag bits 2 -----------
+// #define TSHIM_ALU_CHECK         0
+// #define TSHIM_ALU_PROP          2
+// #define TSHIM_LOAD_CHECK        4
+// #define TSHIM_LOAD_PROP         6
+// #define TSHIM_STORE_CHECK       8
+// #define TSHIM_STORE_PROP        10
+// #define TSHIM_STORE_KEEP        12
+// #define TSHIM_CFLOW_DIR_TGT     14
+// #define TSHIM_CFLOW_INDIR_TGT   15
+// #define TSHIM_JMP_CHECK         16
+// #define TSHIM_JMP_PROP          18
+// #define TSHIM_FETCH_CHECK       20
+
+
+
+
 
 
 // page table entry (PTE) fields
