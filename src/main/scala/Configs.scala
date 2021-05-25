@@ -205,7 +205,7 @@ class BaseConfig extends Config (
 
       // Tag Cache
       case UseTagMem => false
-      case TagBits => 4
+      case TagBits => 2
       case TagMapRatio => site(CacheBlockBytes) * 8
       case TCMemTransactors  => Knob("TC_MEM_XACTORS")
       case TCTagTransactors  => Knob("TC_TAG_XACTORS")
@@ -386,7 +386,7 @@ class BaseConfig extends Config (
 class WithTagConfig extends Config (
   (pname,site,here) => pname match {
     case UseTagMem => true
-    case TagBits => 4
+    case TagBits => 2
   }
 )
 
