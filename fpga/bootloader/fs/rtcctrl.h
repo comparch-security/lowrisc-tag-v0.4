@@ -1,7 +1,7 @@
 #ifndef _BBL_PK_RTC_CTRL
 #define _BBL_PK_RTC_CTRL
 
-#define BBL_PK_RTC2_DELTA 500000000lu
+#define BBL_PK_RTC2_DELTA 10000000lu
 
 #define BBL_PK_LIMITED_RUN
 
