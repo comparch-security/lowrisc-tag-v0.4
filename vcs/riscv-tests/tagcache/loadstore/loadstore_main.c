@@ -7,7 +7,7 @@
 
 #define NUM_TAGS 1024
 #define ADDR_MASK 0x03FFFFF8
-#define TAG_MASK 0xF
+#define TAG_MASK 0x3
 
 int load_tag(void *addr) {
   int rv;

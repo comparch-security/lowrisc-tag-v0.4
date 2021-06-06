@@ -72,34 +72,95 @@
 #define HOST_BASE          0x00006000
 
 // tagged memory configuration
-#define TAG_BITS                4
-#define TAG_INST_BITS           2
-
-#define TMASK_ALU_CHECK         (0x000000000000000f)
-#define TMASK_ALU_PROP          (0x00000000000000f0)
-#define TMASK_LOAD_CHECK        (0x0000000000000f00)
-#define TMASK_LOAD_PROP         (0x000000000000f000)
-#define TMASK_STORE_CHECK       (0x00000000000f0000)
-#define TMASK_STORE_PROP        (0x0000000000f00000)
-#define TMASK_STORE_KEEP        (0x000000000f000000)
-#define TMASK_CFLOW_DIR_TGT     (0x0000000030000000)
-#define TMASK_CFLOW_INDIR_TGT   (0x00000000c0000000)
-#define TMASK_JMP_CHECK         (0x0000000f00000000)
-#define TMASK_JMP_PROP          (0x000000f000000000)
-#define TMASK_FETCH_CHECK       (0x0000030000000000)
+#define TAG_BITS                2
+#define TAG_INST_BITS           1
 
 #define TSHIM_ALU_CHECK         0
-#define TSHIM_ALU_PROP          4
-#define TSHIM_LOAD_CHECK        8
-#define TSHIM_LOAD_PROP         12
-#define TSHIM_STORE_CHECK       16
-#define TSHIM_STORE_PROP        20
-#define TSHIM_STORE_KEEP        24
-#define TSHIM_CFLOW_DIR_TGT     28
-#define TSHIM_CFLOW_INDIR_TGT   30
-#define TSHIM_JMP_CHECK         32
-#define TSHIM_JMP_PROP          36
-#define TSHIM_FETCH_CHECK       40
+#define TSHIM_ALU_PROP          (TSHIM_ALU_CHECK + TAG_BITS)
+#define TSHIM_LOAD_CHECK        (TSHIM_ALU_PROP + TAG_BITS)
+#define TSHIM_LOAD_PROP         (TSHIM_LOAD_CHECK + TAG_BITS)
+#define TSHIM_STORE_CHECK       (TSHIM_LOAD_PROP + TAG_BITS)
+#define TSHIM_STORE_PROP        (TSHIM_STORE_CHECK + TAG_BITS)
+#define TSHIM_STORE_KEEP        (TSHIM_STORE_PROP + TAG_BITS)
+#define TSHIM_CFLOW_DIR_TGT     (TSHIM_STORE_KEEP + TAG_BITS)
+#define TSHIM_CFLOW_INDIR_TGT   (TSHIM_CFLOW_DIR_TGT + TAG_INST_BITS)
+#define TSHIM_JMP_CHECK         (TSHIM_CFLOW_INDIR_TGT + TAG_INST_BITS)
+#define TSHIM_JMP_PROP          (TSHIM_JMP_CHECK + TAG_BITS)
+#define TSHIM_FETCH_CHECK       (TSHIM_JMP_PROP + TAG_BITS)
+
+
+#define TMASK_ALU_CHECK         (((0x1 << TAG_BITS) - 1) << TSHIM_ALU_CHECK)
+#define TMASK_ALU_PROP          (((0x1 << TAG_BITS) - 1) << TSHIM_ALU_PROP)
+#define TMASK_LOAD_CHECK        (((0x1 << TAG_BITS) - 1) << TSHIM_LOAD_CHECK)
+#define TMASK_LOAD_PROP         (((0x1 << TAG_BITS) - 1) << TSHIM_LOAD_PROP)
+#define TMASK_STORE_CHECK       (((0x1 << TAG_BITS) - 1) << TSHIM_STORE_CHECK)
+#define TMASK_STORE_PROP        (((0x1 << TAG_BITS) - 1) << TSHIM_STORE_PROP)
+#define TMASK_STORE_KEEP        (((0x1 << TAG_BITS) - 1) << TSHIM_STORE_KEEP)
+#define TMASK_CFLOW_DIR_TGT     (((0x1 << TAG_INST_BITS) - 1) << TSHIM_CFLOW_DIR_TGT)
+#define TMASK_CFLOW_INDIR_TGT   (((0x1 << TAG_INST_BITS) - 1) << TSHIM_CFLOW_INDIR_TGT)
+#define TMASK_JMP_CHECK         (((0x1 << TAG_BITS) - 1) << TSHIM_JMP_CHECK)
+#define TMASK_JMP_PROP          (((0x1 << TAG_BITS) - 1) << TSHIM_JMP_PROP)
+#define TMASK_FETCH_CHECK       (((0x1 << TAG_INST_BITS) - 1) << TSHIM_FETCH_CHECK)
+
+
+
+////--------- tag bits 4 ------------
+// #define TMASK_ALU_CHECK         (0x000000000000000f)
+// #define TMASK_ALU_PROP          (0x00000000000000f0)
+// #define TMASK_LOAD_CHECK        (0x0000000000000f00)
+// #define TMASK_LOAD_PROP         (0x000000000000f000)
+// #define TMASK_STORE_CHECK       (0x00000000000f0000)
+// #define TMASK_STORE_PROP        (0x0000000000f00000)
+// #define TMASK_STORE_KEEP        (0x000000000f000000)
+// #define TMASK_CFLOW_DIR_TGT     (0x0000000030000000)
+// #define TMASK_CFLOW_INDIR_TGT   (0x00000000c0000000)
+// #define TMASK_JMP_CHECK         (0x0000000f00000000)
+// #define TMASK_JMP_PROP          (0x000000f000000000)
+// #define TMASK_FETCH_CHECK       (0x0000030000000000)
+////---------- tag bits 4 -----------
+// #define TSHIM_ALU_CHECK         0
+// #define TSHIM_ALU_PROP          4
+// #define TSHIM_LOAD_CHECK        8
+// #define TSHIM_LOAD_PROP         12
+// #define TSHIM_STORE_CHECK       16
+// #define TSHIM_STORE_PROP        20
+// #define TSHIM_STORE_KEEP        24
+// #define TSHIM_CFLOW_DIR_TGT     28
+// #define TSHIM_CFLOW_INDIR_TGT   30
+// #define TSHIM_JMP_CHECK         32
+// #define TSHIM_JMP_PROP          36
+// #define TSHIM_FETCH_CHECK       40
+
+////--------- tag bits 2 ------------
+// #define TMASK_ALU_CHECK         (0x0000000000000003)
+// #define TMASK_ALU_PROP          (0x000000000000000C)
+// #define TMASK_LOAD_CHECK        (0x0000000000000030)
+// #define TMASK_LOAD_PROP         (0x00000000000000C0)
+// #define TMASK_STORE_CHECK       (0x0000000000000300)
+// #define TMASK_STORE_PROP        (0x0000000000000C00)
+// #define TMASK_STORE_KEEP        (0x0000000000003000)
+// #define TMASK_CFLOW_DIR_TGT     (0x0000000000004000)
+// #define TMASK_CFLOW_INDIR_TGT   (0x0000000000008000)
+// #define TMASK_JMP_CHECK         (0x0000000000030000)
+// #define TMASK_JMP_PROP          (0x00000000000C0000)
+// #define TMASK_FETCH_CHECK       (0x0000000000100000)
+////---------- tag bits 2 -----------
+// #define TSHIM_ALU_CHECK         0
+// #define TSHIM_ALU_PROP          2
+// #define TSHIM_LOAD_CHECK        4
+// #define TSHIM_LOAD_PROP         6
+// #define TSHIM_STORE_CHECK       8
+// #define TSHIM_STORE_PROP        10
+// #define TSHIM_STORE_KEEP        12
+// #define TSHIM_CFLOW_DIR_TGT     14
+// #define TSHIM_CFLOW_INDIR_TGT   15
+// #define TSHIM_JMP_CHECK         16
+// #define TSHIM_JMP_PROP          18
+// #define TSHIM_FETCH_CHECK       20
+
+
+
+
 
 
 // page table entry (PTE) fields
@@ -652,7 +713,7 @@
 #define CSR_CYCLE 0xc00
 #define CSR_TIME 0xc01
 #define CSR_INSTRET 0xc02
-#define CSR_UTAGCTRL 0x8f0
+#define CSR_TAGCTRL 0x8f0
 #define CSR_SWTRACE 0x8ff
 #define CSR_SSTATUS 0x100
 #define CSR_SIE 0x104
@@ -667,7 +728,6 @@
 #define CSR_SCYCLE 0xd00
 #define CSR_STIME 0xd01
 #define CSR_SINSTRET 0xd02
-#define CSR_STAGCTRL 0x9f0
 #define CSR_MSTATUS 0x300
 #define CSR_MEDELEG 0x302
 #define CSR_MIDELEG 0x303
@@ -695,9 +755,6 @@
 #define CSR_MIMPID 0xf13
 #define CSR_MHARTID 0xf14
 #define CSR_MRESET 0x7c2
-#define CSR_MTAGCTRL 0xbf0
-#define CSR_MUTAGCTRLEN 0x7f0
-#define CSR_MSTAGCTRLEN 0x7f1
 #define CSR_CYCLEH 0xc80
 #define CSR_TIMEH 0xc81
 #define CSR_INSTRETH 0xc82
@@ -963,7 +1020,7 @@ DECLARE_CSR(fcsr, CSR_FCSR)
 DECLARE_CSR(cycle, CSR_CYCLE)
 DECLARE_CSR(time, CSR_TIME)
 DECLARE_CSR(instret, CSR_INSTRET)
-DECLARE_CSR(utagctrl, CSR_UTAGCTRL)
+DECLARE_CSR(tagctrl, CSR_TAGCTRL)
 DECLARE_CSR(swtrace, CSR_SWTRACE)
 DECLARE_CSR(sstatus, CSR_SSTATUS)
 DECLARE_CSR(sie, CSR_SIE)
@@ -978,7 +1035,6 @@ DECLARE_CSR(sasid, CSR_SASID)
 DECLARE_CSR(scycle, CSR_SCYCLE)
 DECLARE_CSR(stime, CSR_STIME)
 DECLARE_CSR(sinstret, CSR_SINSTRET)
-DECLARE_CSR(stagctrl, CSR_STAGCTRL)
 DECLARE_CSR(mstatus, CSR_MSTATUS)
 DECLARE_CSR(medeleg, CSR_MEDELEG)
 DECLARE_CSR(mideleg, CSR_MIDELEG)
@@ -1006,9 +1062,6 @@ DECLARE_CSR(marchid, CSR_MARCHID)
 DECLARE_CSR(mimpid, CSR_MIMPID)
 DECLARE_CSR(mhartid, CSR_MHARTID)
 DECLARE_CSR(mreset, CSR_MRESET)
-DECLARE_CSR(mtagctrl, CSR_MTAGCTRL)
-DECLARE_CSR(mutagctrlen, CSR_MUTAGCTRLEN)
-DECLARE_CSR(mstagctrlen, CSR_MSTAGCTRLEN)
 DECLARE_CSR(cycleh, CSR_CYCLEH)
 DECLARE_CSR(timeh, CSR_TIMEH)
 DECLARE_CSR(instreth, CSR_INSTRETH)
