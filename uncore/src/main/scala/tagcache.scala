@@ -18,7 +18,12 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nMemReleaseTransactors = if(uncached) 0 else 1
   val nMemTransactors = nMemReleaseTransactors + nMemAcquireTransactors
   val nTagTransactors = p(TCTagTransactors)
-  val nTopMapBlocks = max(1, tgHelper.topSize.toInt / p(CacheBlockBytes))
+  val nMap0Blocks     = tgHelper.map0Size.toInt / p(CacheBlockBytes)
+  val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)
+  val nLevel          = tgHelper.tclevel
+  val nTopMapBlocks   = if(tgHelper.tclevel == 3)      max(1, nMap1Blocks)
+                        else if(tgHelper.tclevel == 2) max(1, nMap0Blocks)
+                        else 1
 
   val refillCycles = outerDataBeats
 
@@ -697,24 +702,26 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     }
     is(ts_TM0L) {
       io.tc.req.bits.addr := tc_tm0_addr
-      io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1, TCTagOp.FL, TCTagOp.CL)
+      io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1, TCTagOp.FL, (if(nLevel > 2) TCTagOp.CL else TCTagOp.FL))
     }
     is(ts_TTL) {
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := Mux(tc_xact_tm0_tag1, TCTagOp.F, TCTagOp.C)
+      io.tc.req.bits.op   := Mux(tc_xact_tm0_tag1, TCTagOp.F, (if(nLevel > 1) TCTagOp.C else TCTagOp.F))
     }
     is(ts_TTW) {
       io.tc.req.bits.data := tc_tt_wdata
       io.tc.req.bits.mask := tc_tt_wmask
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN, TCTagOp.I, TCTagOp.W)
+      io.tc.req.bits.op   := Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN,
+                                 (if(nLevel > 1) TCTagOp.I else TCTagOp.W), TCTagOp.W)
     }
     is(ts_TM0W) {
       io.tc.req.bits.data := tc_tm0_wdata
       io.tc.req.bits.mask := tc_tm0_wmask
       io.tc.req.bits.addr := tc_tm0_addr
       io.tc.req.bits.op   := Mux((tc_xact_tt_tag1 || tc_xact_tt_tagN) === tc_xact_tm0_tag1, TCTagOp.U,
-                             Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN, TCTagOp.I, TCTagOp.W))
+                                 Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN,
+                                     (if(nLevel > 2) TCTagOp.I else TCTagOp.W), TCTagOp.W))
     }
     is(ts_TM1W) {
       io.tc.req.bits.data := tc_tm1_wdata
@@ -769,14 +776,17 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     tc_state_next := ts_TTR
   }
   when(tc_state === ts_TTR && io.tc.resp.valid) {
-    tc_state_next := Mux(!io.tc.resp.bits.hit, ts_TM0R,
+    tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 1) ts_TM0R else ts_TTF),
                          Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= (tc_tt_rdata & tc_xact_mem_mask),
-                             ts_TM1L, ts_IDLE))
+                             (if(nLevel ==3) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTL),
+                             ts_IDLE))
   }
   when(tc_state === ts_TM0R && io.tc.resp.valid) {
-    tc_state_next := Mux(!io.tc.resp.bits.hit, ts_TM1F,
+    tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) ts_TM1F else ts_TM0F),
                          Mux(tc_tm0_rdata, ts_TTF,
-                             Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= UInt(0), ts_TM1L, ts_IDLE)))
+                             Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= UInt(0),
+                                 (if(nLevel ==3) ts_TM1L else ts_TM0L),
+                                 ts_IDLE)))
   }
   when(tc_state === ts_TM1F && io.tc.resp.valid) {
     tc_state_next := Mux(tc_tm1_rdata, ts_TM0F,
@@ -784,11 +794,14 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   }
   when(tc_state === ts_TM0F && io.tc.resp.valid) {
     tc_state_next := Mux(tc_tm0_rdata, ts_TTF,
-                         Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= UInt(0), ts_TM1L, ts_IDLE))
+                         Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= UInt(0),
+                             (if(nLevel ==3) ts_TM1L else ts_TM0L),
+                             ts_IDLE))
   }
   when(tc_state === ts_TTF && io.tc.resp.valid) {
     tc_state_next := Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= (tc_tt_rdata & tc_xact_mem_mask),
-                         ts_TM1L, ts_IDLE)
+                         (if(nLevel ==3) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTL),
+                         ts_IDLE)
   }
   when(tc_state === ts_TM1L && io.tc.resp.valid) {
     tc_state_next := ts_TM0L
@@ -800,10 +813,10 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     tc_state_next := ts_TTW
   }
   when(tc_state === ts_TTW && io.tc.resp.valid) {
-    tc_state_next := ts_TM0W
+    tc_state_next := (if(nLevel > 1) ts_TM0W else ts_IDLE)
   }
   when(tc_state === ts_TM0W && io.tc.resp.valid) {
-    tc_state_next := ts_TM1W
+    tc_state_next := (if(nLevel > 2) ts_TM1W else ts_IDLE)
   }
   when(tc_state === ts_TM1W && io.tc.resp.valid) {
     tc_state_next := ts_IDLE

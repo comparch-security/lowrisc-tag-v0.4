@@ -34,6 +34,7 @@ class TagUtil(
   memBase: BigInt,              // base address of tagged memory
   cacheBlockBytes: Int = 64     // byte size of a cache block 
 ) {
+  def tclevel = 3
   def wordBits = 64                                     // add tag to every 64-bit word
   def wordBytes = wordBits / 8
   def normTagBits = 1 << log2Up(tagBits)                // normalized tag bits (around up to the nears 2's power)
@@ -49,8 +50,6 @@ class TagUtil(
   def cacheBlockTagBits = cacheBlockBytes / wordBytes * normTagBits // tag size of a cache block
   def cacheBlockTagBytes = cacheBlockTagBits / 8
   def blockOffBits = log2Up(cacheBlockBytes)
-  def topSize = map1Size                                // size of the top map
-  def topBase = map1Base                                // base address of the top map
 
   require(isPow2(memSize))
   require(isPow2(mapRatio))
