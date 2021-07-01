@@ -365,29 +365,31 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   when(io.data.resp.valid) { data_buf(row) := io.data.resp.bits.data }
 
   //PFC
-  val miss   = io.meta.resp.valid && !io.meta.resp.bits.hit
-  val wbaddr = Cat(io.wb.req.bits.tag, io.wb.req.bits.idx, UInt(0, tgHelper.blockOffBits+cacheIdBits))
-  val isTTwbaddr  = !tgHelper.is_map(wbaddr)
-  val isTM1wbaddr = tgHelper.is_top(wbaddr)
-  val isTM0wbaddr = !isTTwbaddr && !isTM1wbaddr
-  io.pfc.readTT          := io.meta.resp.valid && xact.pfc.readTT
-  io.pfc.readTT_miss     := miss && xact.pfc.readTT_miss
-  io.pfc.writeTT         := io.meta.resp.valid && xact.pfc.writeTT
-  io.pfc.writeTT_miss    := miss && xact.pfc.writeTT_miss
-  io.pfc.writeTT_back    := io.wb.req.fire() && isTTwbaddr
-  io.pfc.readTM0         := io.meta.resp.valid && xact.pfc.readTM0
-  io.pfc.readTM0_miss    := miss && xact.pfc.readTM0_miss
-  io.pfc.writeTM0        := io.meta.resp.valid && xact.pfc.writeTM0
-  io.pfc.writeTM0_miss   := miss && xact.pfc.writeTM0_miss
-  io.pfc.writeTM0_back   := io.wb.req.fire() && isTM0wbaddr
-  io.pfc.readTM1         := io.meta.resp.valid && xact.pfc.readTM1
-  io.pfc.readTM1_miss    := miss && xact.pfc.readTM1_miss
-  io.pfc.writeTM1        := io.meta.resp.valid && xact.pfc.writeTM1
-  io.pfc.writeTM1_miss   := miss && xact.pfc.writeTM1_miss
-  io.pfc.writeTM1_back   := io.wb.req.fire() && isTM1wbaddr
-  io.pfc.acqTTfromMem    := io.tl.acquire.fire() && !tgHelper.is_map(xact.addr)
-  io.pfc.acqTM0fromMem   := io.tl.acquire.fire() &&  tgHelper.is_map(xact.addr) && !tgHelper.is_top(xact.addr)
-  io.pfc.acqTM1fromMem   := io.tl.acquire.fire() &&  tgHelper.is_top(xact.addr)
+  val isTTaddr   = !tgHelper.is_map(xact.addr)
+  val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
+  val isTM1addr  =  tgHelper.is_top(xact.addr)
+  val isTTread   = isTTaddr  && (if(nLevel > 1) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTM0read  = isTM0addr && (if(nLevel > 2) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTM1read  = isTM1addr &&                                            xact.op === TCTagOp.F
+  val isTTwrite  = isTTaddr  && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
+  val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
+  val isTM1write = isTM1addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
+
+  io.pfc.readTT          := isTTread   && io.meta.resp.valid
+  io.pfc.readTT_miss     := isTTread   && io.meta.resp.valid && !io.meta.resp.bits.hit
+  io.pfc.writeTT         := isTTwrite  && io.meta.write.ready
+  io.pfc.writeTT_back    := isTTaddr   && io.wb.req.fire()
+  io.pfc.readTM0         := isTM0read  && io.meta.resp.valid
+  io.pfc.readTM0_miss    := isTM0read  && io.meta.resp.valid && !io.meta.resp.bits.hit
+  io.pfc.writeTM0        := isTM0write && io.meta.write.ready
+  io.pfc.writeTM0_back   := isTM0addr  && io.wb.req.fire()
+  io.pfc.readTM1         := isTM1read  && io.meta.resp.valid
+  io.pfc.readTM1_miss    := isTM1read  && io.meta.resp.valid && !io.meta.resp.bits.hit
+  io.pfc.writeTM1        := isTM1write && io.meta.write.ready
+  io.pfc.writeTM1_back   := isTM1addr  && io.wb.req.fire()
+  io.pfc.acqTTfromMem    := isTTaddr   && io.tl.acquire.fire()
+  io.pfc.acqTM0fromMem   := isTM0addr  && io.tl.acquire.fire()
+  io.pfc.acqTM1fromMem   := isTM1addr  && io.tl.acquire.fire()
   io.pfc.acqTfromMemT    := io.tl.acquire.fire()
 
   // metadata read
@@ -817,28 +819,6 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   when(tc_state === ts_TM1W && io.tc.resp.valid) {
     tc_state_next := ts_IDLE
   }
-
-  //PFC
-  val noTM0R = Reg(Bool())
-  val noTM1F = Reg(Bool())
-  when(tc_state === ts_IDLE) {
-    noTM0R := Bool(true)
-    noTM1F := Bool(true)
-  }
-  when(tc_state === ts_TM0R) { noTM0R := Bool(false) }
-  when(tc_state === ts_TM1F) { noTM1F := Bool(false) }
-  io.tc.req.bits.pfc.readTT        := tc_state  === ts_TTR  && !tc_xact_rw
-  io.tc.req.bits.pfc.readTT_miss   := (tc_state === ts_TTF  || tc_state === ts_TTL && tc_xact_tm0_tag1)  && !tc_xact_rw
-  io.tc.req.bits.pfc.writeTT       := tc_state  === ts_TTR  && tc_xact_rw
-  io.tc.req.bits.pfc.writeTT_miss  := (tc_state === ts_TTF  || tc_state === ts_TTL && tc_xact_tm0_tag1 )  && tc_xact_rw
-  io.tc.req.bits.pfc.readTM0       := tc_state  === ts_TM0R && !tc_xact_rw
-  io.tc.req.bits.pfc.readTM0_miss  := (tc_state === ts_TM0F || tc_state === ts_TM0L && tc_xact_tm1_tag1) && !tc_xact_rw
-  io.tc.req.bits.pfc.writeTM0      := (tc_state === ts_TM0R || tc_state === ts_TM0L && noTM0R) && tc_xact_rw
-  io.tc.req.bits.pfc.writeTM0_miss := (tc_state === ts_TM0F || tc_state === ts_TM0L && tc_xact_tm1_tag1) && tc_xact_rw
-  io.tc.req.bits.pfc.readTM1       := tc_state  === ts_TM1F && !tc_xact_rw
-  io.tc.req.bits.pfc.readTM1_miss  := (tc_state === ts_TM1F || tc_state === ts_TM1L) && !tc_xact_rw
-  io.tc.req.bits.pfc.writeTM1      := (tc_state === ts_TM1F || tc_state === ts_TM1L  && noTM1F) && tc_xact_rw
-  io.tc.req.bits.pfc.writeTM1_miss := (tc_state === ts_TM1F || tc_state === ts_TM1L) && tc_xact_rw
 
 }
 
