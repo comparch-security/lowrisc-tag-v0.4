@@ -256,10 +256,11 @@ class TCWritebackUnit(id: Int)(implicit p: Parameters) extends TCModule()(p) wit
 
   io.data.write.valid := Bool(false)
 
-  io.pfc.acqTTtoMem    := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0)) && !tgHelper.is_map(io.tl.acquire.bits.full_addr())
-  io.pfc.acqTM0toMem   := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0)) && tgHelper.is_map(io.tl.acquire.bits.full_addr()) && !tgHelper.is_top(io.tl.acquire.bits.full_addr())
-  io.pfc.acqTM1toMem   := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0)) && tgHelper.is_top(io.tl.acquire.bits.full_addr())
-  io.pfc.acqTtoMemT    := io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0))
+  val acqTtoMem        = io.tl.acquire.fire() && (io.tl.acquire.bits.addr_beat === UInt(0))
+  io.pfc.acqTTtoMem    := acqTtoMem && !tgHelper.is_map(io.tl.acquire.bits.full_addr())
+  io.pfc.acqTM0toMem   := acqTtoMem && tgHelper.is_map(io.tl.acquire.bits.full_addr()) && !tgHelper.is_top(io.tl.acquire.bits.full_addr())
+  io.pfc.acqTM1toMem   := acqTtoMem && tgHelper.is_top(io.tl.acquire.bits.full_addr())
+  io.pfc.acqTtoMemT    := acqTtoMem
 
   when(state === s_IDLE) {
     data_buffer := Vec.fill(refillCycles)(UInt(0, rowBits))
@@ -380,15 +381,15 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
 
   io.pfc.readTT          := isTTread   && io.meta.resp.valid
   io.pfc.readTT_miss     := isTTread   && io.meta.resp.valid && !io.meta.resp.bits.hit
-  io.pfc.writeTT         := isTTwrite  && io.meta.write.ready
+  io.pfc.writeTT         := isTTwrite  && state === s_MW && state_next === s_L
   io.pfc.writeTT_back    := isTTaddr   && io.wb.req.fire()
   io.pfc.readTM0         := isTM0read  && io.meta.resp.valid
   io.pfc.readTM0_miss    := isTM0read  && io.meta.resp.valid && !io.meta.resp.bits.hit
-  io.pfc.writeTM0        := isTM0write && io.meta.write.ready
+  io.pfc.writeTM0        := isTM0write && state === s_MW && state_next === s_L
   io.pfc.writeTM0_back   := isTM0addr  && io.wb.req.fire()
   io.pfc.readTM1         := isTM1read  && io.meta.resp.valid
   io.pfc.readTM1_miss    := isTM1read  && io.meta.resp.valid && !io.meta.resp.bits.hit
-  io.pfc.writeTM1        := isTM1write && io.meta.write.ready
+  io.pfc.writeTM1        := isTM1write && state === s_MW && state_next === s_L
   io.pfc.writeTM1_back   := isTM1addr  && io.wb.req.fire()
   io.pfc.acqTTfromMem    := isTTaddr   && io.tl.acquire.fire()
   io.pfc.acqTM0fromMem   := isTM0addr  && io.tl.acquire.fire()
