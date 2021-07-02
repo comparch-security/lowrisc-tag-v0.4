@@ -21,9 +21,12 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nMap0Blocks     = tgHelper.map0Size.toInt / p(CacheBlockBytes)
   val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)
   val nLevel          = tgHelper.tclevel
+  val TopMapBase      = if(tgHelper.tclevel == 3)      tgHelper.map1Base
+                        else if(tgHelper.tclevel == 2) tgHelper.map0Base
+                        else                           BigInt(0)
   val nTopMapBlocks   = if(tgHelper.tclevel == 3)      max(1, nMap1Blocks)
                         else if(tgHelper.tclevel == 2) max(1, nMap0Blocks)
-                        else 1
+                        else                           0
 
   val refillCycles = outerDataBeats
 
@@ -1041,7 +1044,7 @@ class TCInitiator(id:Int)(implicit p: Parameters) extends TCModule()(p) {
   // tagcache initialization for the top map
   when(rst_cnt =/= UInt(nBlocks)) {
     io.tag_xact.req.valid  := Bool(true)
-    io.tag_xact.req.bits.addr := UInt(tgHelper.map1Base) + UInt(id) * UInt(p(CacheBlockBytes)) + rst_cnt * UInt(nTagTransactors * p(CacheBlockBytes))
+    io.tag_xact.req.bits.addr := UInt(TopMapBase + id * p(CacheBlockBytes)) + rst_cnt * UInt(nTagTransactors * p(CacheBlockBytes))
     io.tag_xact.req.bits.op   := TCTagOp.C
     io.mem_xact.req.ready  := Bool(false)
     io.mem_xact.resp.valid := Bool(false)
