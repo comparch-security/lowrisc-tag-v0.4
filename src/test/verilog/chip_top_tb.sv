@@ -1,7 +1,6 @@
 // See LICENSE for license details.
 
 `include "consts.vh"
-`include "config.vh"
 
 module tb;
 

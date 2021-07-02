@@ -195,6 +195,7 @@ class BaseConfig extends Config (
       case NSecondaryMisses => 4
       case L2DirectoryRepresentation => new FullRepresentation(site(NTiles))
       case L2Replacer => () => new SeqRandom(site(NWays))
+      //case L2Replacer => () => new SeqPLRU(site(NSets), site(NWays))
       case "L2Bank" => {
         case NSets => Knob("L2_SETS")
         case NWays => Knob("L2_WAYS")

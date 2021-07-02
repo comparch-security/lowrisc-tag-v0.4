@@ -5,59 +5,83 @@
 #include "uart.h"
 #include "memory.h"
 
-unsigned long long lfsr64(unsigned long long d) {
-  // x^64 + x^63 + x^61 + x^60 + 1
-  unsigned long long bit = 
-    (d >> (64-64)) ^
-    (d >> (64-63)) ^
-    (d >> (64-61)) ^
-    (d >> (64-60)) ^
-    1;
-  return (d >> 1) | (bit << 63);
+static uint64_t lfsr(uint64_t x)
+{
+  uint64_t bit = (x ^ (x >> 1)) & 1;
+  return (x >> 1) | (bit << 62);
 }
 
-//#define STEP_SIZE 4
-#define STEP_SIZE 1024*16
-//#define VERIFY_DISTANCE 2
-#define VERIFY_DISTANCE 16
+#define TAG_MASK 0x3
 
+int load_tag(void *addr) {
+  int rv;
+  asm volatile ("lw %0, 0(%1); tagr %0, %0"
+                :"=r"(rv)
+                :"r"(addr)
+                );
+  return rv;
+}
+
+
+void store_tag(void *addr, int tag) {
+  asm volatile ("tagw %0, %0; andi %0, %0, 0; amoor.w %0, %0, 0(%1)"
+                :
+                :"r"(tag), "r"(addr)
+                );
+}
+
+#define RANG 0x10000
+#define SFN (RANG >> 0)
+#define SHF 3
 
 int main() {
-  unsigned long waddr = 0;
-  unsigned long raddr = 0;
-  unsigned long long wkey = 0;
-  unsigned long long rkey = 0;
-  unsigned int i = 0;
-  unsigned int error_cnt = 0;
-  unsigned distance = 0;
 
   uart_init();
   printf("DRAM test program.\n");
+  uint64_t *base = get_ddr_base();
 
+  int i = 0;
+  int s = 1;
+  uint64_t seed = 0x2021;
+
+  // initial
+  for(i=0; i<RANG; i++) {
+    *(base + i) = i;
+    *(base + RANG + (i<<SHF)) = seed;
+  }
+
+  // test
   while(1) {
-    printf("Write block @%lx using key %llx\n", waddr, wkey);
-    for(i=0; i<STEP_SIZE; i++) {
-      *(get_ddr_base() + waddr) = wkey;
-      waddr = (waddr + 1) & 0x3ffffff;
-      wkey = lfsr64(wkey);
-    }
+    printf("test use seed: %llx\n", seed);
     
-    if(distance < VERIFY_DISTANCE) distance++;
-
-    if(distance == VERIFY_DISTANCE) {
-      printf("Check block @%lx using key %llx\n", raddr, rkey);
-      for(i=0; i<STEP_SIZE; i++) {
-        unsigned long long rd = *(get_ddr_base() + raddr);
-        if(rkey != rd) {
-          printf("Error! key %llx stored @%lx does not match with %llx\n", rd, raddr, rkey);
-          error_cnt++;
-          exit(1);
-        }
-        raddr = (raddr + 1) & 0x3ffffff;
-        rkey = lfsr64(rkey);
-        if(error_cnt > 10) exit(1);
+    // shuffle
+    for(i=0; i<SFN; i++) {
+      s = lfsr(s);
+      uint64_t offset = s % RANG;
+      uint64_t m = *(base + offset);
+      *(base + offset) = *(base + i);
+      *(base + i) = m;
+      if(i != offset && *(base + i) == *(base + offset)) {
+        printf("Shuffle: %llx@%p <> %llx@%p with seed %llx\n", *(base + i), base + i, *(base + offset), base + offset, seed);
+        exit(3);
       }
     }
+
+    // check
+    for(i=0; i<RANG; i++) {
+      if(seed != *(base + RANG + (i<<SHF))) {
+        printf("Error! %llx stored @0x%p does not match with %llx\n", *(base + RANG + (i<<SHF)), base + RANG + (i<<SHF), seed);
+        exit(1);
+      }
+    }
+
+    // refill
+    seed = lfsr(seed);
+    for(i=0; i<RANG; i++) {
+      uint64_t *p = base + RANG + (*(base + i) << SHF);
+      *p = seed;
+    }
   }
+
 }
 

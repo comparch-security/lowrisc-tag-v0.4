@@ -1187,41 +1187,6 @@ logic [29:0] led5_count;
 logic [29:0] led6_count;
 logic [29:0] led7_count;
 
-`ifdef GENESYS2
-assign led[0] =rx_led;
-assign led[1] =tx_led;
-assign led[2] =led2_count[25];
-assign led[3] =led3_count[25];
-assign led[4] =led4_count[25];
-
-always @(posedge clk_io_uart or negedge rstn) begin
-  if(!rstn) begin
-    rx_led <= 1'b0;
-    tx_led <= 1'b0;
-  end
-  else begin
-    rx_led <= ~rxd;
-    tx_led <= ~txd;
-  end
-end
-
-always @(posedge clk_io_uart or posedge rstn) begin //pass synthesis???
-  if(!rstn)  led2_count <= 30'd0;
-  else  led2_count <= led2_count+1'b1;
-end
-
-always @(posedge clk_io_uart or negedge rstn) begin
-  if(!rstn)  led3_count <= 30'd0;
-  else  led3_count <= led3_count+1'b1;
-end
-
-always @(posedge clk or negedge rstn) begin
-  if(!rstn)  led4_count <= 30'd0;
-  else  led4_count <= led4_count+1'b1;
-end
-
-`endif
-
 `ifdef KC705
 assign led[0] =rx_led;
 assign led[1] =tx_led;
