@@ -379,16 +379,16 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM1write = isTM1addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
 
-  io.pfc.readTT          := isTTread   && io.meta.resp.valid
-  io.pfc.readTT_miss     := isTTread   && io.meta.resp.valid && !io.meta.resp.bits.hit
+  io.pfc.readTT          := isTTread   && io.meta.resp.valid && state === s_MR
+  io.pfc.readTT_miss     := isTTread   && io.meta.resp.valid && state === s_MR && !io.meta.resp.bits.hit
   io.pfc.writeTT         := isTTwrite  && state === s_MW && state_next === s_L
   io.pfc.writeTT_back    := isTTaddr   && io.wb.req.fire()
-  io.pfc.readTM0         := isTM0read  && io.meta.resp.valid
-  io.pfc.readTM0_miss    := isTM0read  && io.meta.resp.valid && !io.meta.resp.bits.hit
+  io.pfc.readTM0         := isTM0read  && io.meta.resp.valid && state === s_MR
+  io.pfc.readTM0_miss    := isTM0read  && io.meta.resp.valid && state === s_MR && !io.meta.resp.bits.hit
   io.pfc.writeTM0        := isTM0write && state === s_MW && state_next === s_L
   io.pfc.writeTM0_back   := isTM0addr  && io.wb.req.fire()
-  io.pfc.readTM1         := isTM1read  && io.meta.resp.valid
-  io.pfc.readTM1_miss    := isTM1read  && io.meta.resp.valid && !io.meta.resp.bits.hit
+  io.pfc.readTM1         := isTM1read  && io.meta.resp.valid && state === s_MR
+  io.pfc.readTM1_miss    := isTM1read  && io.meta.resp.valid && state === s_MR && !io.meta.resp.bits.hit
   io.pfc.writeTM1        := isTM1write && state === s_MW && state_next === s_L
   io.pfc.writeTM1_back   := isTM1addr  && io.wb.req.fire()
   io.pfc.acqTTfromMem    := isTTaddr   && io.tl.acquire.fire()
@@ -782,7 +782,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   when(tc_state === ts_TTR && io.tc.resp.valid) {
     tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) ts_TM0R else ts_TM0F),
                          Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= (tc_tt_rdata & tc_xact_mem_mask),
-                             (if(nLevel > 2) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTL),
+                             (if(nLevel > 2) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTW),
                              ts_IDLE))
   }
   when(tc_state === ts_TM0R && io.tc.resp.valid) {
