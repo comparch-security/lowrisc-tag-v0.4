@@ -3,6 +3,7 @@
 #include "atomic.h"
 #include "bits.h"
 #include "uart.h"
+#include "bio.h"
 #include "rtc.h"
 #include "pfc.h"
 #include <errno.h>
