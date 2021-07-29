@@ -366,19 +366,19 @@ class BaseConfig extends Config (
     case "NBANKS" => 1
 
     case "L1D_MSHRS" => 2
-    case "L1D_SETS" => 32
-    case "L1D_WAYS" => 4
+    case "L1D_SETS" => 64
+    case "L1D_WAYS" => 8
 
-    case "L1I_SETS" => 32
-    case "L1I_WAYS" => 4
+    case "L1I_SETS" => 64
+    case "L1I_WAYS" => 8
     case "L1I_BUFFER_WAYS" => false
 
-    case "L2_XACTORS" => 2
-    case "L2_SETS" => 128
-    case "L2_WAYS" => 8
+    case "L2_XACTORS" => 4
+    case "L2_SETS" => 512
+    case "L2_WAYS" => 16
 
-    case "TC_MEM_XACTORS" => 1
-    case "TC_TAG_XACTORS" => 1
+    case "TC_MEM_XACTORS" => 3
+    case "TC_TAG_XACTORS" => 4
     case "TC_SETS" => 32
     case "TC_WAYS" => 4
   }
