@@ -94,6 +94,7 @@ DRIVER_OBJS = \
 	uart.o \
 	spi.o \
 	rtc.o \
+	bio.o \
 	diskio.o \
 	ff.o \
 	ffunicode.o \

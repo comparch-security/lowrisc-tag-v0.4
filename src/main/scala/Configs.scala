@@ -29,6 +29,7 @@ class BaseConfig extends Config (
       entries += AddrMapEntry("bootrom", MemSize(1<<13, 1<<12, MemAttr(AddrMapProt.RX)))
       entries += AddrMapEntry("rtc", MemSize(1<<12, 1<<12, MemAttr(AddrMapProt.RW)))
       entries += AddrMapEntry("rtc2", MemSize(1<<12, 1<<12, MemAttr(AddrMapProt.RW)))
+      entries += AddrMapEntry("bio", MemSize(1<<6, 1<<12, MemAttr(AddrMapProt.RW)))
       for (i <- 0 until site(NTiles))
         entries += AddrMapEntry(s"prci$i", MemSize(1<<12, 1<<12, MemAttr(AddrMapProt.RW)))
       new AddrMap(entries)
@@ -95,6 +96,9 @@ class BaseConfig extends Config (
       res append  "};\n"
       res append  "rtc2 {\n"
       res append s"  addr 0x${addrMap("io:int:rtc2").start.toString(16)};\n"
+      res append  "};\n"
+      res append  "bio {\n"
+      res append s"  addr 0x${addrMap("io:int:bio").start.toString(16)};\n"
       res append  "};\n"
       if(site(UseUART)) {
         res append  "uart {\n"

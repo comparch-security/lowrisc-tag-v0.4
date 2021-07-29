@@ -12,6 +12,7 @@
 #include "bits.h"
 #include "memory.h"
 #include "spi.h"
+#include "bio.h"
 
 // max size of file image is 64M
 #define MAX_FILE_SIZE 0x4000000
@@ -72,6 +73,7 @@ int main (void)
     f_close(&fil);
   }
   printf("Current test case is %d\n", current_case);
+  set_led(current_case);
 
   // read the test case
   if (f_open(&fil, "cases.txt", FA_READ)) { // not found

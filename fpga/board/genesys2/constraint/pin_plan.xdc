@@ -44,6 +44,38 @@ set_property IOSTANDARD LVCMOS33 [get_ports flash_io[2]]
 set_property PACKAGE_PIN R21 [get_ports flash_io[3]]
 set_property IOSTANDARD LVCMOS33 [get_ports flash_io[3]]
 
+#switch
+set_property PACKAGE_PIN G19 [get_ports sw[0]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[0]]
+set_property PACKAGE_PIN G25 [get_ports sw[1]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[1]]
+set_property PACKAGE_PIN H24 [get_ports sw[2]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[2]]
+set_property PACKAGE_PIN K19 [get_ports sw[3]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[3]]
+set_property PACKAGE_PIN N19 [get_ports sw[4]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[4]]
+set_property PACKAGE_PIN P19 [get_ports sw[5]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[5]]
+set_property PACKAGE_PIN P26 [get_ports sw[6]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[6]]
+set_property PACKAGE_PIN P27 [get_ports sw[7]]
+set_property IOSTANDARD LVCMOS33 [get_ports sw[7]]
+
+
+#button:L R U D C
+set_property PACKAGE_PIN M20 [get_ports but[0]]
+set_property IOSTANDARD LVCMOS33 [get_ports but[0]]
+set_property PACKAGE_PIN C19 [get_ports but[1]]
+set_property IOSTANDARD LVCMOS33 [get_ports but[1]]
+set_property PACKAGE_PIN B19 [get_ports but[2]]
+set_property IOSTANDARD LVCMOS33 [get_ports but[2]]
+set_property PACKAGE_PIN M19 [get_ports but[3]]
+set_property IOSTANDARD LVCMOS33 [get_ports but[3]]
+set_property PACKAGE_PIN E18 [get_ports but[4]]
+set_property IOSTANDARD LVCMOS33 [get_ports but[4]]
+
+
 #led
 set_property PACKAGE_PIN T28 [get_ports led[0]]
 set_property IOSTANDARD LVCMOS33 [get_ports led[0]]
@@ -61,6 +93,8 @@ set_property PACKAGE_PIN W24 [get_ports led[6]]
 set_property IOSTANDARD LVCMOS33 [get_ports led[6]]
 set_property PACKAGE_PIN W23 [get_ports led[7]]
 set_property IOSTANDARD LVCMOS33 [get_ports led[7]]
+
+
 
 #fan
 set_property PACKAGE_PIN W19 [get_ports fan_pwm]

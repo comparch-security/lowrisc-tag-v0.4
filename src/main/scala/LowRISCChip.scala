@@ -47,6 +47,9 @@ class TopIO(implicit val p: Parameters) extends ParameterizedBundle()(p) with Ha
   val cpu_rst     = Bool(INPUT)
   val debug_rst   = Bool(INPUT)
   val debug_net   = Vec(2, new DiiBBoxIO)       // debug network
+  val sw          = UInt(INPUT,  8)
+  val but         = UInt(INPUT,  8)
+  val led         = UInt(OUTPUT, 8)
 }
 
 object TopUtils {
@@ -235,6 +238,14 @@ class Top(topParams: Parameters) extends Module with HasTopLevelParameters {
   val rtc2Addr = ioAddrHashMap("int:rtc2")
   require(rtc2.size <= rtc2Addr.region.size)
   rtc2.io.tl <> mmio_net.io.out(rtc2Addr.port)
+
+  val bio = Module(new BIO()(ioNetParams)) //basic I/O
+  val bioAddr = ioAddrHashMap("int:bio")
+  require(bio.size <= bioAddr.region.size)
+  bio.io.tl <> mmio_net.io.out(bioAddr.port)
+  bio.io.sw  := io.sw
+  bio.io.but := io.but
+  io.led     := bio.io.led
 
   // scr
   //val scrFile = Module(new SCRFile("UNCORE_SCR", ioAddrHashMap("int:scr").start))
