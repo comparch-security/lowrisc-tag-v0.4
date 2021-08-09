@@ -21,6 +21,9 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nMap0Blocks     = tgHelper.map0Size.toInt / p(CacheBlockBytes)
   val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)
   val nLevel          = tgHelper.tclevel
+  val nOrder          = tgHelper.order
+  val bCiE            = tgHelper.create_if_empty
+  val bIiE            = tgHelper.invalidate_if_empty
   val TopMapBase      = if(tgHelper.tclevel == 3)      tgHelper.map1Base
                         else if(tgHelper.tclevel == 2) tgHelper.map0Base
                         else                           BigInt(0)
@@ -372,8 +375,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val isTTaddr   = !tgHelper.is_map(xact.addr)
   val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
   val isTM1addr  =  tgHelper.is_top(xact.addr)
-  val isTTread   = isTTaddr  && (if(nLevel > 1) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
-  val isTM0read  = isTM0addr && (if(nLevel > 2) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTTread   = isTTaddr  && (if(nOrder >  0 && nLevel > 1) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTM0read  = isTM0addr && (if(nOrder == 1 && nLevel > 2) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
   val isTM1read  = isTM1addr &&                                            xact.op === TCTagOp.F
   val isTTwrite  = isTTaddr  && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
@@ -708,24 +711,24 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     }
     is(ts_TM0L) {
       io.tc.req.bits.addr := tc_tm0_addr
-      io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1, TCTagOp.FL, TCTagOp.CL)
+      io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1 || !Bool(bCiE), TCTagOp.FL, TCTagOp.CL)
     }
     is(ts_TTL) {
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := Mux(tc_xact_tm0_tag1, TCTagOp.F, TCTagOp.C)
+      io.tc.req.bits.op   := Mux(tc_xact_tm0_tag1 || !Bool(bCiE), TCTagOp.F, TCTagOp.C)
     }
     is(ts_TTW) {
       io.tc.req.bits.data := tc_tt_wdata
       io.tc.req.bits.mask := tc_tt_wmask
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN, TCTagOp.I, TCTagOp.W)
+      io.tc.req.bits.op   := Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && Bool(bIiE), TCTagOp.I, TCTagOp.W)
     }
     is(ts_TM0W) {
       io.tc.req.bits.data := tc_tm0_wdata
       io.tc.req.bits.mask := tc_tm0_wmask
       io.tc.req.bits.addr := tc_tm0_addr
       io.tc.req.bits.op   := Mux((tc_xact_tt_tag1 || tc_xact_tt_tagN) === tc_xact_tm0_tag1, TCTagOp.U,
-                                 Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN, TCTagOp.I, TCTagOp.W))
+                                 Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN && Bool(bIiE), TCTagOp.I, TCTagOp.W))
     }
     is(ts_TM1W) {
       io.tc.req.bits.data := tc_tm1_wdata
@@ -777,10 +780,30 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
 
   // -------------- the shared state machine ----------------- //
   when(tc_state === ts_IDLE && tc_req_valid) {
-    tc_state_next := (if(nLevel > 1) ts_TTR else ts_TTF)
+    tc_state_next := (
+      nOrder match {
+        case 0 => { // top-down
+          nLevel match {
+            case 3 => ts_TM1F
+            case 2 => ts_TM0F
+            case 1 => ts_TTF
+          }
+        }
+        case _ => { // bottom-up or bottom-top
+          if(nLevel > 1) ts_TTR
+          else           ts_TTF
+        }
+      }
+    )
   }
   when(tc_state === ts_TTR && io.tc.resp.valid) {
-    tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) ts_TM0R else ts_TM0F),
+    tc_state_next := Mux(!io.tc.resp.bits.hit, (
+                           if(nLevel > 2) {
+                             if(nOrder == 1) ts_TM0R
+                             else            ts_TM1F
+                           }
+                           else ts_TM0F
+                         ),
                          Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= (tc_tt_rdata & tc_xact_mem_mask),
                              (if(nLevel > 2) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTW),
                              ts_IDLE))

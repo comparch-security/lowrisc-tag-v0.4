@@ -35,6 +35,9 @@ class TagUtil(
   cacheBlockBytes: Int = 64     // byte size of a cache block 
 ) {
   def tclevel = 3
+  def order   = 1                                       // 0: topdown, 1: bottomup, 2: bottom-top
+  def create_if_empty = true
+  def invalidate_if_empty = true
   def wordBits = 64                                     // add tag to every 64-bit word
   def wordBytes = wordBits / 8
   def normTagBits = 1 << log2Up(tagBits)                // normalized tag bits (around up to the nears 2's power)
