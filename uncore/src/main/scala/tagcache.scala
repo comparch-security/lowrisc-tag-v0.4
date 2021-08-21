@@ -23,7 +23,9 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nLevel          = tgHelper.tclevel
   val nOrder          = tgHelper.order
   val bCiE            = tgHelper.create_if_empty
-  val bIiE            = tgHelper.invalidate_if_empty
+  val bIiE            = tgHelper.invalidate_if_empty && !tgHelper.delayed_invalidation
+  val bAWB            = !tgHelper.invalidate_if_empty
+  val bFR             = !tgHelper.invalidate_if_empty && tgHelper.all_forced_read
   val TopMapBase      = if(tgHelper.tclevel == 3)      tgHelper.map1Base
                         else if(tgHelper.tclevel == 2) tgHelper.map0Base
                         else                           BigInt(0)
@@ -375,9 +377,9 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val isTTaddr   = !tgHelper.is_map(xact.addr)
   val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
   val isTM1addr  =  tgHelper.is_top(xact.addr)
-  val isTTread   = isTTaddr  && (if(nOrder >  0 && nLevel > 1) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
-  val isTM0read  = isTM0addr && (if(nOrder == 1 && nLevel > 2) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
-  val isTM1read  = isTM1addr &&                                            xact.op === TCTagOp.F
+  val isTTread   = isTTaddr  && (if(nOrder >  0 && nLevel > 1 && !bFR) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTM0read  = isTM0addr && (if(nOrder == 1 && nLevel > 2 && !bFR) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTM1read  = isTM1addr && xact.op === TCTagOp.F
   val isTTwrite  = isTTaddr  && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM1write = isTM1addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
@@ -526,7 +528,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
       when(xact.op === TCTagOp.I || xact.op === TCTagOp.R) {
         state_next := s_L
       }.otherwise {
-        state_next := Mux(io.meta.resp.bits.meta.state === TCMetadata.Dirty, s_WB, s_F)
+        state_next := Mux(io.meta.resp.bits.meta.state === TCMetadata.Dirty && (io.meta.resp.bits.meta.tcnt =/= UInt(0) || Bool(bAWB)),
+          s_WB, s_F)
       }
     }
   }
@@ -687,11 +690,11 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   switch(tc_state) {
     is(ts_TTR) {
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := TCTagOp.R
+      io.tc.req.bits.op   := (if(bFR) TCTagOp.F else TCTagOp.R)
     }
     is(ts_TM0R) {
       io.tc.req.bits.addr := tc_tm0_addr
-      io.tc.req.bits.op   := TCTagOp.R
+      io.tc.req.bits.op   := (if(bFR) TCTagOp.F else TCTagOp.R)
     }
     is(ts_TM1F) {
       io.tc.req.bits.addr := tc_tm1_addr
