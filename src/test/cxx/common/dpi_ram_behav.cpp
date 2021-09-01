@@ -24,6 +24,8 @@ using boost::format;
 MemoryController *memory_controller;
 AXIMemWriter* axi_mem_writer;
 AXIMemReader *axi_mem_reader;
+static uint64_t cycle = 0;
+const uint64_t mem_delay = 23;
 
 // the SystemVerilog DPI functions
 svBit memory_write_req (
@@ -244,27 +246,33 @@ std::ostream& MemoryOperation::streamout(std::ostream& os) const {
 // Memory controller
 
 void MemoryController::add_read_req(const uint32_t tag, const uint32_t addr) {
-  op_fifo.push_back(MemoryOperation(0, tag, addr));
+  op_fifo.push_back(MemoryOperation(cycle+mem_delay, 0, tag, addr));
+  //std::cout << format("%1% add read req [%2$08x]") % cycle % addr << std::endl;
 }
 
 void MemoryController::add_write_req(const uint32_t tag, const uint32_t addr, 
                                      const uint32_t data, const uint32_t mask) {
-  op_fifo.push_back(MemoryOperation(1, tag, addr, data, mask));
+  op_fifo.push_back(MemoryOperation(cycle+mem_delay, 1, tag, addr, data, mask));
+  //std::cout << format("%1% add write req [%2$08x]") % cycle % addr << std::endl;
 }
 
 void MemoryController::step() {
   // decide to handle how many operations
   unsigned int rand_num = 1 + (rand() % op_max);
+  cycle++;
   
   for(int i=0; i<rand_num; i++) {
     if(!op_fifo.empty()) {
       // get the operation
       MemoryOperation op = op_fifo.front();
+      if(op.cycle > cycle) break;
       op_fifo.pop_front();
 
       if(op.rw) {
+	//std::cout << format("%1%|%2% process write req [%3$08x]") % cycle % op.cycle % op.addr << std::endl;
         mem.write(op.addr, op.data, op.mask);
       } else {
+	//std::cout << format("%1%|%2% process read req [%3$08x]") % cycle % op.cycle % op.addr << std::endl;
         if(mem.read(op.addr, op.data))
           resp_map[op.tag].push_back(op.data);
         else {

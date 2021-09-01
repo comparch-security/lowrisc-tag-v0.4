@@ -79,6 +79,7 @@ public:
 
 class MemoryOperation {
 public:
+  uint64_t cycle;
   bool rw;                      // write 1, read 0
   uint32_t tag;                 // transaction tag
   uint32_t addr;
@@ -87,16 +88,16 @@ public:
 
   // default constructor
   MemoryOperation()
-    : rw(0), tag(0), addr(0), data(0), mask(0) {}
+    : cycle(0), rw(0), tag(0), addr(0), data(0), mask(0) {}
   
   // normal constructor
-  MemoryOperation(const bool rw, const uint32_t tag, const uint32_t addr,
+  MemoryOperation(const uint64_t cycle, const bool rw, const uint32_t tag, const uint32_t addr,
                   const uint32_t data = 0, const uint32_t mask = 0xf)
-    : rw(rw), tag(tag), addr(addr), data(data), mask(mask) {}
+    : cycle(cycle), rw(rw), tag(tag), addr(addr), data(data), mask(mask) {}
 
   // copy constructor
   MemoryOperation(const MemoryOperation& rhs)
-    : rw(rhs.rw), tag(rhs.tag), addr(rhs.addr), data(rhs.data), mask(rhs.mask) {}
+    : cycle(rhs.cycle), rw(rhs.rw), tag(rhs.tag), addr(rhs.addr), data(rhs.data), mask(rhs.mask) {}
 
   // streamout (print)
   std::ostream& streamout(std::ostream& os) const;
