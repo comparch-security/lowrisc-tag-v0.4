@@ -10,8 +10,8 @@ module tb;
    localparam TLMIS = 3;
 `else
    localparam L2Xacts = 1;
-   localparam TLCIS = 5;
-   localparam TLMIS = 1;
+   localparam TLCIS = 7;
+   localparam TLMIS = 2;
 `endif
    localparam MemAW   = 32;
    localparam MemDW   = 64;
@@ -19,7 +19,7 @@ module tb;
    localparam MemBS   = 8;      // burst size
    localparam TLAW    = 32;
    localparam TLDW    = 64;
-   localparam TLTW    = 4;
+   localparam TLTW    = `TagBits;
    localparam TLBS    = 8;      // burst size
    localparam [63:0] MemSize = `ROCKET_MEM_SIZE / MemDW * (MemDW - MemTW);
    localparam [63:0] MemBase = `ROCKET_MEM_BASE;
@@ -447,7 +447,8 @@ endclass
       .io_out_r_bits_data      ( mem_nasti.r_data                       ),
       .io_out_r_bits_resp      ( mem_nasti.r_resp                       ),
       .io_out_r_bits_last      ( mem_nasti.r_last                       ),
-      .io_out_r_bits_user      ( mem_nasti.r_user                       )
+      .io_out_r_bits_user      ( mem_nasti.r_user                       ),
+      .io_getpfc               ( 1'b0                                   )
       );
    
    initial begin

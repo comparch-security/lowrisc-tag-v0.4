@@ -1284,6 +1284,8 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   pfc.io.update.acqTM0toMem   := wb.io.pfc.acqTM0toMem
   pfc.io.update.acqTM1toMem   := wb.io.pfc.acqTM1toMem
   pfc.io.update.acqTtoMemT    := wb.io.pfc.acqTtoMemT
+
+  io.pfcupdate                := pfc.io.update
 }
 
 
@@ -1316,10 +1318,68 @@ class TagCacheTop(param: Parameters) extends Module
   val io = new Bundle {
     val in = new ManagerTileLinkIO()(p.alterPartial({case TLId => "L2toTC"}))
     val out = new NastiIO()
+    val getpfc = Bool().asInput
   }
 
   val tc = Module(new TagCache)
   tc.io.inner <> io.in
   tc.io.incoherent := Vec.fill(tc.io.inner.tlNCachingClients)(Bool(false))
   connectTilelinkNasti(io.out, tc.io.outer)
+
+
+  //pfc
+  val pfccounters = Reg(Vec(23, UInt(0, width = 64)))
+
+  when( tc.io.pfcupdate.readTT         ) { pfccounters(0)  := pfccounters(0)  + UInt(1)  }
+  when( tc.io.pfcupdate.readTT_miss    ) { pfccounters(1)  := pfccounters(1)  + UInt(1)  }
+  when( tc.io.pfcupdate.writeTT        ) { pfccounters(2)  := pfccounters(2)  + UInt(1)  }
+  when( tc.io.pfcupdate.writeTT_miss   ) { pfccounters(3)  := pfccounters(3)  + UInt(1)  }
+  when( tc.io.pfcupdate.writeTT_back   ) { pfccounters(4)  := pfccounters(4)  + UInt(1)  }
+  when( tc.io.pfcupdate.readTM0        ) { pfccounters(5)  := pfccounters(5)  + UInt(1)  }
+  when( tc.io.pfcupdate.readTM0_miss   ) { pfccounters(6)  := pfccounters(6)  + UInt(1)  }
+  when( tc.io.pfcupdate.writeTM0       ) { pfccounters(7)  := pfccounters(7)  + UInt(1)  }
+  when( tc.io.pfcupdate.writeTM0_miss  ) { pfccounters(8)  := pfccounters(8)  + UInt(1)  }
+  when( tc.io.pfcupdate.writeTM0_back  ) { pfccounters(9)  := pfccounters(9)  + UInt(1)  }
+  when( tc.io.pfcupdate.readTM1        ) { pfccounters(10) := pfccounters(10) + UInt(1)  }
+  when( tc.io.pfcupdate.readTM1_miss   ) { pfccounters(11) := pfccounters(11) + UInt(1)  }
+  when( tc.io.pfcupdate.writeTM1       ) { pfccounters(12) := pfccounters(12) + UInt(1)  }
+  when( tc.io.pfcupdate.writeTM1_miss  ) { pfccounters(13) := pfccounters(13) + UInt(1)  }
+  when( tc.io.pfcupdate.writeTM1_back  ) { pfccounters(14) := pfccounters(14) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTTfromMem   ) { pfccounters(15) := pfccounters(15) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTM0fromMem  ) { pfccounters(16) := pfccounters(16) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTM1fromMem  ) { pfccounters(17) := pfccounters(17) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTfromMemT   ) { pfccounters(18) := pfccounters(18) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTTtoMem     ) { pfccounters(19) := pfccounters(19) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTM0toMem    ) { pfccounters(20) := pfccounters(20) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTM1toMem    ) { pfccounters(21) := pfccounters(21) + UInt(1)  }
+  when( tc.io.pfcupdate.acqTtoMemT     ) { pfccounters(22) := pfccounters(22) + UInt(1)  }
+
+  when(io.getpfc) {
+    printf("PFCResp: TC readTT = %d\n",        pfccounters(0) )
+    printf("PFCResp: TC readTTmiss = %d\n",    pfccounters(1) )
+    printf("PFCResp: TC writeTT = %d\n",       pfccounters(2) )
+    printf("PFCResp: TC writeTTmiss = %d\n",   pfccounters(3) )
+    printf("PFCResp: TC writeTTback = %d\n",   pfccounters(4) )
+    printf("PFCResp: TC readTM0 = %d\n",       pfccounters(5) )
+    printf("PFCResp: TC readTM0miss = %d\n",   pfccounters(6) )
+    printf("PFCResp: TC writeTM0 = %d\n",      pfccounters(7) )
+    printf("PFCResp: TC writeTM0miss = %d\n",  pfccounters(8) )
+    printf("PFCResp: TC writeTM0back = %d\n",  pfccounters(9) )
+    printf("PFCResp: TC readTM1 = %d\n",       pfccounters(10))
+    printf("PFCResp: TC readTM1miss = %d\n",   pfccounters(11))
+    printf("PFCResp: TC writeTM1 = %d\n",      pfccounters(12))
+    printf("PFCResp: TC writeTM1miss = %d\n",  pfccounters(13))
+    printf("PFCResp: TC writeTM1back = %d\n",  pfccounters(14))
+    printf("PFCResp: TC acqTTfromMem = %d\n",  pfccounters(15))
+    printf("PFCResp: TC acqTM0fromMem = %d\n", pfccounters(16))
+    printf("PFCResp: TC acqTM1fromMem = %d\n", pfccounters(17))
+    printf("PFCResp: TC acqTfromMemT = %d\n",  pfccounters(18))
+    printf("PFCResp: TC acqTTtoMem = %d\n",    pfccounters(19))
+    printf("PFCResp: TC acqTM0toMem = %d\n",   pfccounters(20))
+    printf("PFCResp: TC acqTM1toMem = %d\n",   pfccounters(21))
+    printf("PFCResp: TC acqTtoMemT = %d\n",    pfccounters(22))
+  }
+
+
+
 }

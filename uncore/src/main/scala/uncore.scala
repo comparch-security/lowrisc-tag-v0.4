@@ -128,6 +128,7 @@ class ManagerTLIO(implicit p: Parameters) extends CoherenceAgentBundle()(p)
 
 class TCManagerTLIOwithPFC(implicit p: Parameters) extends ManagerTLIO {
   val pfcmanager = new PFCManagerIO()
+  val pfcupdate  = new TagCachePerform().asOutput
 }
 
 abstract class CoherenceAgent(implicit p: Parameters) extends CoherenceAgentModule()(p) {

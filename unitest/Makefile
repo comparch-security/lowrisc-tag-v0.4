@@ -175,7 +175,7 @@ unitest: $(output_dir)/BigTagCache.sim.log $(output_dir)/BigParallelTagCache.sim
 
 $(output_dir)/%.sim.log: %-sim
 	mkdir -p $(output_dir)
-	$< +max-xact=1000000 -l $@ > /dev/null
+	./$< +max-xact=1000000 -l $@ > /dev/null
 	grep "finish" $@ && ! grep "Fatal" $@
 
 junk += $(output_dir)

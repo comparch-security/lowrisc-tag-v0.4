@@ -391,7 +391,7 @@ class BaseConfig extends Config (
 class WithTagConfig extends Config (
   (pname,site,here) => pname match {
     case UseTagMem => true
-    case TagBits => 2
+    case TagBits => { Dump("TagBits", 2); 2}
   }
 )
 
