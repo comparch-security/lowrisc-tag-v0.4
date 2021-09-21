@@ -383,8 +383,8 @@ class BaseConfig extends Config (
 
     case "TC_MEM_XACTORS" => 3
     case "TC_TAG_XACTORS" => 4
-    case "TC_SETS" => 32
-    case "TC_WAYS" => 4
+    case "TC_SETS" => 128
+    case "TC_WAYS" => 8
   }
 )
 

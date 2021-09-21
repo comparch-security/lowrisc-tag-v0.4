@@ -62,7 +62,7 @@ dpi_libs = \
 #--------------------------------------------------------------------
 
 $(sim_dir)/libdpi.so : $(test_verilog_srcs) $(test_cxx_srcs) $(test_cxx_headers)
-	g++ -Wa,-W -fPIC -m64 -O1 -g -std=c++11 -shared \
+	g++ -Wa,-W -fPIC -m64 -O1 -std=c++11 -shared \
 	-I$(base_dir)/csrc/common \
 	-I$(VCS_HOME)/include \
 	$(test_cxx_srcs) -o $@
@@ -139,6 +139,7 @@ junk += $(generated_dir)
 #--------------------------------------------------------------------
 VCS = vcs
 VCS_FLAG = \
+	-cpp g++-4.8 -cc gcc-4.8 -LDFLAGS -Wl,--no-as-needed \
 	-sverilog -ntb_opts -full64 \
 	-timescale=1ns/10ps \
 	-debug \
