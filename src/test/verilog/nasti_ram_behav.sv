@@ -13,13 +13,12 @@ module nasti_ram_behav
     );
 
    initial assert(ID_WIDTH <= 16) else $error("Error: ID_WIDTH > 16 is not supported!");
-   initial assert(ADDR_WIDTH <= 32) else $error("Error: ADDR_WIDTH > 32 is not supported!");
    initial assert(DATA_WIDTH <= 256) else $error("Error: DATA_WIDTH > 256 is not supported!");
    initial assert(USER_WIDTH <= 16) else $error("Error: USER_WIDTH > 16 is not supported!");
 
    import "DPI-C" function bit memory_write_req (
                                                  input bit [15:0] id,
-                                                 input bit [31:0] addr,
+                                                 input bit [63:0] addr,
                                                  input bit [7:0]  len,
                                                  input bit [2:0]  size,
                                                  input bit [15:0] user
@@ -39,7 +38,7 @@ module nasti_ram_behav
 
    import "DPI-C" function bit memory_read_req (
                                                 input bit [15:0] id,
-                                                input bit [31:0] addr,
+                                                input bit [63:0] addr,
                                                 input bit [7:0]  len,
                                                 input bit [2:0]  size,
                                                 input bit [15:0] user

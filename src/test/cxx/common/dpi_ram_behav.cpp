@@ -30,14 +30,14 @@ const uint64_t mem_delay = 23;
 // the SystemVerilog DPI functions
 svBit memory_write_req (
                         const svBitVecVal *id_16b,
-                        const svBitVecVal *addr_32b,
+                        const svBitVecVal *addr_64b,
                         const svBitVecVal *len_8b,
                         const svBitVecVal *size_3b,
                         const svBitVecVal *user_16b
                         ) {
   // collect all data
   uint32_t id = SV_GET_UNSIGNED_BITS(id_16b[0], 16);
-  uint32_t addr = addr_32b[0];
+  uint64_t addr = addr_64b[0];
   unsigned int len = SV_GET_UNSIGNED_BITS(len_8b[0], 8);
   unsigned int size = SV_GET_UNSIGNED_BITS(size_3b[0], 3);
   uint32_t user = SV_GET_UNSIGNED_BITS(user_16b[0], 16);
@@ -97,7 +97,7 @@ svBit memory_write_resp (
 
 svBit memory_read_req (
                        const svBitVecVal *id_16b,
-                       const svBitVecVal *addr_32b,
+                       const svBitVecVal *addr_64b,
                        const svBitVecVal *len_8b,
                        const svBitVecVal *size_3b,
                        const svBitVecVal *user_16b
@@ -105,7 +105,7 @@ svBit memory_read_req (
 {
   // collect all data
   uint32_t id = SV_GET_UNSIGNED_BITS(id_16b[0], 16);
-  uint32_t addr = addr_32b[0];
+  uint64_t addr = addr_64b[0];
   unsigned int len = SV_GET_UNSIGNED_BITS(len_8b[0], 8);
   unsigned int size = SV_GET_UNSIGNED_BITS(size_3b[0], 3);
   uint32_t user = SV_GET_UNSIGNED_BITS(user_16b[0], 16);
@@ -178,7 +178,7 @@ svBit memory_load_mem(const char* filename)
 
 // Memory module
 
-bool Memory32::write(const uint32_t addr, const uint32_t& data, const uint32_t& mask) {
+bool Memory32::write(const uint64_t addr, const uint32_t& data, const uint32_t& mask) {
   assert((addr & 0x3) == 0);
   if(addr_max != 0 && addr >= addr_max) return false;
 
@@ -194,7 +194,7 @@ bool Memory32::write(const uint32_t addr, const uint32_t& data, const uint32_t& 
   return true;
 }
 
-void Memory32::write_block(uint32_t addr, uint32_t size, const uint8_t* buf) {
+void Memory32::write_block(uint64_t addr, uint32_t size, const uint8_t* buf) {
   uint32_t burst_size = 4;
   uint32_t mask = (1 << burst_size) - 1;
 
@@ -225,7 +225,7 @@ void Memory32::write_block(uint32_t addr, uint32_t size, const uint8_t* buf) {
   }
 }
 
-bool Memory32::read(const uint32_t addr, uint32_t &data) {
+bool Memory32::read(const uint64_t addr, uint32_t &data) {
   assert((addr & 0x3) == 0);
   if(addr_max != 0 && addr >= addr_max || !mem.count(addr)) return false;
 
@@ -245,12 +245,12 @@ std::ostream& MemoryOperation::streamout(std::ostream& os) const {
 
 // Memory controller
 
-void MemoryController::add_read_req(const uint32_t tag, const uint32_t addr) {
+void MemoryController::add_read_req(const uint32_t tag, const uint64_t addr) {
   op_fifo.push_back(MemoryOperation(cycle+mem_delay, 0, tag, addr));
   //std::cout << format("%1% add read req [%2$08x]") % cycle % addr << std::endl;
 }
 
-void MemoryController::add_write_req(const uint32_t tag, const uint32_t addr, 
+void MemoryController::add_write_req(const uint32_t tag, const uint64_t addr, 
                                      const uint32_t data, const uint32_t mask) {
   op_fifo.push_back(MemoryOperation(cycle+mem_delay, 1, tag, addr, data, mask));
   //std::cout << format("%1% add write req [%2$08x]") % cycle % addr << std::endl;
@@ -303,7 +303,7 @@ std::list<uint32_t>* MemoryController::get_resp(uint32_t &tag) {
 // load initial memory
 void MemoryController::load_mem(const string& filename) {
   using namespace std::placeholders;
-  std::function<void(uint32_t, uint32_t, const uint8_t*)> f =
+  std::function<void(uint64_t, uint32_t, const uint8_t*)> f =
     std::bind(&Memory32::write_block, &mem, _1, _2, _3);
   elfLoader loader = elfLoader(f);
   loader(filename);
@@ -311,7 +311,7 @@ void MemoryController::load_mem(const string& filename) {
 
 // AXI controllers
 
-bool AXIMemWriter::write_addr_req(const uint32_t tag, const uint32_t addr,
+bool AXIMemWriter::write_addr_req(const uint32_t tag, const uint64_t addr,
                                   const unsigned int len, const unsigned int size)
 {
   if(valid) return false;       // another AXI write in operation
@@ -375,11 +375,11 @@ bool AXIMemWriter::writer_resp_req(uint32_t *tag, uint32_t *resp) {
   return true;
 }
 
-bool AXIMemReader::reader_addr_req(const uint32_t tag, const uint32_t addr, const unsigned int len, const unsigned int size) {
+bool AXIMemReader::reader_addr_req(const uint32_t tag, const uint64_t addr, const unsigned int len, const unsigned int size) {
   unsigned int fifo;
   unsigned int size_m = (unsigned int)(pow(2, size));
   unsigned int len_m = len + 1;
-  uint32_t addr_m = addr;
+  uint64_t addr_m = addr;
 
   // check whether there is an empty queue
   if(memory_controller->busy())

@@ -40,13 +40,19 @@ test_verilog_srcs = \
 	$(base_dir)/uncore/src/test/verilog/tagcache/tagcache_tb.sv \
 	$(base_dir)/src/test/verilog/nasti_ram_behav.sv \
 
+trace_verilog_srcs = \
+	$(base_dir)/uncore/src/test/verilog/tagcache/tc-trace.sv \
+	$(base_dir)/src/test/verilog/nasti_ram_behav.sv \
+
 test_cxx_srcs = \
 	$(base_dir)/src/test/cxx/common/loadelf.cpp \
 	$(base_dir)/src/test/cxx/common/dpi_ram_behav.cpp \
+	$(base_dir)/src/test/cxx/common/dpi_trace.cpp
 
 test_cxx_headers = \
 	$(base_dir)/src/test/cxx/common/loadelf.hpp \
 	$(base_dir)/src/test/cxx/common/dpi_ram_behav.h \
+	$(base_dir)/src/test/cxx/common/dpi_trace.h
 
 dpi_libs = \
 	$(sim_dir)/libdpi.so \
@@ -56,7 +62,7 @@ dpi_libs = \
 #--------------------------------------------------------------------
 
 $(sim_dir)/libdpi.so : $(test_verilog_srcs) $(test_cxx_srcs) $(test_cxx_headers)
-	g++ -Wa,-W -fPIC -m64 -O1 -std=c++11 -shared \
+	g++ -Wa,-W -fPIC -m64 -O1 -g -std=c++11 -shared \
 	-I$(base_dir)/csrc/common \
 	-I$(VCS_HOME)/include \
 	$(test_cxx_srcs) -o $@
@@ -117,6 +123,14 @@ $(generated_dir)/TagCacheTop.SmallSmallTCConfig.sv: $(chisel_srcs)
 	sed -r 's/\(([A-Za-z0-9_]+),([0-9]+)\)/  `define \1 '\''d\2/' $(generated_dir)/TagCacheTop.SmallSmallTCConfig.prm >> $(generated_dir)/TagCacheTop.SmallSmallTCConfig.consts.vh
 	echo "\`endif // CONST_VH" >> $(generated_dir)/TagCacheTop.SmallSmallTCConfig.consts.vh
 
+$(generated_dir)/TagCacheTop.TCTraceConfig.sv: $(chisel_srcs)
+	cd $(base_dir) && mkdir -p $(generated_dir) && \
+	$(SBT) "run uncore TagCacheTop lowrisc_chip TCTraceConfig --W0W --minimumCompatibility 3.0.0 --backend $(BACKEND) --configName TCTraceConfig --compileInitializationUnoptimized  --targetDir $(generated_dir) --configDump --noInlineMem"
+	$(mem_gen) $(generated_dir)/TagCacheTop.TCTraceConfig.conf >> $(generated_dir)/TagCacheTop.TCTraceConfig.sv
+	echo "\`ifndef CONST_VH" > $(generated_dir)/TagCacheTop.TCTraceConfig.consts.vh
+	echo "\`define CONST_VH" >> $(generated_dir)/TagCacheTop.TCTraceConfig.consts.vh
+	sed -r 's/\(([A-Za-z0-9_]+),([0-9]+)\)/  `define \1 '\''d\2/' $(generated_dir)/TagCacheTop.TCTraceConfig.prm >> $(generated_dir)/TagCacheTop.TCTraceConfig.consts.vh
+	echo "\`endif // CONST_VH" >> $(generated_dir)/TagCacheTop.TCTraceConfig.consts.vh
 
 junk += $(generated_dir)
 
@@ -165,6 +179,13 @@ SmallSmallTagCache-sim: $(generated_dir)/TagCacheTop.SmallSmallTCConfig.sv $(ver
 	-top tb \
 	-o $@ $(dpi_libs)
 
+trace-sim: $(generated_dir)/TagCacheTop.TCTraceConfig.sv $(verilog_srcs) $(verilog_headers) $(trace_verilog_srcs) $(dpi_libs)
+	cp $(generated_dir)/TagCacheTop.TCTraceConfig.consts.vh $(generated_dir)/tagcache.consts.vh
+	$(VCS) $(VCS_FLAG) $(generated_dir)/TagCacheTop.TCTraceConfig.sv $(verilog_srcs) $(trace_verilog_srcs) \
+	-top tb \
+	-o $@ $(dpi_libs)
+
+
 junk += *-sim* csrc DVEfiles simv.daidir
 
 #--------------------------------------------------------------------
@@ -180,6 +201,9 @@ $(output_dir)/%.sim.log: %-sim
 
 junk += $(output_dir)
 .PHONY: unitest
+
+trace-sim: trace-sim
+junk += trace-sim
 
 #--------------------------------------------------------------------
 # clean up

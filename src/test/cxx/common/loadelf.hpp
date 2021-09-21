@@ -7,7 +7,7 @@
 #include <functional>
 #include <map>
 
-typedef std::function<void(uint32_t, uint32_t, const uint8_t*)> write_callback;
+typedef std::function<void(uint64_t, uint32_t, const uint8_t*)> write_callback;
 
 class elfLoader {
   // write callback function void write(paddr, size, pbuffer)

@@ -19,8 +19,8 @@ abstract trait HasTagParameters {
   val useTagMem = p(UseTagMem)
 
   val tgHelper = new TagUtil(tgBits, tgMapRatio,
-    p(RAMSize), p(GlobalAddrHashMap)("mem").start,
-    p(CacheBlockBytes))                                 // tag helper functions
+                  p(RAMSize), BigInt(0),
+                  p(CacheBlockBytes))                   // tag helper functions
 
   require(!useTagMem || ((tgBits >= tgInstBits * 2) && (tgBits % tgInstBits == 0)))
 

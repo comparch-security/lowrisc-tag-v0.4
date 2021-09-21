@@ -303,7 +303,7 @@ class TCWritebackUnit(id: Int)(implicit p: Parameters) extends TCModule()(p) wit
   }
 
   when(io.xact.req.fire()) {
-    printf(s"TagWB$id: (%d) Write back 0x%x\n", xact.id, Cat(xact.tag, xact.idx, UInt(0, tlBlockOffsetBits)))
+    //printf(s"TagWB$id: (%d) Write back 0x%x\n", xact.id, Cat(xact.tag, xact.idx, UInt(0, tlBlockOffsetBits)))
   }
 }
 
@@ -336,6 +336,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val state      = Reg(init=s_IDLE)
   val state_next = Wire(init=state)
   state := state_next
+
+  val dbg_cnt = Reg(init=UInt(0,32))
 
   // internal signals
   val xact = RegEnable(io.xact.req.bits, io.xact.req.fire())
@@ -555,40 +557,45 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     state_next := s_IDLE
   }
 
+  when(state =/= s_IDLE) {
+    dbg_cnt := Mux(state_next === s_IDLE, UInt(0), dbg_cnt + UInt(1))
+    assert(dbg_cnt <= UInt(400), s"TagXact$id: possibly deadlocked!")
+  }
+
   // run-time checks
-  assert(!io.meta.resp.valid || !TCTagOp.isCreate(xact.op) || !io.meta.resp.bits.hit,
-    s"TagXact$id: a tag cache create transaction should always miss in cache!")
-  assert(state === state_next || (data_cnt === UInt(0) || data_done) && (fetch_cnt === UInt(0) || fetch_done),
-    s"TagXact$id: counters should return to zero when state changes!")
+  //assert(!io.meta.resp.valid || !TCTagOp.isCreate(xact.op) || !io.meta.resp.bits.hit,
+  //  s"TagXact$id: a tag cache create transaction should always miss in cache!")
+  //assert(state === state_next || (data_cnt === UInt(0) || data_done) && (fetch_cnt === UInt(0) || fetch_done),
+  //  s"TagXact$id: counters should return to zero when state changes!")
 
   // report log
   when(io.xact.resp.valid) {
     when(xact.op === TCTagOp.R && io.xact.resp.bits.hit) {
-      printf(s"TagXact$id: (%d) Read 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
+      //printf(s"TagXact$id: (%d) Read 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.R && !io.xact.resp.bits.hit) {
-      printf(s"TagXact$id: (%d) Read 0x%x miss\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) Read 0x%x miss\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.U) {
-      printf(s"TagXact$id: (%d) Unlock 0x%x\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) Unlock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.F) {
-      printf(s"TagXact$id: (%d) FetchRead 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
+      //printf(s"TagXact$id: (%d) FetchRead 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.FL) {
-      printf(s"TagXact$id: (%d) FetchRead and lock 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
+      //printf(s"TagXact$id: (%d) FetchRead and lock 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.W) {
-      printf(s"TagXact$id: (%d) Write 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
+      //printf(s"TagXact$id: (%d) Write 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
     }
     when(xact.op === TCTagOp.C) {
-      printf(s"TagXact$id: (%d) Create 0x%x\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) Create 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.CL) {
-      printf(s"TagXact$id: (%d) Create and lock 0x%x\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) Create and lock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.I) {
-      printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
     }
   }
 }
@@ -783,6 +790,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
 
   // -------------- the shared state machine ----------------- //
   when(tc_state === ts_IDLE && tc_req_valid) {
+    //printf(s"MemXact get a transaction 0x%x\n", tc_xact_mem_addr)
     tc_state_next := (
       nOrder match {
         case 0 => { // top-down
@@ -849,6 +857,10 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   when(tc_state === ts_TM1W && io.tc.resp.valid) {
     tc_state_next := ts_IDLE
   }
+
+  //when(tc_state =/= ts_IDLE && tc_state_next === ts_IDLE) {
+  //  printf(s"MemXact finish a transaction 0x%x\n", tc_xact_mem_addr)
+  //}
 
 }
 
@@ -1355,29 +1367,29 @@ class TagCacheTop(param: Parameters) extends Module
   when( tc.io.pfcupdate.acqTtoMemT     ) { pfccounters(22) := pfccounters(22) + UInt(1)  }
 
   when(io.getpfc) {
-    printf("PFCResp: TC readTT = %d\n",        pfccounters(0) )
-    printf("PFCResp: TC readTTmiss = %d\n",    pfccounters(1) )
-    printf("PFCResp: TC writeTT = %d\n",       pfccounters(2) )
-    printf("PFCResp: TC writeTTmiss = %d\n",   pfccounters(3) )
-    printf("PFCResp: TC writeTTback = %d\n",   pfccounters(4) )
-    printf("PFCResp: TC readTM0 = %d\n",       pfccounters(5) )
-    printf("PFCResp: TC readTM0miss = %d\n",   pfccounters(6) )
-    printf("PFCResp: TC writeTM0 = %d\n",      pfccounters(7) )
-    printf("PFCResp: TC writeTM0miss = %d\n",  pfccounters(8) )
-    printf("PFCResp: TC writeTM0back = %d\n",  pfccounters(9) )
-    printf("PFCResp: TC readTM1 = %d\n",       pfccounters(10))
-    printf("PFCResp: TC readTM1miss = %d\n",   pfccounters(11))
-    printf("PFCResp: TC writeTM1 = %d\n",      pfccounters(12))
-    printf("PFCResp: TC writeTM1miss = %d\n",  pfccounters(13))
-    printf("PFCResp: TC writeTM1back = %d\n",  pfccounters(14))
-    printf("PFCResp: TC acqTTfromMem = %d\n",  pfccounters(15))
-    printf("PFCResp: TC acqTM0fromMem = %d\n", pfccounters(16))
-    printf("PFCResp: TC acqTM1fromMem = %d\n", pfccounters(17))
-    printf("PFCResp: TC acqTfromMemT = %d\n",  pfccounters(18))
-    printf("PFCResp: TC acqTTtoMem = %d\n",    pfccounters(19))
-    printf("PFCResp: TC acqTM0toMem = %d\n",   pfccounters(20))
-    printf("PFCResp: TC acqTM1toMem = %d\n",   pfccounters(21))
-    printf("PFCResp: TC acqTtoMemT = %d\n",    pfccounters(22))
+    //printf("PFCResp: TC readTT = %d\n",        pfccounters(0) )
+    //printf("PFCResp: TC readTTmiss = %d\n",    pfccounters(1) )
+    //printf("PFCResp: TC writeTT = %d\n",       pfccounters(2) )
+    //printf("PFCResp: TC writeTTmiss = %d\n",   pfccounters(3) )
+    //printf("PFCResp: TC writeTTback = %d\n",   pfccounters(4) )
+    //printf("PFCResp: TC readTM0 = %d\n",       pfccounters(5) )
+    //printf("PFCResp: TC readTM0miss = %d\n",   pfccounters(6) )
+    //printf("PFCResp: TC writeTM0 = %d\n",      pfccounters(7) )
+    //printf("PFCResp: TC writeTM0miss = %d\n",  pfccounters(8) )
+    //printf("PFCResp: TC writeTM0back = %d\n",  pfccounters(9) )
+    //printf("PFCResp: TC readTM1 = %d\n",       pfccounters(10))
+    //printf("PFCResp: TC readTM1miss = %d\n",   pfccounters(11))
+    //printf("PFCResp: TC writeTM1 = %d\n",      pfccounters(12))
+    //printf("PFCResp: TC writeTM1miss = %d\n",  pfccounters(13))
+    //printf("PFCResp: TC writeTM1back = %d\n",  pfccounters(14))
+    //printf("PFCResp: TC acqTTfromMem = %d\n",  pfccounters(15))
+    //printf("PFCResp: TC acqTM0fromMem = %d\n", pfccounters(16))
+    //printf("PFCResp: TC acqTM1fromMem = %d\n", pfccounters(17))
+    //printf("PFCResp: TC acqTfromMemT = %d\n",  pfccounters(18))
+    //printf("PFCResp: TC acqTTtoMem = %d\n",    pfccounters(19))
+    //printf("PFCResp: TC acqTM0toMem = %d\n",   pfccounters(20))
+    //printf("PFCResp: TC acqTM1toMem = %d\n",   pfccounters(21))
+    //printf("PFCResp: TC acqTtoMemT = %d\n",    pfccounters(22))
   }
 
 
