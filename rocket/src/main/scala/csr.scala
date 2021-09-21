@@ -10,6 +10,7 @@ import cde.{Parameters, Field}
 import uncore._
 import scala.math._
 import junctions.AddrHashMap
+import scala.math.{min, max}
 
 class MStatus extends Bundle {
   val prv = UInt(width = PRV.SZ) // not truly part of mstatus, but convenient
@@ -98,17 +99,17 @@ object CSR
 
 class TagCtrlSig(implicit p: Parameters) extends CoreBundle {
   val maskFetchChck           = Bits(width = tgInstBits)
-  val maskJmpProp             = Bits(width = tgBits)
-  val maskJmpChck             = Bits(width = tgBits)
+  val maskJmpProp             = Bits(width = min(tgBits,4))
+  val maskJmpChck             = Bits(width = min(tgBits,4))
   val maskCFlowIndirBranchTgt = Bits(width = tgInstBits)
   val maskCFlowDirBranchTgt   = Bits(width = tgInstBits)
-  val maskStoreKeep           = Bits(width = tgBits)
-  val maskStoreProp           = Bits(width = tgBits)
-  val maskStoreChck           = Bits(width = tgBits)
-  val maskLoadProp            = Bits(width = tgBits)
-  val maskLoadChck            = Bits(width = tgBits)
-  val maskALUProp             = Bits(width = tgBits)
-  val maskALUChck             = Bits(width = tgBits)
+  val maskStoreKeep           = Bits(width = min(tgBits,4))
+  val maskStoreProp           = Bits(width = min(tgBits,4))
+  val maskStoreChck           = Bits(width = min(tgBits,4))
+  val maskLoadProp            = Bits(width = min(tgBits,4))
+  val maskLoadChck            = Bits(width = min(tgBits,4))
+  val maskALUProp             = Bits(width = min(tgBits,4))
+  val maskALUChck             = Bits(width = min(tgBits,4))
 }
 
 class CSRFileIO(implicit p: Parameters) extends CoreBundle {
