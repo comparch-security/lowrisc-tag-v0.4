@@ -232,5 +232,6 @@ svBit dpi_tc_init(const int n) {
   init_trace.open("init-"+std::to_string(ncore)+".dat");
   read_traces();
   fill_traces();
+  return 0;
 }
 
