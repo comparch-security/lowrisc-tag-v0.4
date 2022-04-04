@@ -157,6 +157,7 @@ svBit memory_model_init()
   memory_controller = new MemoryController(4);
   axi_mem_writer = new AXIMemWriter;
   axi_mem_reader = new AXIMemReader;
+  return 0;
 }
 
 svBit memory_model_close()
@@ -164,16 +165,19 @@ svBit memory_model_close()
   delete memory_controller;
   delete axi_mem_writer;
   delete axi_mem_reader;
+  return 0;
 }
 
 svBit memory_model_step()
 {
   memory_controller->step();
+  return 0;
 }
 
 svBit memory_load_mem(const char* filename)
 {
   memory_controller->load_mem(filename);
+  return 0;
 }
 
 // Memory module
