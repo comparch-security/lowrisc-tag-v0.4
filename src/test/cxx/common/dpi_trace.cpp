@@ -30,7 +30,7 @@ struct packet {
 };
 
 int state = 0;
-std::ifstream data_trace, init_trace;
+std::ifstream data_trace, warm_trace, init_trace;
 std::vector<trace> traces(max_trace);
 std::set<int> trace_valid, trace_sent;
 unsigned int trace_add_idx = 0, trace_send_idx = 0;
@@ -40,7 +40,6 @@ std::priority_queue<uint64_t, std::vector<uint64_t>, std::greater<uint64_t> > re
 std::list<packet> send_pkt, recv_pkt;
 std::list<trace> trace_list;
 
-unsigned int ncore = 0;
 uint64_t t_cycle_pre=0, t_cycle = 0, s_cycle = 0;
 
 std::string to_string(const trace& t, int id) {
@@ -71,7 +70,29 @@ void read_traces() {
     delete[] cstr;
     //std::cout << "Record an init trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
+  init_trace.close();
   
+  while(!warm_trace.eof()) {
+    char * cstr = new char[256];
+    warm_trace.getline(cstr, 256);
+    if(cstr[0] == 0) break;
+    trace_list.push_back(trace{0,0,0,false,0});
+    char *token;
+    token = strtok(cstr, ",");
+    token = strtok(NULL, ",");
+    token = strtok(NULL, ",");
+    trace_list.back().addr = std::stoll(token, NULL, 16);
+    token = strtok(NULL, ",");
+    trace_list.back().rw = std::stoi(token);
+    if(trace_list.back().rw) {
+      token = strtok(NULL, ",");
+      trace_list.back().tag = std::stoll(token, NULL, 16);
+    }
+    delete[] cstr;
+    //std::cout << "Record a warm trace: " << to_string(trace_list.back(), 0) << std::endl;
+  }
+  warm_trace.close();
+
   while(!data_trace.eof()) {
     char * cstr = new char[256];
     data_trace.getline(cstr, 256);
@@ -96,7 +117,6 @@ void read_traces() {
   }
   std::cout << "Successfully read " << trace_list.size() << " traces in total." << std::endl;
   trace_read = true;
-  init_trace.close();
   data_trace.close();
 }
 
@@ -223,13 +243,13 @@ svBit dpi_tc_recv_packet (const svBit valid,
     return sv_1;
 }
 
-svBit dpi_tc_init(const int n) {
-  ncore = n;
+svBit dpi_tc_init(const char * dscr) {
   trace_sending_queue.push(0); trace_sending_queue.pop();
   trace_pending_queue.push(0); trace_pending_queue.pop();
   recv_waiting_queue.push(0); recv_waiting_queue.pop();
-  data_trace.open("trace-"+std::to_string(ncore)+".dat");
-  init_trace.open("init-"+std::to_string(ncore)+".dat");
+  data_trace.open("trace-"+std::string(dscr)+".dat");
+  warm_trace.open("warm-"+std::string(dscr)+".dat");
+  init_trace.open("init-"+std::string(dscr)+".dat");
   read_traces();
   fill_traces();
 }

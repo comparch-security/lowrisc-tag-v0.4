@@ -12,10 +12,10 @@ module tb;
    localparam TLMIS   = 2;
 
    reg              clk, reset, init;
-   int 		    ncore = 0;
+   string 		    dscr;
    
    initial begin
-      $value$plusargs("ncore=%d", ncore);
+      $value$plusargs("trace=%s", dscr);
    end
 
    logic            io_in_acquire_ready;
@@ -83,7 +83,7 @@ module tb;
 			 input bit [3:0]  g_type,
 			 input bit [7:0]  tag
                          );
-   import "DPI-C" function bit dpi_tc_init (input int ncore );
+   import "DPI-C" function bit dpi_tc_init (input string dscr);
 
 //   initial begin
 //      #1800000000
@@ -94,13 +94,14 @@ module tb;
 
    initial begin
       reset = 'b1;
+      dpi_tc_init(dscr);
       #77;
       reset = 0;
-      dpi_tc_init(ncore);
    end
 
    initial begin
       clk = 0;
+      #80;
       forever #5 clk = !clk;
    end
 
@@ -135,10 +136,7 @@ module tb;
 
    reg 					   recv_valid = 1;
 
-   always @(negedge clk or posedge reset) 
-     if(reset)
-       dpi_tc_init(ncore);
-     else begin
+   always @(negedge clk) begin
 	dpi_tc_send_packet(
 			   io_in_acquire_ready,io_in_acquire_valid,
 			   io_in_acquire_bits_addr_block,
@@ -160,7 +158,7 @@ module tb;
 	  $finish();
 
 	#1 dpi_tc_send_packet_ack(io_in_acquire_ready, io_in_acquire_valid);
-     end
+   end
 	
    TagCacheTop DUT
      (
