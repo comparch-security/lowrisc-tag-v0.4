@@ -252,5 +252,6 @@ svBit dpi_tc_init(const char * dscr) {
   init_trace.open("init-"+std::string(dscr)+".dat");
   read_traces();
   fill_traces();
+  return 0;
 }
 

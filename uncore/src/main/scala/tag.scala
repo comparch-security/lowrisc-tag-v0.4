@@ -55,10 +55,12 @@ class TagUtil(
   def cacheBlockTagBits = cacheBlockBytes / wordBytes * normTagBits // tag size of a cache block
   def cacheBlockTagBytes = cacheBlockTagBits / 8
   def blockOffBits = log2Up(cacheBlockBytes)
+  def lockGranularity = 0
 
   require(isPow2(memSize))
   require(isPow2(mapRatio))
   require(mapRatio >= tagRatio)                         // no extra space for map
+  require(lockGranularity < blockOffBits)
 
   def tagSize(dataSize:Int) = dataSize / wordBits * tagBits
   def tagMaskSize(dataSize:Int) = dataSize / wordBits
