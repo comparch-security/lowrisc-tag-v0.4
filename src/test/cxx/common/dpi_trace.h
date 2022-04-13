@@ -34,6 +34,7 @@ extern "C" {
 				   );
 
   extern svBit dpi_tc_init (const char * dscr);
+	extern svBit dpi_tc_finish			(void);
 
 #ifdef __cplusplus
 }

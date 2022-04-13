@@ -119,7 +119,7 @@ void read_traces() {
     delete[] cstr;
     //std::cout << "Record a data trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
-  std::cout << "Successfully read " << trace_list.size() << " traces in total." << std::endl;
+  // std::cout << "Successfully read " << trace_list.size() << " traces in total." << std::endl;
   trace_read = true;
   data_trace.close();
 }
@@ -151,7 +151,7 @@ void send_trace() {
   trace_sent.insert(trace_send_idx);
   trace_sending_queue.pop();
   trace_pending_queue.push(traces[trace_send_idx].t_delay);
-  std::cout << t_cycle << "," << s_cycle << " Send a trace: " << to_string(traces[trace_send_idx], trace_send_idx) << std::endl;
+  // std::cout << t_cycle << "," << s_cycle << " Send a trace: " << to_string(traces[trace_send_idx], trace_send_idx) << std::endl;
   if(traces[trace_send_idx].rw) {
     send_pkt.push_back(packet{traces[trace_send_idx].addr >> 6, trace_send_idx, 0xfffb, 0, (uint8_t)((traces[trace_send_idx].tag >> 0)  & 0x3)});
     send_pkt.push_back(packet{traces[trace_send_idx].addr >> 6, trace_send_idx, 0xfffb, 1, (uint8_t)((traces[trace_send_idx].tag >> 2)  & 0x3)});
@@ -215,7 +215,7 @@ void recv_trace() {
   }
   trace_sent.erase(id);
   trace_valid.erase(id);
-  std::cout << t_cycle << "," << s_cycle << " Recv a trace: " << to_string(traces[id], id) << std::endl;
+  // std::cout << t_cycle << "," << s_cycle << " Recv a trace: " << to_string(traces[id], id) << std::endl;
 }
 
 svBit dpi_tc_recv_packet (const svBit valid,
@@ -256,6 +256,11 @@ svBit dpi_tc_init(const char * dscr) {
   init_trace.open("init-"+std::string(dscr)+".dat");
   read_traces();
   fill_traces();
+  return 0;
+}
+
+svBit dpi_tc_finish() {
+  std::cout << t_cycle << "," << s_cycle << std::endl;
   return 0;
 }
 

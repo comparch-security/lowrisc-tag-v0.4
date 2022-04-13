@@ -84,6 +84,7 @@ module tb;
              input bit [7:0]  tag
                          );
    import "DPI-C" function bit dpi_tc_init (input string dscr);
+   import "DPI-C" function bit dpi_tc_finish ();
 
 //   initial begin
 //      #1800000000
@@ -156,8 +157,10 @@ module tb;
                                          io_in_grant_bits_g_type,
                                          io_in_grant_bits_tag);
 
-         if(!recv_valid)
+         if(!recv_valid) begin 
+           dpi_tc_finish();
            $finish();
+         end 
 
          #1 dpi_tc_send_packet_ack(io_in_acquire_ready, io_in_acquire_valid);
       end
