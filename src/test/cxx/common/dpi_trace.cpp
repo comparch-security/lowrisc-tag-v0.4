@@ -10,6 +10,7 @@
 #include <set>
 #include <vector>
 #include <list>
+#include <boost/format.hpp>
 
 const int max_trace = 1 << 7;
 
@@ -44,7 +45,10 @@ uint64_t t_cycle_pre=0, t_cycle = 0, s_cycle = 0;
 
 std::string to_string(const trace& t, int id) {
   return "[" + std::to_string(t.t_start) + ">" + std::to_string(t.t_delay) + "] (" + std::to_string(id) + ") "
-    + std::to_string(t.addr) + (t.rw ? (" write " + std::to_string(t.tag)) : " read");
+    + (boost::format("%016x") % t.addr).str() //std::to_string(t.addr)
+    + (t.rw ? (" write "
+               + (boost::format("%8x") % t.tag).str() //std::to_string(t.tag)
+               ) : " read");
 }
 
 bool get_free_trace(unsigned int &idx) {

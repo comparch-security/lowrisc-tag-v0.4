@@ -12,7 +12,7 @@ module tb;
    localparam TLMIS   = 2;
 
    reg              clk, reset, init;
-   string 		    dscr;
+   string           dscr;
    
    initial begin
       $value$plusargs("trace=%s", dscr);
@@ -60,36 +60,36 @@ module tb;
 
    import "DPI-C" function bit
      dpi_tc_send_packet (
-			 input bit 	   ready,
-			 output bit 	   valid,
-			 output bit [63:0] addr,
-			 output bit [31:0] id,
-			 output bit [2:0]  beat,
-			 output bit [15:0] a_type,
-			 output bit [7:0]  tag
-			);
+             input bit     ready,
+             output bit        valid,
+             output bit [63:0] addr,
+             output bit [31:0] id,
+             output bit [2:0]  beat,
+             output bit [15:0] a_type,
+             output bit [7:0]  tag
+            );
 
    import "DPI-C" function bit
      dpi_tc_send_packet_ack (
-			 input bit 	   ready,
-			 input bit 	   valid
-			);
+             input bit     ready,
+             input bit     valid
+            );
    
    import "DPI-C" function bit
      dpi_tc_recv_packet (
-			 input bit 	  valid,
-			 input bit [31:0] id,
-			 input bit [2:0]  beat,
-			 input bit [3:0]  g_type,
-			 input bit [7:0]  tag
+             input bit    valid,
+             input bit [31:0] id,
+             input bit [2:0]  beat,
+             input bit [3:0]  g_type,
+             input bit [7:0]  tag
                          );
    import "DPI-C" function bit dpi_tc_init (input string dscr);
 
 //   initial begin
 //      #1800000000
-//	$vcdpluson;
+//  $vcdpluson;
 //      #700000000
-//	$finish();
+//  $finish();
 //   end
 
    initial begin
@@ -100,14 +100,13 @@ module tb;
    end
 
    initial begin
-      clk = 0;
-      #80;
-      forever #5 clk = !clk;
+       clk = 0;
+       forever #5 clk = !clk;
    end
 
    //initial begin
    //   #100000000
-//	$finish();
+//  $finish();
    //end
 
    localparam MemAW   = `ROCKET_PADDR_WIDTH;
@@ -134,32 +133,36 @@ module tb;
       .nasti         ( mem_nasti   )
       );
 
-   reg 					   recv_valid = 1;
+   reg                     recv_valid = 1;
 
    always @(negedge clk) begin
-	dpi_tc_send_packet(
-			   io_in_acquire_ready,io_in_acquire_valid,
-			   io_in_acquire_bits_addr_block,
-			   {io_in_acquire_bits_client_id,io_in_acquire_bits_client_xact_id},
-			   io_in_acquire_bits_addr_beat,
-			   {io_in_acquire_bits_union, io_in_acquire_bits_a_type},
-			   io_in_acquire_bits_tag);
-	io_in_acquire_bits_data = 0;
-	io_in_acquire_bits_is_builtin_type = 'b1;
+      if(reset)
+        io_in_acquire_valid = 'b0;
+      else begin
+         dpi_tc_send_packet(
+                            io_in_acquire_ready,io_in_acquire_valid,
+                            io_in_acquire_bits_addr_block,
+                            {io_in_acquire_bits_client_id,io_in_acquire_bits_client_xact_id},
+                            io_in_acquire_bits_addr_beat,
+                            {io_in_acquire_bits_union, io_in_acquire_bits_a_type},
+                            io_in_acquire_bits_tag);
+         io_in_acquire_bits_data = 0;
+         io_in_acquire_bits_is_builtin_type = 'b1;
 
-	recv_valid = dpi_tc_recv_packet(
-					io_in_grant_valid,
-					{io_in_grant_bits_client_id,io_in_grant_bits_client_xact_id},
-					io_in_grant_bits_addr_beat,
-					io_in_grant_bits_g_type,
-					io_in_grant_bits_tag);
+         recv_valid = dpi_tc_recv_packet(
+                                         io_in_grant_valid,
+                                         {io_in_grant_bits_client_id,io_in_grant_bits_client_xact_id},
+                                         io_in_grant_bits_addr_beat,
+                                         io_in_grant_bits_g_type,
+                                         io_in_grant_bits_tag);
 
-	if(!recv_valid)
-	  $finish();
+         if(!recv_valid)
+           $finish();
 
-	#1 dpi_tc_send_packet_ack(io_in_acquire_ready, io_in_acquire_valid);
+         #1 dpi_tc_send_packet_ack(io_in_acquire_ready, io_in_acquire_valid);
+      end
    end
-	
+    
    TagCacheTop DUT
      (
       .*,
