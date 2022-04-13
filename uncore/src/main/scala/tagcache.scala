@@ -151,7 +151,7 @@ class TCTagXactIO(implicit p: Parameters) extends TCBundle()(p) {
 
 class TCTagLock(implicit p: Parameters) extends TCBundle()(p) with HasTCId
 {
-  val addr = UInt(width=log2Up(tgHelper.map0Size)-tgHelper.blockOffBits) // only compare the offset after remove map0 base addr
+  val addr = UInt(width=log2Up(tgHelper.map0Size) - tgHelper.lockGranularity)
   val lock = Bool() // lock or unlock
 }
 
@@ -459,7 +459,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
 
   // lock
   io.lock.bits.id := xact.id
-  io.lock.bits.addr := xact.addr >> tgHelper.blockOffBits
+  io.lock.bits.addr := xact.addr >> tgHelper.lockGranularity
   io.lock.bits.lock := TCTagOp.isLock(xact.op)
   io.lock.valid := state === s_L && tgHelper.is_map(xact.addr)
 
@@ -1159,7 +1159,7 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   val lock_req_chosen = PriorityEncoderOH(Vec(lock_req).toBits)
 
   val tc_req_unblock = memTrackers.map( mt => {
-    val lock_addr_match = lock_vec.map(_.addr === mt.io.tc.req.bits.addr(log2Up(tgHelper.map0Size)-1, tgHelper.blockOffBits))
+    val lock_addr_match = lock_vec.map(_.addr === mt.io.tc.req.bits.addr(log2Up(tgHelper.map0Size) - 1, tgHelper.lockGranularity))
     val lock_id_match   = lock_vec.map(_.id === mt.io.tc.req.bits.id)
     val lock_lock       = lock_vec.map(_.lock)
     val need_lock       = tgHelper.is_map(mt.io.tc.req.bits.addr)

@@ -33,7 +33,7 @@ extern "C" {
 				   const svBitVecVal *tag
 				   );
 
-  extern svBit dpi_tc_init        (const int ncore);
+  extern svBit dpi_tc_init (const char * dscr);
 
 #ifdef __cplusplus
 }
