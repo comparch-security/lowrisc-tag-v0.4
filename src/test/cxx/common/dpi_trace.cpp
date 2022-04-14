@@ -31,6 +31,8 @@ struct packet {
 };
 
 int state = 0;
+uint64_t trace_send_count = 0;
+uint64_t trace_data_end, trace_warm_end, trace_init_end;
 std::ifstream data_trace, warm_trace, init_trace;
 std::vector<trace> traces(max_trace);
 std::set<int> trace_valid, trace_sent;
@@ -60,6 +62,7 @@ bool get_free_trace(unsigned int &idx) {
 bool trace_read = false;
 void read_traces() {
   //uint64_t init_trace_cnt = 0;
+  uint64_t traces = 0;
   if(trace_read) return;
   while(!init_trace.eof() /*&& init_trace_cnt++ < 10000 */) {
     char * cstr = new char[256];
@@ -72,9 +75,11 @@ void read_traces() {
     token = strtok(NULL, ",");
     trace_list.back().tag = std::stoll(token, NULL, 16);
     delete[] cstr;
+    traces ++;
     //std::cout << "Record an init trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
   init_trace.close();
+  trace_init_end = traces;
   
   while(!warm_trace.eof()) {
     char * cstr = new char[256];
@@ -93,9 +98,11 @@ void read_traces() {
       trace_list.back().tag = std::stoll(token, NULL, 16);
     }
     delete[] cstr;
+    traces ++;
     //std::cout << "Record a warm trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
   warm_trace.close();
+  trace_warm_end = traces;
 
   while(!data_trace.eof()) {
     char * cstr = new char[256];
@@ -117,9 +124,12 @@ void read_traces() {
       trace_list.back().tag = std::stoll(token, NULL, 16);
     }
     delete[] cstr;
+    traces ++;
     //std::cout << "Record a data trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
+  trace_data_end = traces;
   std::cout << "Successfully read " << trace_list.size() << " traces in total." << std::endl;
+  std::cout << "trace_init_end " << trace_init_end << " trace_warm_end " << trace_warm_end << " trace_data_end " << trace_data_end << std::endl;
   trace_read = true;
   data_trace.close();
 }
@@ -171,10 +181,12 @@ svBit dpi_tc_send_packet (const svBit ready, svBit *valid,
 			  svBitVecVal *id,
 			  svBitVecVal *beat,
 			  svBitVecVal *a_type,
-			  svBitVecVal *tag
+			  svBitVecVal *tag,
+        svBit       *getpfc
 			  )
 {
   send_trace();
+  *getpfc = sv_0;
   if(!send_pkt.empty()) {
     *valid = sv_1;
     addr[0] = send_pkt.front().addr;
@@ -182,13 +194,25 @@ svBit dpi_tc_send_packet (const svBit ready, svBit *valid,
     beat[0] = send_pkt.front().beat;
     a_type[0] = send_pkt.front().a_type;
     tag[0] = send_pkt.front().tag;
+    if(trace_send_count + 1 == trace_init_end ||
+       trace_send_count + 1 == trace_warm_end ||
+       trace_send_count + 1 == trace_data_end) {
+      if(ready == sv_1 &&
+         ((send_pkt.front().a_type == 0xfffb && send_pkt.front().beat == 7) ||
+          (send_pkt.front().a_type == 0x0e09 && send_pkt.front().beat == 0)))
+        *getpfc = sv_1;
+    }
   } else
     *valid = sv_0;
+
   return sv_1;
 }
 
 svBit dpi_tc_send_packet_ack (const svBit ready, const svBit valid) {
   if(ready == sv_1 && valid == sv_1) {
+    if((send_pkt.front().a_type == 0xfffb && send_pkt.front().beat == 7) ||
+       (send_pkt.front().a_type == 0x0e09 && send_pkt.front().beat == 0))
+      trace_send_count ++;
     send_pkt.pop_front();
   }
   return sv_1;
@@ -215,7 +239,7 @@ void recv_trace() {
   }
   trace_sent.erase(id);
   trace_valid.erase(id);
-  std::cout << t_cycle << "," << s_cycle << " Recv a trace: " << to_string(traces[id], id) << std::endl;
+  //std::cout << t_cycle << "," << s_cycle << " Recv a trace: " << to_string(traces[id], id) << std::endl;
 }
 
 svBit dpi_tc_recv_packet (const svBit valid,

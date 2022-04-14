@@ -1340,58 +1340,109 @@ class TagCacheTop(param: Parameters) extends Module
 
 
   //pfc
-  val pfccounters = Reg(Vec(23, UInt(0, width = 64)))
-
-  when( tc.io.pfcupdate.readTT         ) { pfccounters(0)  := pfccounters(0)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTT_miss    ) { pfccounters(1)  := pfccounters(1)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTT        ) { pfccounters(2)  := pfccounters(2)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTT_miss   ) { pfccounters(3)  := pfccounters(3)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTT_back   ) { pfccounters(4)  := pfccounters(4)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTM0        ) { pfccounters(5)  := pfccounters(5)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTM0_miss   ) { pfccounters(6)  := pfccounters(6)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM0       ) { pfccounters(7)  := pfccounters(7)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM0_miss  ) { pfccounters(8)  := pfccounters(8)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM0_back  ) { pfccounters(9)  := pfccounters(9)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTM1        ) { pfccounters(10) := pfccounters(10) + UInt(1)  }
-  when( tc.io.pfcupdate.readTM1_miss   ) { pfccounters(11) := pfccounters(11) + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM1       ) { pfccounters(12) := pfccounters(12) + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM1_miss  ) { pfccounters(13) := pfccounters(13) + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM1_back  ) { pfccounters(14) := pfccounters(14) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTTfromMem   ) { pfccounters(15) := pfccounters(15) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM0fromMem  ) { pfccounters(16) := pfccounters(16) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM1fromMem  ) { pfccounters(17) := pfccounters(17) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTfromMemT   ) { pfccounters(18) := pfccounters(18) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTTtoMem     ) { pfccounters(19) := pfccounters(19) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM0toMem    ) { pfccounters(20) := pfccounters(20) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM1toMem    ) { pfccounters(21) := pfccounters(21) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTtoMemT     ) { pfccounters(22) := pfccounters(22) + UInt(1)  }
-
-  when(io.getpfc) {
-    //printf("PFCResp: TC readTT = %d\n",        pfccounters(0) )
-    //printf("PFCResp: TC readTTmiss = %d\n",    pfccounters(1) )
-    //printf("PFCResp: TC writeTT = %d\n",       pfccounters(2) )
-    //printf("PFCResp: TC writeTTmiss = %d\n",   pfccounters(3) )
-    //printf("PFCResp: TC writeTTback = %d\n",   pfccounters(4) )
-    //printf("PFCResp: TC readTM0 = %d\n",       pfccounters(5) )
-    //printf("PFCResp: TC readTM0miss = %d\n",   pfccounters(6) )
-    //printf("PFCResp: TC writeTM0 = %d\n",      pfccounters(7) )
-    //printf("PFCResp: TC writeTM0miss = %d\n",  pfccounters(8) )
-    //printf("PFCResp: TC writeTM0back = %d\n",  pfccounters(9) )
-    //printf("PFCResp: TC readTM1 = %d\n",       pfccounters(10))
-    //printf("PFCResp: TC readTM1miss = %d\n",   pfccounters(11))
-    //printf("PFCResp: TC writeTM1 = %d\n",      pfccounters(12))
-    //printf("PFCResp: TC writeTM1miss = %d\n",  pfccounters(13))
-    //printf("PFCResp: TC writeTM1back = %d\n",  pfccounters(14))
-    //printf("PFCResp: TC acqTTfromMem = %d\n",  pfccounters(15))
-    //printf("PFCResp: TC acqTM0fromMem = %d\n", pfccounters(16))
-    //printf("PFCResp: TC acqTM1fromMem = %d\n", pfccounters(17))
-    //printf("PFCResp: TC acqTfromMemT = %d\n",  pfccounters(18))
-    //printf("PFCResp: TC acqTTtoMem = %d\n",    pfccounters(19))
-    //printf("PFCResp: TC acqTM0toMem = %d\n",   pfccounters(20))
-    //printf("PFCResp: TC acqTM1toMem = %d\n",   pfccounters(21))
-    //printf("PFCResp: TC acqTtoMemT = %d\n",    pfccounters(22))
+  val getpfc        = Reg(init = Bool(false))
+  val getpfcxactID  = Reg(init = UInt(0, io.in.acquire.bits.client_xact_id.getWidth))
+  val getpfcID      = Reg(init = UInt(0, 32))
+  val incpfcID      = Reg(init = UInt(0, 32))
+  val inctimer      = Reg(init = UInt(0, 20))
+  val logging       = inctimer === UInt(1000)
+  val pfccounters   = (0 until 3).map(i => {
+    val width = if(i == 0) 1 else if(i == 1) 10 else 64
+    Reg(Vec(23, UInt(width = width)))
+  })
+  //0: update 1: period log 2: warm up
+  inctimer       := Mux(logging, UInt(0), inctimer + UInt(1))
+  when(io.getpfc && io.in.acquire.fire()) {
+    getpfc := Bool(true)
+    getpfcxactID := io.in.acquire.bits.client_xact_id
   }
 
+  pfccounters(0)(0)  := tc.io.pfcupdate.readTT         
+  pfccounters(0)(1)  := tc.io.pfcupdate.readTT_miss    
+  pfccounters(0)(2)  := tc.io.pfcupdate.writeTT        
+  pfccounters(0)(3)  := tc.io.pfcupdate.writeTT_miss   
+  pfccounters(0)(4)  := tc.io.pfcupdate.writeTT_back   
+  pfccounters(0)(5)  := tc.io.pfcupdate.readTM0        
+  pfccounters(0)(6)  := tc.io.pfcupdate.readTM0_miss   
+  pfccounters(0)(7)  := tc.io.pfcupdate.writeTM0       
+  pfccounters(0)(8)  := tc.io.pfcupdate.writeTM0_miss  
+  pfccounters(0)(9)  := tc.io.pfcupdate.writeTM0_back  
+  pfccounters(0)(10) := tc.io.pfcupdate.readTM1        
+  pfccounters(0)(11) := tc.io.pfcupdate.readTM1_miss   
+  pfccounters(0)(12) := tc.io.pfcupdate.writeTM1       
+  pfccounters(0)(13) := tc.io.pfcupdate.writeTM1_miss  
+  pfccounters(0)(14) := tc.io.pfcupdate.writeTM1_back  
+  pfccounters(0)(15) := tc.io.pfcupdate.acqTTfromMem   
+  pfccounters(0)(16) := tc.io.pfcupdate.acqTM0fromMem  
+  pfccounters(0)(17) := tc.io.pfcupdate.acqTM1fromMem  
+  pfccounters(0)(18) := tc.io.pfcupdate.acqTfromMemT   
+  pfccounters(0)(19) := tc.io.pfcupdate.acqTTtoMem     
+  pfccounters(0)(20) := tc.io.pfcupdate.acqTM0toMem    
+  pfccounters(0)(21) := tc.io.pfcupdate.acqTM1toMem    
+  pfccounters(0)(22) := tc.io.pfcupdate.acqTtoMemT    
 
+  pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfc + pfccounters(0)(i) }} //1: period log
+  pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfc + pfccounters(0)(i) }} //2: warm up
+
+  /*when(logging) {
+    incpfcID := incpfcID + UInt(1)
+    pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }}  //reset
+    printf("--------incpfcID %d---------\n", incpfcID)
+    /*printf("incpfc_TC_readTT        = %d\n",   pfccounters(1)(0) )
+    printf("incpfc_TC_readTTmiss    = %d\n",   pfccounters(1)(1) )
+    printf("incpfc_TC_writeTT       = %d\n",   pfccounters(1)(2) )
+    printf("incpfc_TC_writeTTmiss   = %d\n",   pfccounters(1)(3) )
+    printf("incpfc_TC_writeTTback   = %d\n",   pfccounters(1)(4) )
+    printf("incpfc_TC_readTM0       = %d\n",   pfccounters(1)(5) )
+    printf("incpfc_TC_readTM0miss   = %d\n",   pfccounters(1)(6) )
+    printf("incpfc_TC_writeTM0      = %d\n",   pfccounters(1)(7) )
+    printf("incpfc_TC_writeTM0miss  = %d\n",   pfccounters(1)(8) )
+    printf("incpfc_TC_writeTM0back  = %d\n",   pfccounters(1)(9) )
+    printf("incpfc_TC_readTM1       = %d\n",   pfccounters(1)(10))
+    printf("incpfc_TC_readTM1miss   = %d\n",   pfccounters(1)(11))
+    printf("incpfc_TC_writeTM1      = %d\n",   pfccounters(1)(12))
+    printf("incpfc_TC_writeTM1miss  = %d\n",   pfccounters(1)(13))
+    printf("incpfc_TC_writeTM1back  = %d\n",   pfccounters(1)(14))*/
+    printf("incpfc_TC_acqTTfromMem  = %d\n",   pfccounters(1)(15))
+    printf("incpfc_TC_acqTM0fromMem = %d\n",   pfccounters(1)(16))
+    printf("incpfc_TC_acqTM1fromMem = %d\n",   pfccounters(1)(17))
+    printf("incpfc_TC_acqTfromMemT  = %d\n",   pfccounters(1)(18))
+    printf("incpfc_TC_acqTTtoMem    = %d\n",   pfccounters(1)(19))
+    printf("incpfc_TC_acqTM0toMem   = %d\n",   pfccounters(1)(20))
+    printf("incpfc_TC_acqTM1toMem   = %d\n",   pfccounters(1)(21))
+    printf("incpfc_TC_acqTtoMemT    = %d\n",   pfccounters(1)(22))
+  }*/
+
+  when(getpfc && io.in.grant.fire() && getpfcxactID === io.in.grant.bits.client_xact_id) {
+    getpfc := Bool(false)
+    getpfcID := getpfcID + UInt(1)
+    pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }} //reset
+    printf("--------getpfcID %d--------\n", getpfcID)
+    /*printf("getpfc_TC_readTT        = %d\n",   pfccounters(2)(0) )
+    printf("getpfc_TC_readTTmiss    = %d\n",   pfccounters(2)(1) )
+    printf("getpfc_TC_writeTT       = %d\n",   pfccounters(2)(2) )
+    printf("getpfc_TC_writeTTmiss   = %d\n",   pfccounters(2)(3) )
+    printf("getpfc_TC_writeTTback   = %d\n",   pfccounters(2)(4) )
+    printf("getpfc_TC_readTM0       = %d\n",   pfccounters(2)(5) )
+    printf("getpfc_TC_readTM0miss   = %d\n",   pfccounters(2)(6) )
+    printf("getpfc_TC_writeTM0      = %d\n",   pfccounters(2)(7) )
+    printf("getpfc_TC_writeTM0miss  = %d\n",   pfccounters(2)(8) )
+    printf("getpfc_TC_writeTM0back  = %d\n",   pfccounters(2)(9) )
+    printf("getpfc_TC_readTM1       = %d\n",   pfccounters(2)(10))
+    printf("getpfc_TC_readTM1miss   = %d\n",   pfccounters(2)(11))
+    printf("getpfc_TC_writeTM1      = %d\n",   pfccounters(2)(12))
+    printf("getpfc_TC_writeTM1miss  = %d\n",   pfccounters(2)(13))
+    printf("getpfc_TC_writeTM1back  = %d\n",   pfccounters(2)(14))*/
+    printf("getpfc_TC_acqTTfromMem  = %d\n",   pfccounters(2)(15))
+    printf("getpfc_TC_acqTM0fromMem = %d\n",   pfccounters(2)(16))
+    printf("getpfc_TC_acqTM1fromMem = %d\n",   pfccounters(2)(17))
+    printf("getpfc_TC_acqTfromMemT  = %d\n",   pfccounters(2)(18))
+    printf("getpfc_TC_acqTTtoMem    = %d\n",   pfccounters(2)(19))
+    printf("getpfc_TC_acqTM0toMem   = %d\n",   pfccounters(2)(20))
+    printf("getpfc_TC_acqTM1toMem   = %d\n",   pfccounters(2)(21))
+    printf("getpfc_TC_acqTtoMemT    = %d\n",   pfccounters(2)(22))
+  }
+
+  when(reset) { pfccounters.map(pfc => pfc.map(_ := UInt(0))) }
 
 }

@@ -17,7 +17,8 @@ extern "C" {
 				   svBitVecVal *id,
 				   svBitVecVal *beat,
 				   svBitVecVal *a_type,
-				   svBitVecVal *tag
+				   svBitVecVal *tag,
+				   svBit       *getpfc
 				   );
    
   extern svBit dpi_tc_send_packet_ack (
