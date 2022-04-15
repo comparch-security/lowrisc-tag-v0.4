@@ -139,7 +139,7 @@ junk += $(generated_dir)
 #--------------------------------------------------------------------
 VCS = vcs
 VCS_FLAG = \
-	-LDFLAGS -Wl,--no-as-needed \
+	-cpp g++-7 -cc gcc-7 -LDFLAGS -Wl,--no-as-needed \
 	-sverilog -ntb_opts -full64 \
 	-timescale=1ns/10ps \
 	-debug \
