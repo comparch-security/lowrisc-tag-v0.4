@@ -140,6 +140,7 @@ void read_traces() {
   data_trace.close();
 }
 
+void read_traces_filewise();
 void fill_traces() {
   if(!trace_list.empty()) {
     while(get_free_trace(trace_add_idx)) {
@@ -283,21 +284,21 @@ void data_trace_begin(std::string dscr) {
   data_files = 0;
   data_trace_exausted = false;
   data_prefix = std::string("trace-"+dscr+"-");
-  data_trace.open(data_prefix+std::to_string(data_files)+".dat")
+  data_trace.open(data_prefix+std::to_string(data_files)+".dat");
 }
 
 void warm_trace_begin(std::string dscr) {
   warm_files = 0;
   warm_trace_exausted = false;
   warm_prefix = std::string("warm-"+dscr+"-");
-  warm_trace.open(warm_prefix+std::to_string(warm_files)+".dat")
+  warm_trace.open(warm_prefix+std::to_string(warm_files)+".dat");
 }
 
 void init_trace_begin(std::string dscr) {
   init_files = 0;
   init_trace_exausted = false;
   init_prefix = std::string("init-"+dscr+"-");
-  init_trace.open(init_prefix+std::to_string(init_files)+".dat")
+  init_trace.open(init_prefix+std::to_string(init_files)+".dat");
 }
 
 void read_init_trace() {
@@ -314,7 +315,7 @@ void read_init_trace() {
     token = strtok(NULL, ",");
     trace_list.back().tag = std::stoll(token, NULL, 16);
     delete[] cstr;
-    traces ++;
+    trace_cnt ++;
     //std::cout << "Record an init trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
   init_trace.close();
@@ -345,7 +346,7 @@ void read_warm_trace() {
       trace_list.back().tag = std::stoll(token, NULL, 16);
     }
     delete[] cstr;
-    traces ++;
+    trace_cnt ++;
     //std::cout << "Record a warm trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
   warm_trace.close();
@@ -379,7 +380,7 @@ void read_data_trace() {
       trace_list.back().tag = std::stoll(token, NULL, 16);
     }
     delete[] cstr;
-    traces ++;
+    trace_cnt ++;
     //std::cout << "Record a data trace: " << to_string(trace_list.back(), 0) << std::endl;
   }
   data_trace.close();
