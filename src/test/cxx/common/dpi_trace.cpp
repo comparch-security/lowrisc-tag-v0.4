@@ -42,6 +42,12 @@ std::priority_queue<uint64_t, std::vector<uint64_t>, std::greater<uint64_t> > tr
 std::priority_queue<uint64_t, std::vector<uint64_t>, std::greater<uint64_t> > recv_waiting_queue;
 std::list<packet> send_pkt, recv_pkt;
 std::list<trace> trace_list;
+uint64_t data_files, warm_files, init_files;
+std::string data_prefix, warm_prefix, init_prefix;
+uint64_t data_trace_cnt, warm_trace_cnt, init_trace_cnt;
+bool data_trace_exausted, warm_trace_exausted, init_trace_exausted;
+uint64_t trace_cnt;
+const uint64_t trace_read_bound = 512lu * 1024lu * 1024lu;
 
 uint64_t t_cycle_pre=0, t_cycle = 0, s_cycle = 0;
 
@@ -141,6 +147,8 @@ void fill_traces() {
       traces[trace_add_idx] = trace_list.front();
       trace_list.pop_front();
       trace_sending_queue.push(traces[trace_add_idx].t_start);
+      if(trace_list.empty()) 
+        read_traces_filewise();
       //std::cout << "Load a trace: " << to_string(traces[trace_add_idx], trace_add_idx) << std::endl;
     }
   }
@@ -271,14 +279,142 @@ svBit dpi_tc_recv_packet (const svBit valid,
     return sv_1;
 }
 
+void data_trace_begin(std::string dscr) {
+  data_files = 0;
+  data_trace_exausted = false;
+  data_prefix = std::string("trace-"+dscr+"-");
+  data_trace.open(data_prefix+std::to_string(data_files)+".dat")
+}
+
+void warm_trace_begin(std::string dscr) {
+  warm_files = 0;
+  warm_trace_exausted = false;
+  warm_prefix = std::string("warm-"+dscr+"-");
+  warm_trace.open(warm_prefix+std::to_string(warm_files)+".dat")
+}
+
+void init_trace_begin(std::string dscr) {
+  init_files = 0;
+  init_trace_exausted = false;
+  init_prefix = std::string("init-"+dscr+"-");
+  init_trace.open(init_prefix+std::to_string(init_files)+".dat")
+}
+
+void read_init_trace() {
+  if(init_trace_exausted) return ;
+  init_trace_cnt = 0;
+  while(!init_trace.eof()) {
+    char * cstr = new char[256];
+    init_trace.getline(cstr, 256);
+    if(cstr[0] == 0) break;
+    trace_list.push_back(trace{0,0,0,true,0});
+    char *token;
+    token = strtok(cstr, ",");
+    trace_list.back().addr = std::stoll(token, NULL, 16);
+    token = strtok(NULL, ",");
+    trace_list.back().tag = std::stoll(token, NULL, 16);
+    delete[] cstr;
+    traces ++;
+    //std::cout << "Record an init trace: " << to_string(trace_list.back(), 0) << std::endl;
+  }
+  init_trace.close();
+  init_files ++ ;
+  init_trace.open(init_prefix+std::to_string(init_files)+".dat");
+  if (!init_trace.is_open()) {
+    init_trace_exausted = true;
+  }
+}
+
+void read_warm_trace() {
+  if(warm_trace_exausted) return; 
+  warm_trace_cnt = 0;
+  while(!warm_trace.eof()) {
+    char * cstr = new char[256];
+    warm_trace.getline(cstr, 256);
+    if(cstr[0] == 0) break;
+    trace_list.push_back(trace{0,0,0,false,0});
+    char *token;
+    token = strtok(cstr, ",");
+    token = strtok(NULL, ",");
+    token = strtok(NULL, ",");
+    trace_list.back().addr = std::stoll(token, NULL, 16);
+    token = strtok(NULL, ",");
+    trace_list.back().rw = std::stoi(token);
+    if(trace_list.back().rw) {
+      token = strtok(NULL, ",");
+      trace_list.back().tag = std::stoll(token, NULL, 16);
+    }
+    delete[] cstr;
+    traces ++;
+    //std::cout << "Record a warm trace: " << to_string(trace_list.back(), 0) << std::endl;
+  }
+  warm_trace.close();
+  warm_files ++ ;
+  warm_trace.open(warm_prefix+std::to_string(warm_files)+".dat");
+  if (!warm_trace.is_open()) {
+    warm_trace_exausted = true;
+  }
+}
+
+void read_data_trace() {
+  if(data_trace_exausted) return;
+  data_trace_cnt = 0;
+  while(!data_trace.eof()) {
+    char * cstr = new char[256];
+    data_trace.getline(cstr, 256);
+    if(cstr[0] == 0) break;
+    trace_list.push_back(trace{0,0,0,false,0});
+    char *token;
+    token = strtok(cstr, ",");
+    t_cycle_pre += std::stoll(token, NULL,16);
+    trace_list.back().t_start = t_cycle_pre;
+    token = strtok(NULL, ",");
+    trace_list.back().t_delay = t_cycle_pre + std::stoll(token, NULL,16);
+    token = strtok(NULL, ",");
+    trace_list.back().addr = std::stoll(token, NULL, 16);
+    token = strtok(NULL, ",");
+    trace_list.back().rw = std::stoi(token);
+    if(trace_list.back().rw) {
+      token = strtok(NULL, ",");
+      trace_list.back().tag = std::stoll(token, NULL, 16);
+    }
+    delete[] cstr;
+    traces ++;
+    //std::cout << "Record a data trace: " << to_string(trace_list.back(), 0) << std::endl;
+  }
+  data_trace.close();
+  data_files ++;
+  data_trace.open(data_prefix+std::to_string(data_files)+".dat");
+  if (!data_trace.is_open()) {
+    data_trace_exausted = true;
+  }
+}
+
+void read_traces_filewise() {
+  if (!init_trace_exausted) {
+    read_init_trace();
+  }
+  else if (!warm_trace_exausted) {
+    read_warm_trace();
+  }
+  else if (!data_trace_exausted) {
+    read_data_trace();
+  }
+  else {
+    // All trace read. Do nothing.
+  }
+  return;
+}
+ 
+
 svBit dpi_tc_init(const char * dscr) {
   trace_sending_queue.push(0); trace_sending_queue.pop();
   trace_pending_queue.push(0); trace_pending_queue.pop();
   recv_waiting_queue.push(0); recv_waiting_queue.pop();
-  data_trace.open("trace-"+std::string(dscr)+".dat");
-  warm_trace.open("warm-"+std::string(dscr)+".dat");
-  init_trace.open("init-"+std::string(dscr)+".dat");
-  read_traces();
+  data_trace_begin(std::string(dscr));
+  warm_trace_begin(std::string(dscr));
+  init_trace_begin(std::string(dscr));
+  read_traces_filewise();
   fill_traces();
   return 0;
 }
