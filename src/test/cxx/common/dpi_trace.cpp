@@ -47,7 +47,7 @@ std::string data_prefix, warm_prefix, init_prefix;
 uint64_t data_trace_cnt, warm_trace_cnt, init_trace_cnt;
 bool data_trace_exausted, warm_trace_exausted, init_trace_exausted;
 uint64_t trace_cnt;
-const uint64_t trace_read_bound = 512lu * 1024lu * 1024lu;
+const uint64_t trace_read_bound = 512lu * 1024lu;
 
 uint64_t t_cycle_pre=0, t_cycle = 0, s_cycle = 0;
 
@@ -323,6 +323,8 @@ void read_init_trace() {
   init_trace.open(init_prefix+std::to_string(init_files)+".dat");
   if (!init_trace.is_open()) {
     init_trace_exausted = true;
+    init_trace_cnt = trace_cnt;
+    trace_init_end = trace_cnt;
   }
 }
 
@@ -354,6 +356,8 @@ void read_warm_trace() {
   warm_trace.open(warm_prefix+std::to_string(warm_files)+".dat");
   if (!warm_trace.is_open()) {
     warm_trace_exausted = true;
+    warm_trace_cnt = trace_cnt;
+    trace_warm_end = trace_cnt;
   }
 }
 
@@ -388,6 +392,8 @@ void read_data_trace() {
   data_trace.open(data_prefix+std::to_string(data_files)+".dat");
   if (!data_trace.is_open()) {
     data_trace_exausted = true;
+    data_trace_cnt = trace_cnt;
+    trace_data_end = trace_cnt;
   }
 }
 
