@@ -1384,10 +1384,10 @@ class TagCacheTop(param: Parameters) extends Module
   pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfc + pfccounters(0)(i) }} //1: period log
   pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfc + pfccounters(0)(i) }} //2: warm up
 
-  /*when(logging) {
+  when(logging) {
     incpfcID := incpfcID + UInt(1)
     pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }}  //reset
-    printf("--------incpfcID %d---------\n", incpfcID)
+    // printf("--------incpfcID %d---------\n", incpfcID)
     /*printf("incpfc_TC_readTT        = %d\n",   pfccounters(1)(0) )
     printf("incpfc_TC_readTTmiss    = %d\n",   pfccounters(1)(1) )
     printf("incpfc_TC_writeTT       = %d\n",   pfccounters(1)(2) )
@@ -1403,21 +1403,45 @@ class TagCacheTop(param: Parameters) extends Module
     printf("incpfc_TC_writeTM1      = %d\n",   pfccounters(1)(12))
     printf("incpfc_TC_writeTM1miss  = %d\n",   pfccounters(1)(13))
     printf("incpfc_TC_writeTM1back  = %d\n",   pfccounters(1)(14))*/
-    printf("incpfc_TC_acqTTfromMem  = %d\n",   pfccounters(1)(15))
-    printf("incpfc_TC_acqTM0fromMem = %d\n",   pfccounters(1)(16))
-    printf("incpfc_TC_acqTM1fromMem = %d\n",   pfccounters(1)(17))
-    printf("incpfc_TC_acqTfromMemT  = %d\n",   pfccounters(1)(18))
-    printf("incpfc_TC_acqTTtoMem    = %d\n",   pfccounters(1)(19))
-    printf("incpfc_TC_acqTM0toMem   = %d\n",   pfccounters(1)(20))
-    printf("incpfc_TC_acqTM1toMem   = %d\n",   pfccounters(1)(21))
-    printf("incpfc_TC_acqTtoMemT    = %d\n",   pfccounters(1)(22))
-  }*/
+    // printf("incpfc_TC_acqTTfromMem  = %d\n",   pfccounters(1)(15))
+    // printf("incpfc_TC_acqTM0fromMem = %d\n",   pfccounters(1)(16))
+    // printf("incpfc_TC_acqTM1fromMem = %d\n",   pfccounters(1)(17))
+    // printf("incpfc_TC_acqTfromMemT  = %d\n",   pfccounters(1)(18))
+    // printf("incpfc_TC_acqTTtoMem    = %d\n",   pfccounters(1)(19))
+    // printf("incpfc_TC_acqTM0toMem   = %d\n",   pfccounters(1)(20))
+    // printf("incpfc_TC_acqTM1toMem   = %d\n",   pfccounters(1)(21))
+    // printf("incpfc_TC_acqTtoMemT    = %d\n",   pfccounters(1)(22))
+    printf("%d:",incpfcID);
+    printf("%d,",pfccounters(1)(0));
+    printf("%d,",pfccounters(1)(1));
+    printf("%d,",pfccounters(1)(2));
+    printf("%d,",pfccounters(1)(3));
+    printf("%d,",pfccounters(1)(4));
+    printf("%d,",pfccounters(1)(5));
+    printf("%d,",pfccounters(1)(6));
+    printf("%d,",pfccounters(1)(7));
+    printf("%d,",pfccounters(1)(8));
+    printf("%d,",pfccounters(1)(9));
+    printf("%d,",pfccounters(1)(10));
+    printf("%d,",pfccounters(1)(11));
+    printf("%d,",pfccounters(1)(12));
+    printf("%d,",pfccounters(1)(13));
+    printf("%d,",pfccounters(1)(14));
+    printf("%d,",pfccounters(1)(15));
+    printf("%d,",pfccounters(1)(16));
+    printf("%d,",pfccounters(1)(17));
+    printf("%d,",pfccounters(1)(18));
+    printf("%d,",pfccounters(1)(19));
+    printf("%d,",pfccounters(1)(20));
+    printf("%d,",pfccounters(1)(21));
+    printf("%d\n",pfccounters(1)(22));    
+  }
 
   when(getpfc && io.in.grant.fire() && getpfcxactID === io.in.grant.bits.client_xact_id) {
     getpfc := Bool(false)
     getpfcID := getpfcID + UInt(1)
     pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }} //reset
-    printf("--------getpfcID %d--------\n", getpfcID)
+    // printf("--------getpfcID %d--------\n", getpfcID)
     /*printf("getpfc_TC_readTT        = %d\n",   pfccounters(2)(0) )
     printf("getpfc_TC_readTTmiss    = %d\n",   pfccounters(2)(1) )
     printf("getpfc_TC_writeTT       = %d\n",   pfccounters(2)(2) )
@@ -1433,14 +1457,41 @@ class TagCacheTop(param: Parameters) extends Module
     printf("getpfc_TC_writeTM1      = %d\n",   pfccounters(2)(12))
     printf("getpfc_TC_writeTM1miss  = %d\n",   pfccounters(2)(13))
     printf("getpfc_TC_writeTM1back  = %d\n",   pfccounters(2)(14))*/
-    printf("getpfc_TC_acqTTfromMem  = %d\n",   pfccounters(2)(15))
-    printf("getpfc_TC_acqTM0fromMem = %d\n",   pfccounters(2)(16))
-    printf("getpfc_TC_acqTM1fromMem = %d\n",   pfccounters(2)(17))
-    printf("getpfc_TC_acqTfromMemT  = %d\n",   pfccounters(2)(18))
-    printf("getpfc_TC_acqTTtoMem    = %d\n",   pfccounters(2)(19))
-    printf("getpfc_TC_acqTM0toMem   = %d\n",   pfccounters(2)(20))
-    printf("getpfc_TC_acqTM1toMem   = %d\n",   pfccounters(2)(21))
-    printf("getpfc_TC_acqTtoMemT    = %d\n",   pfccounters(2)(22))
+    // printf("getpfc_TC_acqTTfromMem  = %d\n",   pfccounters(2)(15))
+    // printf("getpfc_TC_acqTM0fromMem = %d\n",   pfccounters(2)(16))
+    // printf("getpfc_TC_acqTM1fromMem = %d\n",   pfccounters(2)(17))
+    // printf("getpfc_TC_acqTfromMemT  = %d\n",   pfccounters(2)(18))
+    // printf("getpfc_TC_acqTTtoMem    = %d\n",   pfccounters(2)(19))
+    // printf("getpfc_TC_acqTM0toMem   = %d\n",   pfccounters(2)(20))
+    // printf("getpfc_TC_acqTM1toMem   = %d\n",   pfccounters(2)(21))
+    // printf("getpfc_TC_acqTtoMemT    = %d\n",   pfccounters(2)(22))
+
+    // compressed output format:
+    // getpfcID:TTfM,TM0fM,TM1fM,TfM,TTtM,TM0tM,TM1tM,TtM\n
+    printf("S%d:",getpfcID);
+    printf("%d,",pfccounters(2)(0));
+    printf("%d,",pfccounters(2)(1));
+    printf("%d,",pfccounters(2)(2));
+    printf("%d,",pfccounters(2)(3));
+    printf("%d,",pfccounters(2)(4));
+    printf("%d,",pfccounters(2)(5));
+    printf("%d,",pfccounters(2)(6));
+    printf("%d,",pfccounters(2)(7));
+    printf("%d,",pfccounters(2)(8));
+    printf("%d,",pfccounters(2)(9));
+    printf("%d,",pfccounters(2)(10));
+    printf("%d,",pfccounters(2)(11));
+    printf("%d,",pfccounters(2)(12));
+    printf("%d,",pfccounters(2)(13));
+    printf("%d,",pfccounters(2)(14));
+    printf("%d,",pfccounters(2)(15));
+    printf("%d,",pfccounters(2)(16));
+    printf("%d,",pfccounters(2)(17));
+    printf("%d,",pfccounters(2)(18));
+    printf("%d,",pfccounters(2)(19));
+    printf("%d,",pfccounters(2)(20));
+    printf("%d,",pfccounters(2)(21));
+    printf("%d\n",pfccounters(2)(22));
   }
 
   when(reset) { pfccounters.map(pfc => pfc.map(_ := UInt(0))) }
