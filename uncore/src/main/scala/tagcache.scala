@@ -1387,30 +1387,6 @@ class TagCacheTop(param: Parameters) extends Module
   when(logging) {
     incpfcID := incpfcID + UInt(1)
     pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }}  //reset
-    // printf("--------incpfcID %d---------\n", incpfcID)
-    /*printf("incpfc_TC_readTT        = %d\n",   pfccounters(1)(0) )
-    printf("incpfc_TC_readTTmiss    = %d\n",   pfccounters(1)(1) )
-    printf("incpfc_TC_writeTT       = %d\n",   pfccounters(1)(2) )
-    printf("incpfc_TC_writeTTmiss   = %d\n",   pfccounters(1)(3) )
-    printf("incpfc_TC_writeTTback   = %d\n",   pfccounters(1)(4) )
-    printf("incpfc_TC_readTM0       = %d\n",   pfccounters(1)(5) )
-    printf("incpfc_TC_readTM0miss   = %d\n",   pfccounters(1)(6) )
-    printf("incpfc_TC_writeTM0      = %d\n",   pfccounters(1)(7) )
-    printf("incpfc_TC_writeTM0miss  = %d\n",   pfccounters(1)(8) )
-    printf("incpfc_TC_writeTM0back  = %d\n",   pfccounters(1)(9) )
-    printf("incpfc_TC_readTM1       = %d\n",   pfccounters(1)(10))
-    printf("incpfc_TC_readTM1miss   = %d\n",   pfccounters(1)(11))
-    printf("incpfc_TC_writeTM1      = %d\n",   pfccounters(1)(12))
-    printf("incpfc_TC_writeTM1miss  = %d\n",   pfccounters(1)(13))
-    printf("incpfc_TC_writeTM1back  = %d\n",   pfccounters(1)(14))*/
-    // printf("incpfc_TC_acqTTfromMem  = %d\n",   pfccounters(1)(15))
-    // printf("incpfc_TC_acqTM0fromMem = %d\n",   pfccounters(1)(16))
-    // printf("incpfc_TC_acqTM1fromMem = %d\n",   pfccounters(1)(17))
-    // printf("incpfc_TC_acqTfromMemT  = %d\n",   pfccounters(1)(18))
-    // printf("incpfc_TC_acqTTtoMem    = %d\n",   pfccounters(1)(19))
-    // printf("incpfc_TC_acqTM0toMem   = %d\n",   pfccounters(1)(20))
-    // printf("incpfc_TC_acqTM1toMem   = %d\n",   pfccounters(1)(21))
-    // printf("incpfc_TC_acqTtoMemT    = %d\n",   pfccounters(1)(22))
     printf("%d:",incpfcID);
     printf("%d,",pfccounters(1)(0));
     printf("%d,",pfccounters(1)(1));
@@ -1441,31 +1417,6 @@ class TagCacheTop(param: Parameters) extends Module
     getpfc := Bool(false)
     getpfcID := getpfcID + UInt(1)
     pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }} //reset
-    // printf("--------getpfcID %d--------\n", getpfcID)
-    /*printf("getpfc_TC_readTT        = %d\n",   pfccounters(2)(0) )
-    printf("getpfc_TC_readTTmiss    = %d\n",   pfccounters(2)(1) )
-    printf("getpfc_TC_writeTT       = %d\n",   pfccounters(2)(2) )
-    printf("getpfc_TC_writeTTmiss   = %d\n",   pfccounters(2)(3) )
-    printf("getpfc_TC_writeTTback   = %d\n",   pfccounters(2)(4) )
-    printf("getpfc_TC_readTM0       = %d\n",   pfccounters(2)(5) )
-    printf("getpfc_TC_readTM0miss   = %d\n",   pfccounters(2)(6) )
-    printf("getpfc_TC_writeTM0      = %d\n",   pfccounters(2)(7) )
-    printf("getpfc_TC_writeTM0miss  = %d\n",   pfccounters(2)(8) )
-    printf("getpfc_TC_writeTM0back  = %d\n",   pfccounters(2)(9) )
-    printf("getpfc_TC_readTM1       = %d\n",   pfccounters(2)(10))
-    printf("getpfc_TC_readTM1miss   = %d\n",   pfccounters(2)(11))
-    printf("getpfc_TC_writeTM1      = %d\n",   pfccounters(2)(12))
-    printf("getpfc_TC_writeTM1miss  = %d\n",   pfccounters(2)(13))
-    printf("getpfc_TC_writeTM1back  = %d\n",   pfccounters(2)(14))*/
-    // printf("getpfc_TC_acqTTfromMem  = %d\n",   pfccounters(2)(15))
-    // printf("getpfc_TC_acqTM0fromMem = %d\n",   pfccounters(2)(16))
-    // printf("getpfc_TC_acqTM1fromMem = %d\n",   pfccounters(2)(17))
-    // printf("getpfc_TC_acqTfromMemT  = %d\n",   pfccounters(2)(18))
-    // printf("getpfc_TC_acqTTtoMem    = %d\n",   pfccounters(2)(19))
-    // printf("getpfc_TC_acqTM0toMem   = %d\n",   pfccounters(2)(20))
-    // printf("getpfc_TC_acqTM1toMem   = %d\n",   pfccounters(2)(21))
-    // printf("getpfc_TC_acqTtoMemT    = %d\n",   pfccounters(2)(22))
-
     // compressed output format:
     // getpfcID:TTfM,TM0fM,TM1fM,TfM,TTtM,TM0tM,TM1tM,TtM\n
     printf("S%d:",getpfcID);
