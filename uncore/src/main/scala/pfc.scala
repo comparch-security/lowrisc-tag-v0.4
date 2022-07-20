@@ -84,6 +84,10 @@ class TagCachePerform extends Bundle {
   val acqTM0toMem      = Bool(INPUT) //acquire channel put tag map0 to mem
   val acqTM1toMem      = Bool(INPUT) //acquire channel put tag map1 to mem
   val acqTtoMemT       = Bool(INPUT) //acquire channel put tag to mem total
+  val serveTT          = UInt(INPUT, width=2) // mem xacts served by TT
+  val serveTM0         = UInt(INPUT, width=2) // mem xacts served by TM0
+  val serveTM1         = UInt(INPUT, width=2) // mem xacts served by TM1
+  val accessTC         = UInt(INPUT, width=2) // number of TagTracker xacts
 }
 
 class TileCachePerformIO extends Bundle {
@@ -245,7 +249,7 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
     val update  = new TagCachePerform()
   }
 
-  val pfcManager = Module(new PFCManager(23))
+  val pfcManager = Module(new PFCManager(27))
   io.manager <> pfcManager.io.manager
   pfcManager.io.update(0) := io.update.readTT
   pfcManager.io.update(1) := io.update.readTT_miss
@@ -270,6 +274,10 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
   pfcManager.io.update(20) := io.update.acqTM0toMem
   pfcManager.io.update(21) := io.update.acqTM1toMem
   pfcManager.io.update(22) := io.update.acqTtoMemT
+  pfcManager.io.update(23) := io.update.serveTT
+  pfcManager.io.update(24) := io.update.serveTM0
+  pfcManager.io.update(25) := io.update.serveTM1
+  pfcManager.io.update(26) := io.update.accessTC
 
   if(PFCEmitLog) {
     val resp_pfc = io.manager.resp.bits.data
@@ -298,6 +306,10 @@ class TCPFCManager(implicit p: Parameters) extends PFCModule()(p) {
       when(resp_bitmapUI===UInt(20)) { printf("PFCResp: TC acqTM0toMem = %d\n",   resp_pfc)}
       when(resp_bitmapUI===UInt(21)) { printf("PFCResp: TC acqTM1toMem = %d\n",   resp_pfc)}
       when(resp_bitmapUI===UInt(22)) { printf("PFCResp: TC acqTtoMemT = %d\n",    resp_pfc)}
+      when(resp_bitmapUI===UInt(23)) { printf("PFCResp: TC serveTT = %d\n",       resp_pfc)}
+      when(resp_bitmapUI===UInt(24)) { printf("PFCResp: TC serveTM0 = %d\n",      resp_pfc)}
+      when(resp_bitmapUI===UInt(25)) { printf("PFCResp: TC serveTM1 = %d\n",      resp_pfc)}
+      when(resp_bitmapUI===UInt(26)) { printf("PFCResp: TC accessTC = %d\n",      resp_pfc)}
     }
   }
 }
