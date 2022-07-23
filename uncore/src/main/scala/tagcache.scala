@@ -801,16 +801,24 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   // -------------- the shared state machine ----------------- //
   when(tc_state === ts_IDLE && tc_req_valid) {
     //printf(s"MemXact get a transaction 0x%x\n", tc_xact_mem_addr)
-    tc_state_next := Mux(order === UInt(0), {
-      nLevel match { // top-down
-        case 3 => ts_TM1F
-        case 2 => ts_TM0F
-        case 1 => ts_TTF
+
+    when(order === UInt(0)) {
+      tc_state_next := {
+        nLevel match { // top-down
+          case 3 => ts_TM1F
+          case 2 => ts_TM0F
+          case 1 => ts_TTF
+        }
       }
-    }, { // bottom-up or middle-up
-      if(nLevel > 1) ts_TTR
-      else           ts_TTF
-    })
+    }
+
+    when(order === UInt(1)) {
+      tc_state_next := (if(nLevel > 1) ts_TTR else ts_TTF)
+    }
+
+    when(order === UInt(2)) {
+      tc_state_next := (if(nLevel > 2) ts_TM0R else ts_TM1F)
+    }
   }
   when(tc_state === ts_TTR && io.tc.resp.valid) {
     tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) Mux(order === UInt(1), ts_TM0R, ts_TM1F) else ts_TM0F),
