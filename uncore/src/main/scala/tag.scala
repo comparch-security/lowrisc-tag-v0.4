@@ -35,7 +35,8 @@ class TagUtil(
   cacheBlockBytes: Int = 64     // byte size of a cache block 
 ) {
   def tclevel = 3
-  def order   = 1                                       // 0: topdown, 1: bottomup, 2: bottom-top
+  def order   = 3                                       // 0: topdown, 1: bottomup, 2: middle-up, 3: dynamic
+  def order_select_period = 1000                        // when picking order dynamically, the update period in TC xacts
   def create_if_empty = true
   def invalidate_if_empty = true
   def delayed_invalidation = false

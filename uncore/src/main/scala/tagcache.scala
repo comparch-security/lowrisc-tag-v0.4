@@ -35,6 +35,9 @@ trait HasTCParameters extends HasCoherenceAgentParameters
 
   val refillCycles = outerDataBeats
 
+  val nOrderSelectPeriod = tgHelper.order_select_period
+  val nOrderSelectWidth  = log2Up(nOrderSelectPeriod)
+
   require(outerDataBits == rowBits)
   require(p(CacheBlockBytes) * tgBits / 8 <= rowBits) // limit the data size of tag operation to a row
   require(outerTLId == p(TLId))
@@ -318,7 +321,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     val wb   = new TCWBIO
     val tl   = new ClientUncachedTileLinkIO()
     val lock = Decoupled(new TCTagLock)
-    val pfc = new TagCachePerform().flip()
+    val order = UInt(INPUT, width=2)
+    val pfc   = new TagCachePerform().flip()
   }
 
   // IDLE:      idle, ready for new request
@@ -379,29 +383,31 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val isTTaddr   = !tgHelper.is_map(xact.addr)
   val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
   val isTM1addr  =  tgHelper.is_top(xact.addr)
-  val isTTread   = isTTaddr  && (if(nOrder >  0 && nLevel > 1 && !bFR) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
-  val isTM0read  = isTM0addr && (if(nOrder == 1 && nLevel > 2 && !bFR) xact.op === TCTagOp.R else xact.op === TCTagOp.F)
+  val isTTread   = isTTaddr  && (if(nLevel > 1 && !bFR) Mux(io.order =/= UInt(0), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
+  val isTM0read  = isTM0addr && (if(nLevel > 2 && !bFR) Mux(io.order === UInt(1), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
   val isTM1read  = isTM1addr && xact.op === TCTagOp.F
   val isTTwrite  = isTTaddr  && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM1write = isTM1addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
+  val ishit      = io.meta.resp.bits.hit
 
   io.pfc.readTT          := isTTread   && io.meta.resp.valid && state === s_MR
-  io.pfc.readTT_miss     := isTTread   && io.meta.resp.valid && state === s_MR && !io.meta.resp.bits.hit
+  io.pfc.readTT_miss     := isTTread   && io.meta.resp.valid && state === s_MR && !ishit
   io.pfc.writeTT         := isTTwrite  && state === s_MW && state_next === s_L
   io.pfc.writeTT_back    := isTTaddr   && io.wb.req.fire()
   io.pfc.readTM0         := isTM0read  && io.meta.resp.valid && state === s_MR
-  io.pfc.readTM0_miss    := isTM0read  && io.meta.resp.valid && state === s_MR && !io.meta.resp.bits.hit
+  io.pfc.readTM0_miss    := isTM0read  && io.meta.resp.valid && state === s_MR && !ishit
   io.pfc.writeTM0        := isTM0write && state === s_MW && state_next === s_L
   io.pfc.writeTM0_back   := isTM0addr  && io.wb.req.fire()
   io.pfc.readTM1         := isTM1read  && io.meta.resp.valid && state === s_MR
-  io.pfc.readTM1_miss    := isTM1read  && io.meta.resp.valid && state === s_MR && !io.meta.resp.bits.hit
+  io.pfc.readTM1_miss    := isTM1read  && io.meta.resp.valid && state === s_MR && !ishit
   io.pfc.writeTM1        := isTM1write && state === s_MW && state_next === s_L
   io.pfc.writeTM1_back   := isTM1addr  && io.wb.req.fire()
   io.pfc.acqTTfromMem    := isTTaddr   && io.tl.acquire.fire()
   io.pfc.acqTM0fromMem   := isTM0addr  && io.tl.acquire.fire()
   io.pfc.acqTM1fromMem   := isTM1addr  && io.tl.acquire.fire()
   io.pfc.acqTfromMemT    := io.tl.acquire.fire()
+  io.pfc.accessTC        := io.meta.resp.valid && state === s_MR
 
   // metadata read
   io.meta.read.bits.id := UInt(id)
@@ -617,12 +623,16 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     val create_tm0 = Bool(OUTPUT)                                  // active for create a TM0 block
     val create_tt = Bool(OUTPUT)                                   // active for create a TT block
     val create_rdy = Bool(INPUT)
+    val pfc = new TagCachePerform().flip()
+    val order = UInt(INPUT, width=2)
   }
   def inner: ManagerTileLinkIO = io.inner
   def outer: ClientUncachedTileLinkIO = io.outer
   def innerPM : Parameters = p.alterPartial({case TLId =>innerTLId})
   def outerPM : Parameters = p.alterPartial({case TLId =>outerTLId})
   val coh = ManagerMetadata.onReset(innerPM)
+
+  val order = Reg(UInt(width = 2))
 
   val tc_xact_rw        = Wire(Bool()) // r:0 w:1
   val tc_xact_mem_data  = Reg(UInt(width = tgHelper.cacheBlockTagBits))
@@ -791,30 +801,27 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   // -------------- the shared state machine ----------------- //
   when(tc_state === ts_IDLE && tc_req_valid) {
     //printf(s"MemXact get a transaction 0x%x\n", tc_xact_mem_addr)
-    tc_state_next := (
-      nOrder match {
-        case 0 => { // top-down
-          nLevel match {
-            case 3 => ts_TM1F
-            case 2 => ts_TM0F
-            case 1 => ts_TTF
-          }
-        }
-        case _ => { // bottom-up or bottom-top
-          if(nLevel > 1) ts_TTR
-          else           ts_TTF
+
+    when(order === UInt(0)) {
+      tc_state_next := {
+        nLevel match { // top-down
+          case 3 => ts_TM1F
+          case 2 => ts_TM0F
+          case 1 => ts_TTF
         }
       }
-    )
+    }
+
+    when(order === UInt(1)) {
+      tc_state_next := (if(nLevel > 1) ts_TTR else ts_TTF)
+    }
+
+    when(order === UInt(2)) {
+      tc_state_next := (if(nLevel > 2) ts_TM0R else ts_TM1F)
+    }
   }
   when(tc_state === ts_TTR && io.tc.resp.valid) {
-    tc_state_next := Mux(!io.tc.resp.bits.hit, (
-                           if(nLevel > 2) {
-                             if(nOrder == 1) ts_TM0R
-                             else            ts_TM1F
-                           }
-                           else ts_TM0F
-                         ),
+    tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) Mux(order === UInt(1), ts_TM0R, ts_TM1F) else ts_TM0F),
                          Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= (tc_tt_rdata & tc_xact_mem_mask),
                              (if(nLevel > 2) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTW),
                              ts_IDLE))
@@ -861,6 +868,14 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   //when(tc_state =/= ts_IDLE && tc_state_next === ts_IDLE) {
   //  printf(s"MemXact finish a transaction 0x%x\n", tc_xact_mem_addr)
   //}
+
+  // pfc
+  io.pfc.serveTT  := io.tc.resp.valid && ((tc_state === ts_TTR && io.tc.resp.bits.hit) || tc_state === ts_TTF)
+  io.pfc.serveTM0 := io.tc.resp.valid && !tc_tm0_rdata && ((tc_state === ts_TM0R && io.tc.resp.bits.hit) || tc_state === ts_TM0F)
+  io.pfc.serveTM1 := io.tc.resp.valid && !tc_tm1_rdata && tc_state === ts_TM1F
+
+  // search order
+  when(tc_state_next === ts_IDLE && (tc_state =/= ts_IDLE || !tc_req_valid)) { order := io.order }
 
 }
 
@@ -1119,6 +1134,43 @@ class TCTagXactDemux(banks: Int)(implicit p: Parameters) extends TCModule()(p) {
 }
 
 ////////////////////////////////////////////////////////////////
+// Dynamically choose the search order
+
+class TCSearchOrderSelector(implicit p: Parameters) extends TCModule()(p) {
+  val io = new Bundle {
+    val serveTT    = UInt(INPUT, width=2)
+    val serveTM0   = UInt(INPUT, width=2)
+    val serveTM1   = UInt(INPUT, width=2)
+    val accessTC   = UInt(INPUT, width=2)
+    val order      = UInt(OUTPUT, width=2)
+  }
+
+  val tt  = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm0 = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm1 = Reg(init=UInt(0, nOrderSelectWidth))
+  val access = Reg(init=UInt(0, nOrderSelectWidth+1))
+  val update = access > UInt(nOrderSelectPeriod)
+  val order = Reg(init=UInt(0, 2))
+
+  tt  := tt  + io.serveTT
+  tm0 := tm0 + io.serveTM0
+  tm1 := tm1 + io.serveTM1
+  access := access + io.accessTC
+
+  io.order := order
+
+  when(update) {
+    order := Mux(tt > tm0 + tm1, UInt(2),   // choose bottom-up when tt-hit > 50%
+             Mux(tm1 > tt + tm0, UInt(0),   // choose top-down when tm1-hit > 50%
+                                 UInt(2)))  // otherwise, choose middle-up
+    tt  := UInt(0)
+    tm0 := UInt(0)
+    tm1 := UInt(0)
+    access := UInt(0)
+  }
+}
+
+////////////////////////////////////////////////////////////////
 // Top level of the Tag Cache
 
 class TagCache(implicit p: Parameters) extends TCModule()(p)
@@ -1146,6 +1198,20 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
     Module(new TCTagXactTracker(id)))
 
   val wb = Module(new TCWritebackUnit(nMemTransactors + nTagTransactors))
+
+  // search order
+  val order = {
+    if(nOrder == 3) {
+      val order_select = Module(new TCSearchOrderSelector)
+      order_select.io.serveTT  :=  pfc.io.update.serveTT
+      order_select.io.serveTM0 :=  pfc.io.update.serveTM0
+      order_select.io.serveTM1 :=  pfc.io.update.serveTM1
+      order_select.io.accessTC :=  pfc.io.update.accessTC
+      order_select.io.order
+    } else UInt(nOrder)
+  }
+  memTrackers.map( m => m.io.order := order )
+  tagTrackers.map( t => t.io.order := order )
 
   // transaction locks
   //              total lock may need - number of trackers blocked + 1
@@ -1296,9 +1362,14 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   pfc.io.update.acqTM0toMem   := wb.io.pfc.acqTM0toMem
   pfc.io.update.acqTM1toMem   := wb.io.pfc.acqTM1toMem
   pfc.io.update.acqTtoMemT    := wb.io.pfc.acqTtoMemT
+  pfc.io.update.serveTT       := memTrackers.map(_.io.pfc.serveTT).reduce(_+_)
+  pfc.io.update.serveTM0      := memTrackers.map(_.io.pfc.serveTM0).reduce(_+_)
+  pfc.io.update.serveTM1      := memTrackers.map(_.io.pfc.serveTM1).reduce(_+_)
+  pfc.io.update.accessTC      := tagTrackers.map(_.io.pfc.accessTC).reduce(_+_)
 
   io.pfcupdate                := pfc.io.update
 }
+
 
 
 class TagCacheTop(param: Parameters) extends Module
@@ -1340,58 +1411,73 @@ class TagCacheTop(param: Parameters) extends Module
 
 
   //pfc
-  val pfccounters = Reg(Vec(23, UInt(0, width = 64)))
-
-  when( tc.io.pfcupdate.readTT         ) { pfccounters(0)  := pfccounters(0)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTT_miss    ) { pfccounters(1)  := pfccounters(1)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTT        ) { pfccounters(2)  := pfccounters(2)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTT_miss   ) { pfccounters(3)  := pfccounters(3)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTT_back   ) { pfccounters(4)  := pfccounters(4)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTM0        ) { pfccounters(5)  := pfccounters(5)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTM0_miss   ) { pfccounters(6)  := pfccounters(6)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM0       ) { pfccounters(7)  := pfccounters(7)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM0_miss  ) { pfccounters(8)  := pfccounters(8)  + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM0_back  ) { pfccounters(9)  := pfccounters(9)  + UInt(1)  }
-  when( tc.io.pfcupdate.readTM1        ) { pfccounters(10) := pfccounters(10) + UInt(1)  }
-  when( tc.io.pfcupdate.readTM1_miss   ) { pfccounters(11) := pfccounters(11) + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM1       ) { pfccounters(12) := pfccounters(12) + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM1_miss  ) { pfccounters(13) := pfccounters(13) + UInt(1)  }
-  when( tc.io.pfcupdate.writeTM1_back  ) { pfccounters(14) := pfccounters(14) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTTfromMem   ) { pfccounters(15) := pfccounters(15) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM0fromMem  ) { pfccounters(16) := pfccounters(16) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM1fromMem  ) { pfccounters(17) := pfccounters(17) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTfromMemT   ) { pfccounters(18) := pfccounters(18) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTTtoMem     ) { pfccounters(19) := pfccounters(19) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM0toMem    ) { pfccounters(20) := pfccounters(20) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTM1toMem    ) { pfccounters(21) := pfccounters(21) + UInt(1)  }
-  when( tc.io.pfcupdate.acqTtoMemT     ) { pfccounters(22) := pfccounters(22) + UInt(1)  }
-
-  when(io.getpfc) {
-    //printf("PFCResp: TC readTT = %d\n",        pfccounters(0) )
-    //printf("PFCResp: TC readTTmiss = %d\n",    pfccounters(1) )
-    //printf("PFCResp: TC writeTT = %d\n",       pfccounters(2) )
-    //printf("PFCResp: TC writeTTmiss = %d\n",   pfccounters(3) )
-    //printf("PFCResp: TC writeTTback = %d\n",   pfccounters(4) )
-    //printf("PFCResp: TC readTM0 = %d\n",       pfccounters(5) )
-    //printf("PFCResp: TC readTM0miss = %d\n",   pfccounters(6) )
-    //printf("PFCResp: TC writeTM0 = %d\n",      pfccounters(7) )
-    //printf("PFCResp: TC writeTM0miss = %d\n",  pfccounters(8) )
-    //printf("PFCResp: TC writeTM0back = %d\n",  pfccounters(9) )
-    //printf("PFCResp: TC readTM1 = %d\n",       pfccounters(10))
-    //printf("PFCResp: TC readTM1miss = %d\n",   pfccounters(11))
-    //printf("PFCResp: TC writeTM1 = %d\n",      pfccounters(12))
-    //printf("PFCResp: TC writeTM1miss = %d\n",  pfccounters(13))
-    //printf("PFCResp: TC writeTM1back = %d\n",  pfccounters(14))
-    //printf("PFCResp: TC acqTTfromMem = %d\n",  pfccounters(15))
-    //printf("PFCResp: TC acqTM0fromMem = %d\n", pfccounters(16))
-    //printf("PFCResp: TC acqTM1fromMem = %d\n", pfccounters(17))
-    //printf("PFCResp: TC acqTfromMemT = %d\n",  pfccounters(18))
-    //printf("PFCResp: TC acqTTtoMem = %d\n",    pfccounters(19))
-    //printf("PFCResp: TC acqTM0toMem = %d\n",   pfccounters(20))
-    //printf("PFCResp: TC acqTM1toMem = %d\n",   pfccounters(21))
-    //printf("PFCResp: TC acqTtoMemT = %d\n",    pfccounters(22))
+  val getpfc        = Reg(init = Bool(false))
+  val getpfcxactID  = Reg(init = UInt(0, io.in.acquire.bits.client_xact_id.getWidth))
+  val getpfcID      = Reg(init = UInt(0, 32))
+  val incpfcID      = Reg(init = UInt(0, 32))
+  val inctimer      = Reg(init = UInt(0, 20))
+  val logging       = inctimer === UInt(1000)
+  val pfccounters   = (0 until 3).map(i => {
+    val width = if(i == 0) 1 else if(i == 1) 10 else 64
+    Reg(Vec(27, UInt(width = width)))
+  })
+  //0: update 1: period log 2: warm up
+  inctimer       := Mux(logging, UInt(0), inctimer + UInt(1))
+  when(io.getpfc && io.in.acquire.fire()) {
+    getpfc := Bool(true)
+    getpfcxactID := io.in.acquire.bits.client_xact_id
   }
 
+  pfccounters(0)(0)  := tc.io.pfcupdate.readTT
+  pfccounters(0)(1)  := tc.io.pfcupdate.readTT_miss
+  pfccounters(0)(2)  := tc.io.pfcupdate.writeTT
+  pfccounters(0)(3)  := tc.io.pfcupdate.writeTT_miss
+  pfccounters(0)(4)  := tc.io.pfcupdate.writeTT_back
+  pfccounters(0)(5)  := tc.io.pfcupdate.readTM0
+  pfccounters(0)(6)  := tc.io.pfcupdate.readTM0_miss
+  pfccounters(0)(7)  := tc.io.pfcupdate.writeTM0
+  pfccounters(0)(8)  := tc.io.pfcupdate.writeTM0_miss
+  pfccounters(0)(9)  := tc.io.pfcupdate.writeTM0_back
+  pfccounters(0)(10) := tc.io.pfcupdate.readTM1
+  pfccounters(0)(11) := tc.io.pfcupdate.readTM1_miss
+  pfccounters(0)(12) := tc.io.pfcupdate.writeTM1
+  pfccounters(0)(13) := tc.io.pfcupdate.writeTM1_miss
+  pfccounters(0)(14) := tc.io.pfcupdate.writeTM1_back
+  pfccounters(0)(15) := tc.io.pfcupdate.acqTTfromMem
+  pfccounters(0)(16) := tc.io.pfcupdate.acqTM0fromMem
+  pfccounters(0)(17) := tc.io.pfcupdate.acqTM1fromMem
+  pfccounters(0)(18) := tc.io.pfcupdate.acqTfromMemT
+  pfccounters(0)(19) := tc.io.pfcupdate.acqTTtoMem
+  pfccounters(0)(20) := tc.io.pfcupdate.acqTM0toMem
+  pfccounters(0)(21) := tc.io.pfcupdate.acqTM1toMem
+  pfccounters(0)(22) := tc.io.pfcupdate.acqTtoMemT
+  pfccounters(0)(23) := tc.io.pfcupdate.serveTT
+  pfccounters(0)(24) := tc.io.pfcupdate.serveTM0
+  pfccounters(0)(25) := tc.io.pfcupdate.serveTM1
+  pfccounters(0)(26) := tc.io.pfcupdate.accessTC
 
+  pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfc + pfccounters(0)(i) }} //1: period log
+  pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfc + pfccounters(0)(i) }} //2: warm up
+
+  when(logging) {
+    incpfcID := incpfcID + UInt(1)
+    pfccounters(1).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }}  //reset
+    printf("%d:",incpfcID);
+    (0 until 27).map(i => printf("%d,", pfccounters(1)(i)))
+    printf("\n")
+  }
+
+  when(getpfc && io.in.grant.fire() && getpfcxactID === io.in.grant.bits.client_xact_id) {
+    getpfc := Bool(false)
+    getpfcID := getpfcID + UInt(1)
+    pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }} //reset
+    // compressed output format:
+    // getpfcID:TTfM,TM0fM,TM1fM,TfM,TTtM,TM0tM,TM1tM,TtM\n
+    printf("S%d:",getpfcID);
+    (0 until 27).map(i => printf("%d,", pfccounters(2)(i)))
+    printf("\n")
+  }
+
+  when(reset) { pfccounters.map(pfc => pfc.map(_ := UInt(0))) }
 
 }

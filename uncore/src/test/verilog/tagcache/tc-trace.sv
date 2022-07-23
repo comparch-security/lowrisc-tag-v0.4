@@ -57,6 +57,7 @@ module tb;
    reg [TLDW-1:0]   io_in_release_bits_data;
    reg [TLTW-1:0]   io_in_release_bits_tag;
    reg              io_in_release_bits_client_id;
+   reg              io_getpfc = 'b0;
 
    import "DPI-C" function bit
      dpi_tc_send_packet (
@@ -66,7 +67,8 @@ module tb;
              output bit [31:0] id,
              output bit [2:0]  beat,
              output bit [15:0] a_type,
-             output bit [7:0]  tag
+             output bit [7:0]  tag,
+             output            getpfc
             );
 
    import "DPI-C" function bit
@@ -84,6 +86,7 @@ module tb;
              input bit [7:0]  tag
                          );
    import "DPI-C" function bit dpi_tc_init (input string dscr);
+   import "DPI-C" function bit dpi_tc_finish ();
 
 //   initial begin
 //      #1800000000
@@ -145,7 +148,8 @@ module tb;
                             {io_in_acquire_bits_client_id,io_in_acquire_bits_client_xact_id},
                             io_in_acquire_bits_addr_beat,
                             {io_in_acquire_bits_union, io_in_acquire_bits_a_type},
-                            io_in_acquire_bits_tag);
+                            io_in_acquire_bits_tag,
+                            io_getpfc);
          io_in_acquire_bits_data = 0;
          io_in_acquire_bits_is_builtin_type = 'b1;
 
@@ -156,8 +160,10 @@ module tb;
                                          io_in_grant_bits_g_type,
                                          io_in_grant_bits_tag);
 
-         if(!recv_valid)
+         if(!recv_valid) begin 
+           dpi_tc_finish();
            $finish();
+         end 
 
          #1 dpi_tc_send_packet_ack(io_in_acquire_ready, io_in_acquire_valid);
       end
@@ -211,7 +217,7 @@ module tb;
       .io_out_r_bits_resp      ( mem_nasti.r_resp                       ),
       .io_out_r_bits_last      ( mem_nasti.r_last                       ),
       .io_out_r_bits_user      ( mem_nasti.r_user                       ),
-      .io_getpfc               ( 1'b0                                   )
+      .io_getpfc               ( io_getpfc                              )
       );
    
 endmodule // tb
