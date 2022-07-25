@@ -1160,7 +1160,7 @@ class TCSearchOrderSelector(implicit p: Parameters) extends TCModule()(p) {
   io.order := order
 
   when(update) {
-    order := Mux(tt > tm0 + tm1, UInt(2),   // choose bottom-up when tt-hit > 50%
+    order := Mux(tt > tm0 + tm1, UInt(1),   // choose bottom-up when tt-hit > 50%
              Mux(tm1 > tt + tm0, UInt(0),   // choose top-down when tm1-hit > 50%
                                  UInt(2)))  // otherwise, choose middle-up
     tt  := UInt(0)
