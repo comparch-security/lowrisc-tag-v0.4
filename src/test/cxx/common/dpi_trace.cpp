@@ -398,6 +398,7 @@ void read_data_trace() {
 }
 
 void read_traces_filewise() {
+  bool initial_emptiness = trace_list.empty();
   if (!init_trace_exausted) {
     read_init_trace();
   }
@@ -409,6 +410,16 @@ void read_traces_filewise() {
   }
   else {
     // All trace read. Do nothing.
+    return ;
+  }
+  // skip empty trace type.
+  if ((initial_emptiness == true) && trace_list.empty()) {
+    if (init_trace_exausted && warm_trace_exausted 
+          && data_trace_exausted)
+      return ;
+    else {
+      read_traces_filewise();
+    }
   }
   return;
 }
