@@ -564,7 +564,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   }
 
   when(state =/= s_IDLE) {
-    dbg_cnt := Mux(state_next === s_IDLE, UInt(0), dbg_cnt + UInt(1))
+    dbg_cnt := Mux(state_next =/= state, UInt(0), dbg_cnt + UInt(1))
     assert(dbg_cnt <= UInt(400), s"TagXact$id: possibly deadlocked!")
   }
 
