@@ -33,6 +33,7 @@ struct packet {
 int state = 0;
 uint64_t trace_send_count = 0;
 uint64_t trace_data_end, trace_warm_end, trace_init_end;
+uint8_t  log_pfc_data = 0, log_pfc_warm=0, log_pfc_init=0;
 std::ifstream data_trace, warm_trace, init_trace;
 std::vector<trace> traces(max_trace);
 std::set<int> trace_valid, trace_sent;
@@ -203,13 +204,10 @@ svBit dpi_tc_send_packet (const svBit ready, svBit *valid,
     beat[0] = send_pkt.front().beat;
     a_type[0] = send_pkt.front().a_type;
     tag[0] = send_pkt.front().tag;
-    if(trace_send_count + 1 == trace_init_end ||
-       trace_send_count + 1 == trace_warm_end ||
-       trace_send_count + 1 == trace_data_end) {
-      if(ready == sv_1 &&
-         ((send_pkt.front().a_type == 0xfffb && send_pkt.front().beat == 7) ||
-          (send_pkt.front().a_type == 0x0e09 && send_pkt.front().beat == 0)))
-        *getpfc = sv_1;
+    if(ready == sv_1) {
+      if(log_pfc_init == 0 && trace_send_count >= trace_init_end-1) { *getpfc = sv_1; log_pfc_init = 1;  printf("trace_init_end %d \n", trace_init_end); }
+      if(log_pfc_warm == 0 && trace_send_count >= trace_warm_end-1) { *getpfc = sv_1; log_pfc_warm = 1;  printf("trace_data_end %d \n", trace_warm_end); }
+      if(log_pfc_data == 0 && trace_send_count >= trace_data_end-1) { *getpfc = sv_1; log_pfc_data = 1;  printf("trace_data_end %d \n", trace_data_end); }
     }
   } else
     *valid = sv_0;

@@ -1423,7 +1423,7 @@ class TagCacheTop(param: Parameters) extends Module
   })
   //0: update 1: period log 2: warm up
   inctimer       := Mux(logging, UInt(0), inctimer + UInt(1))
-  when(io.getpfc && io.in.acquire.fire()) {
+  when(io.getpfc) {
     getpfc := Bool(true)
     getpfcxactID := io.in.acquire.bits.client_xact_id
   }
@@ -1467,7 +1467,7 @@ class TagCacheTop(param: Parameters) extends Module
     printf("\n")
   }
 
-  when(getpfc && io.in.grant.fire() && getpfcxactID === io.in.grant.bits.client_xact_id) {
+  when(getpfc) {
     getpfc := Bool(false)
     getpfcID := getpfcID + UInt(1)
     pfccounters(2).zipWithIndex.foreach{ case(pfc, i) => { pfc := pfccounters(0)(i) }} //reset
