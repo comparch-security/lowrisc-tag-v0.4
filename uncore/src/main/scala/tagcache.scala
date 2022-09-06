@@ -383,8 +383,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val isTTaddr   = !tgHelper.is_map(xact.addr)
   val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
   val isTM1addr  =  tgHelper.is_top(xact.addr)
-  val isTTread   = isTTaddr  && (if(nLevel > 1 && !bFR) Mux(io.order =/= UInt(0), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
-  val isTM0read  = isTM0addr && (if(nLevel > 2 && !bFR) Mux(io.order === UInt(1), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
+  val isTTread   = isTTaddr  && (if(nLevel > 1 && !bFR) Mux(io.order === UInt(1), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
+  val isTM0read  = isTM0addr && (if(nLevel > 2 && !bFR) Mux(io.order =/= UInt(0), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
   val isTM1read  = isTM1addr && xact.op === TCTagOp.F
   val isTTwrite  = isTTaddr  && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
   val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
