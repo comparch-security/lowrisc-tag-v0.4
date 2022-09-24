@@ -197,6 +197,9 @@ svBit dpi_tc_send_packet (const svBit ready, svBit *valid,
 {
   send_trace();
   *getpfc = sv_0;
+  if(log_pfc_init == 0 && trace_send_count >= trace_init_end-1) { *getpfc = sv_1; log_pfc_init = 1;  printf("trace_init_end %d \n", trace_init_end); }
+  if(log_pfc_warm == 0 && trace_send_count >= trace_warm_end-1) { *getpfc = sv_1; log_pfc_warm = 1;  printf("trace_warm_end %d \n", trace_warm_end); }
+  if(log_pfc_data == 0 && trace_send_count >= trace_data_end-5) { *getpfc = sv_1; log_pfc_data = 1;  printf("trace_data_end %d \n", trace_data_end); }
   if(!send_pkt.empty()) {
     *valid = sv_1;
     addr[0] = send_pkt.front().addr;
@@ -204,11 +207,8 @@ svBit dpi_tc_send_packet (const svBit ready, svBit *valid,
     beat[0] = send_pkt.front().beat;
     a_type[0] = send_pkt.front().a_type;
     tag[0] = send_pkt.front().tag;
-    if(ready == sv_1) {
-      if(log_pfc_init == 0 && trace_send_count >= trace_init_end-1) { *getpfc = sv_1; log_pfc_init = 1;  printf("trace_init_end %d \n", trace_init_end); }
-      if(log_pfc_warm == 0 && trace_send_count >= trace_warm_end-1) { *getpfc = sv_1; log_pfc_warm = 1;  printf("trace_data_end %d \n", trace_warm_end); }
-      if(log_pfc_data == 0 && trace_send_count >= trace_data_end-1) { *getpfc = sv_1; log_pfc_data = 1;  printf("trace_data_end %d \n", trace_data_end); }
-    }
+    //if(ready == sv_1) {
+    //}
   } else
     *valid = sv_0;
 
