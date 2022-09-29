@@ -9,7 +9,7 @@ module tb;
    localparam TLTW    = `TagBits;
    localparam TLBS    = 8;      // burst size
    localparam TLCIS   = 7;
-   localparam TLMIS   = 2;
+   localparam TLMIS   = 4;
 
    reg              clk, reset, init;
    string           dscr;
