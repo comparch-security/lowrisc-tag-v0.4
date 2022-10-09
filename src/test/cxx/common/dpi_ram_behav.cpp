@@ -25,7 +25,7 @@ MemoryController *memory_controller;
 AXIMemWriter* axi_mem_writer;
 AXIMemReader *axi_mem_reader;
 static uint64_t cycle = 0;
-const uint64_t mem_delay = 23;
+const uint64_t mem_delay = 120;
 
 // the SystemVerilog DPI functions
 svBit memory_write_req (
