@@ -22,10 +22,7 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)
   val nLevel          = tgHelper.tclevel
   val nOrder          = tgHelper.order
-  val bCiE            = tgHelper.create_if_empty
-  val bIiE            = tgHelper.invalidate_if_empty && !tgHelper.delayed_invalidation
-  val bAWB            = !tgHelper.invalidate_if_empty
-  val bFR             = !tgHelper.invalidate_if_empty && tgHelper.all_forced_read
+  val bAEA            = tgHelper.avoid_empty_acc
   val TopMapBase      = if(tgHelper.tclevel == 3)      tgHelper.map1Base
                         else if(tgHelper.tclevel == 2) tgHelper.map0Base
                         else                           BigInt(0)
@@ -126,16 +123,17 @@ class TCWBIO(implicit p: Parameters) extends TCBundle()(p) {
 object TCTagOp {
   def nBits = 3
   def R     = UInt("b000") // read if hit
-  def U     = UInt("b010") // unlock the line
-  def F     = UInt("b001") // force a read and fetch if miss
-  def FL    = UInt("b011") // force a read and lock it
-  def W     = UInt("b100") // write a line
-  def C     = UInt("b101") // create an empty line
-  def CL    = UInt("b111") // create an empty line and lock it
-  def I     = UInt("b110") // invalidate a line
-  def isWrite(t:UInt) =  t(2)
-  def isCreate(t:UInt) = t(2) && t(0)
-  def isLock(t:UInt) = t(1) && t(0)
+  def FR    = UInt("b001") // force a read and fetch if miss
+  def L     = UInt("b010") // lock the line
+  def FL    = UInt("b011") // force a read and lock the line
+  def U     = UInt("b100") // unlock the line
+  def I     = UInt("b101") // invalidate a line
+  def C     = UInt("b110") // create an empty line
+  def W     = UInt("b111") // write a line
+  def isWrite(t:UInt)  = t(2) && (t(1) || t(0))
+  def isCreate(t:UInt) = t === C
+  def isLock(t:UInt)   = !t(2) && t(1)
+  def isUnlock(t:UInt) = t(2)
 }
 
 class TCTagRequest(implicit p: Parameters) extends TCBundle()(p)
@@ -383,12 +381,12 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   val isTTaddr   = !tgHelper.is_map(xact.addr)
   val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
   val isTM1addr  =  tgHelper.is_top(xact.addr)
-  val isTTread   = isTTaddr  && (if(nLevel > 1 && !bFR) Mux(io.order === UInt(1), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
-  val isTM0read  = isTM0addr && (if(nLevel > 2 && !bFR) Mux(io.order =/= UInt(0), xact.op === TCTagOp.R, xact.op === TCTagOp.F) else xact.op === TCTagOp.F)
-  val isTM1read  = isTM1addr && xact.op === TCTagOp.F
-  val isTTwrite  = isTTaddr  && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
-  val isTM0write = isTM0addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
-  val isTM1write = isTM1addr && (xact.op === TCTagOp.W || xact.op === TCTagOp.I)
+  val isTTread   = isTTaddr  && (if(nLevel > 1) Mux(io.order === UInt(1), xact.op === TCTagOp.R, xact.op === TCTagOp.FR) else xact.op === TCTagOp.FR)
+  val isTM0read  = isTM0addr && (if(nLevel > 2) Mux(io.order =/= UInt(0), xact.op === TCTagOp.R, xact.op === TCTagOp.FR) else xact.op === TCTagOp.FR)
+  val isTM1read  = isTM1addr && xact.op === TCTagOp.FR
+  val isTTwrite  = isTTaddr  && TCTagOp.isWrite(xact.op)
+  val isTM0write = isTM0addr && TCTagOp.isWrite(xact.op)
+  val isTM1write = isTM1addr && TCTagOp.isWrite(xact.op)
   val ishit      = io.meta.resp.bits.hit
 
   io.pfc.readTT          := isTTread   && io.meta.resp.valid && state === s_MR
@@ -466,7 +464,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   // lock
   io.lock.bits.id := xact.id
   io.lock.bits.addr := xact.addr >> tgHelper.lockGranularity
-  io.lock.bits.lock := TCTagOp.isLock(xact.op)
+  io.lock.bits.lock := TCTagOp.isLock(xact.op) && tgHelper.is_map(xact.addr) // try not affect PFC
   io.lock.valid := state === s_L && tgHelper.is_map(xact.addr)
 
   // data array update function
@@ -496,7 +494,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
       (0 until outerDataBeats).foreach(i => {
         data_buf(i) := beat_data_update(UInt(0,outerDataBits), UInt(i))
       })
-      meta_tcnt  := UInt(0)
+      data_buf(row) := xact.data & xact.mask  // make create able to write as well
+      meta_tcnt  := UInt(1)
       meta_state := TCMetadata.Dirty // create always ends up in dirty
     }.otherwise{
       meta_tcnt  := UInt(0)
@@ -536,8 +535,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
       when(xact.op === TCTagOp.I || xact.op === TCTagOp.R) {
         state_next := s_L
       }.otherwise {
-        state_next := Mux(io.meta.resp.bits.meta.state === TCMetadata.Dirty && (io.meta.resp.bits.meta.tcnt =/= UInt(0) || Bool(bAWB)),
-          s_WB, s_F)
+        state_next := Mux(io.meta.resp.bits.meta.state === TCMetadata.Dirty, s_WB, s_F)
       }
     }
   }
@@ -585,7 +583,10 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     when(xact.op === TCTagOp.U) {
       //printf(s"TagXact$id: (%d) Unlock 0x%x\n", xact.id, xact.addr)
     }
-    when(xact.op === TCTagOp.F) {
+    when(xact.op === TCTagOp.L) {
+      //printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
+    }
+    when(xact.op === TCTagOp.FR) {
       //printf(s"TagXact$id: (%d) FetchRead 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.FL) {
@@ -596,9 +597,6 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     }
     when(xact.op === TCTagOp.C) {
       //printf(s"TagXact$id: (%d) Create 0x%x\n", xact.id, xact.addr)
-    }
-    when(xact.op === TCTagOp.CL) {
-      //printf(s"TagXact$id: (%d) Create and lock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.I) {
       //printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
@@ -707,23 +705,23 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   switch(tc_state) {
     is(ts_TTR) {
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := (if(bFR) TCTagOp.F else TCTagOp.R)
+      io.tc.req.bits.op   := TCTagOp.R
     }
     is(ts_TM0R) {
       io.tc.req.bits.addr := tc_tm0_addr
-      io.tc.req.bits.op   := (if(bFR) TCTagOp.F else TCTagOp.R)
+      io.tc.req.bits.op   := TCTagOp.R
     }
     is(ts_TM1F) {
       io.tc.req.bits.addr := tc_tm1_addr
-      io.tc.req.bits.op   := TCTagOp.F
+      io.tc.req.bits.op   := TCTagOp.FR
     }
     is(ts_TM0F) {
       io.tc.req.bits.addr := tc_tm0_addr
-      io.tc.req.bits.op   := TCTagOp.F
+      io.tc.req.bits.op   := TCTagOp.FR
     }
     is(ts_TTF) {
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := TCTagOp.F
+      io.tc.req.bits.op   := TCTagOp.FR
     }
     is(ts_TM1L) {
       io.tc.req.bits.addr := tc_tm1_addr
@@ -731,24 +729,27 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     }
     is(ts_TM0L) {
       io.tc.req.bits.addr := tc_tm0_addr
-      io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1 || !Bool(bCiE), TCTagOp.FL, TCTagOp.CL)
+      io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1 || Bool(nLevel <= 2), TCTagOp.FL, TCTagOp.L)
     }
     is(ts_TTL) {
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := Mux(tc_xact_tm0_tag1 || !Bool(bCiE), TCTagOp.F, TCTagOp.C)
+      io.tc.req.bits.op   := Mux(tc_xact_tm0_tag1, TCTagOp.FL, TCTagOp.L)
     }
     is(ts_TTW) {
       io.tc.req.bits.data := tc_tt_wdata
       io.tc.req.bits.mask := tc_tt_wmask
       io.tc.req.bits.addr := tc_tt_addr
-      io.tc.req.bits.op   := Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && Bool(bIiE), TCTagOp.I, TCTagOp.W)
+      io.tc.req.bits.op   := Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && Bool(bAEA) && Bool(nLevel > 1), TCTagOp.I,
+                                 Mux(!tc_xact_tm0_tag1 && tc_xact_tt_tag1 && Bool(bAEA) && Bool(nLevel > 1), TCTagOp.C, TCTagOp.W))
     }
     is(ts_TM0W) {
       io.tc.req.bits.data := tc_tm0_wdata
       io.tc.req.bits.mask := tc_tm0_wmask
       io.tc.req.bits.addr := tc_tm0_addr
       io.tc.req.bits.op   := Mux((tc_xact_tt_tag1 || tc_xact_tt_tagN) === tc_xact_tm0_tag1, TCTagOp.U,
-                                 Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN && Bool(bIiE), TCTagOp.I, TCTagOp.W))
+                                  Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN && Bool(bAEA) && Bool(nLevel > 2),
+                                      TCTagOp.I,
+                                      Mux(!tc_xact_tm1_tag1 && tc_xact_tt_tag1 && Bool(bAEA) && Bool(nLevel > 2), TCTagOp.C, TCTagOp.W)))
     }
     is(ts_TM1W) {
       io.tc.req.bits.data := tc_tm1_wdata
@@ -760,41 +761,30 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
 
   // tag transaction response
   when(io.tc.resp.valid) {
-    switch(tc_state) {
-      is(ts_TTR) {
-        when(io.tc.resp.bits.hit) {
-          write_tc_xact_data(tc_tt_rdata, Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
-        }
-      }
-      is(ts_TM0R) {
-        when(io.tc.resp.bits.hit && !tc_tm0_rdata) {
-          write_tc_xact_data(UInt(0), Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
-        }
-      }
-      is(ts_TM1F) {
-        when(io.tc.resp.bits.hit && !tc_tm1_rdata) {
-          write_tc_xact_data(UInt(0), Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
-        }
-      }
-      is(ts_TM0F) {
-        when(!tc_tm0_rdata) {
-          write_tc_xact_data(UInt(0), Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
-        }
-      }
-      is(ts_TTF) {
-        write_tc_xact_data(tc_tt_rdata, Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
-      }
-      is(ts_TM1L) {
-        tc_xact_tm1_tag1 := tc_tm1_rdata
-      }
-      is(ts_TM0L) {
-        tc_xact_tm0_tag1 := tc_xact_tm1_tag1 && tc_tm0_rdata
-        tc_xact_tm0_tagN := tc_xact_tm1_tag1 && (io.tc.resp.bits.tcnt > UInt(1) || (io.tc.resp.bits.data & ~tc_tm0_wmask) =/= UInt(0))
-      }
-      is(ts_TTL) {
-        tc_xact_tt_tag1 := (tc_xact_mem_data & tc_xact_mem_mask) =/= UInt(0)
-        tc_xact_tt_tagN := tc_xact_tm0_tag1 && (io.tc.resp.bits.tcnt > UInt(1) || (io.tc.resp.bits.data & ~tc_tt_wmask) =/= UInt(0))
-      }
+    when((tc_state === ts_TTR && io.tc.resp.bits.hit) || tc_state === ts_TTF) {
+      write_tc_xact_data(tc_tt_rdata, Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
+    }
+
+    when(((tc_state === ts_TM0R && io.tc.resp.bits.hit) || tc_state === ts_TM0F) && !tc_tm0_rdata) {
+      write_tc_xact_data(UInt(0), Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
+    }
+
+    when(tc_state === ts_TM1F && !tc_tm1_rdata) {
+      write_tc_xact_data(UInt(0), Mux(tc_xact_rw, ~tc_xact_mem_mask, ~UInt(0, tgHelper.cacheBlockTagBits)))
+    }
+
+    when(tc_state === ts_TM1L) {
+      tc_xact_tm1_tag1 := tc_tm1_rdata
+    }
+
+    when(tc_state === ts_TM0L) {
+      tc_xact_tm0_tag1 := tc_xact_tm1_tag1 && tc_tm0_rdata
+      tc_xact_tm0_tagN := tc_xact_tm1_tag1 && (io.tc.resp.bits.tcnt > UInt(1) || (io.tc.resp.bits.data & ~tc_tm0_wmask) =/= UInt(0))
+    }
+
+    when(tc_state === ts_TTL) {
+      tc_xact_tt_tag1 := (tc_xact_mem_data & tc_xact_mem_mask) =/= UInt(0)
+      tc_xact_tt_tagN := tc_xact_tm0_tag1 && (io.tc.resp.bits.tcnt > UInt(1) || (io.tc.resp.bits.data & ~tc_tt_wmask) =/= UInt(0))
     }
   }
 
@@ -817,13 +807,13 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     }
 
     when(order === UInt(2)) {
-      tc_state_next := (if(nLevel > 2) ts_TM0R else ts_TM1F)
+      tc_state_next := (if(nLevel > 2) ts_TM0R else ts_TM0F)
     }
   }
   when(tc_state === ts_TTR && io.tc.resp.valid) {
-    tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) Mux(order === UInt(1), ts_TM0R, ts_TM1F) else ts_TM0F),
+    tc_state_next := Mux(!io.tc.resp.bits.hit, (if(nLevel > 2) ts_TM0R else ts_TM0F),
                          Mux(tc_xact_rw && (tc_xact_mem_data & tc_xact_mem_mask) =/= (tc_tt_rdata & tc_xact_mem_mask),
-                             (if(nLevel > 2) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTW),
+                             (if(nLevel > 2) ts_TM1L else if(nLevel == 2) ts_TM0L else ts_TTL),
                              ts_IDLE))
   }
   when(tc_state === ts_TM0R && io.tc.resp.valid) {

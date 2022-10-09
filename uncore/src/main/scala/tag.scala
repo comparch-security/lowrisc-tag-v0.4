@@ -37,10 +37,7 @@ class TagUtil(
   def tclevel = 3
   def order   = 3                                       // 0: topdown, 1: bottomup, 2: middle-up, 3: dynamic
   def order_select_period = 1000                        // when picking order dynamically, the update period in TC xacts
-  def create_if_empty = true
-  def invalidate_if_empty = true
-  def delayed_invalidation = false
-  def all_forced_read = false
+  def avoid_empty_acc = true
   def wordBits = 64                                     // add tag to every 64-bit word
   def wordBytes = wordBits / 8
   def normTagBits = 1 << log2Up(tagBits)                // normalized tag bits (around up to the nears 2's power)
