@@ -2,7 +2,7 @@
 
 package uncore
 import Chisel._
-import cde.{Parameters, Field}
+import cde.{Parameters, Dump, Field}
 import junctions._
 import scala.math.{min, max}
 
@@ -323,15 +323,15 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     val pfc   = new TagCachePerform().flip()
   }
 
-  // IDLE:      idle, ready for new request
-  // MR:        read metadata
-  // DR:        read a row of data
-  // DWR:       write a row of data
-  // MW:        write metadata
-  // WB:        write back a line
-  // F:         fetch a line
-  // DWB:       write a line of data
-  // L:         lock or unlock
+  // IDLE: 0     idle, ready for new request
+  // MR:   1     read metadata
+  // DR:   2     read a row of data
+  // DWR:  3     write a row of data
+  // MW:   4     write metadata
+  // WB:   5     write back a line
+  // F:    6     fetch a line
+  // DWB:  7     write a line of data
+  // L:    8     lock or unlock
 
 
   val s_IDLE :: s_MR :: s_DR :: s_DWR :: s_MW :: s_WB :: s_F :: s_DWB :: s_L :: Nil = Enum(UInt(), 9)
@@ -464,7 +464,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   // lock
   io.lock.bits.id := xact.id
   io.lock.bits.addr := xact.addr >> tgHelper.lockGranularity
-  io.lock.bits.lock := TCTagOp.isLock(xact.op) && tgHelper.is_map(xact.addr) // try not affect PFC
+  io.lock.bits.lock := TCTagOp.isLock(xact.op)
   io.lock.valid := state === s_L && tgHelper.is_map(xact.addr)
 
   // data array update function
@@ -519,7 +519,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     state_next := s_MR
   }
   when(state === s_MR && io.meta.resp.valid) {
-    when(xact.op === TCTagOp.U) {
+    when(xact.op === TCTagOp.U || xact.op === TCTagOp.L) {
       // no need to read data for unlock or invalidation
       state_next := s_L
     }.elsewhen(io.meta.resp.bits.hit) {
@@ -557,7 +557,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   when(state === s_MW && io.meta.write.ready) {
     state_next := s_L
   }
-  when(state === s_L && io.lock.ready) {
+  when(state === s_L && (io.lock.ready || !io.lock.valid)) {
     state_next := s_IDLE
   }
 
@@ -584,7 +584,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
       //printf(s"TagXact$id: (%d) Unlock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.L) {
-      //printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) lock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.FR) {
       //printf(s"TagXact$id: (%d) FetchRead 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
@@ -596,7 +596,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
       //printf(s"TagXact$id: (%d) Write 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
     }
     when(xact.op === TCTagOp.C) {
-      //printf(s"TagXact$id: (%d) Create 0x%x\n", xact.id, xact.addr)
+      //printf(s"TagXact$id: (%d) Create 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
     }
     when(xact.op === TCTagOp.I) {
       //printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
@@ -645,18 +645,18 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   def write_tc_xact_data(data:UInt, mask:UInt):Unit = { tc_xact_mem_data := (tc_xact_mem_data & ~mask) | (data & mask) }
 
   // ------------ tag cache state machine states -------------- //
-  // IDLE:          ready fro new memory transactions
-  // TTR:           read tag table
-  // TM0R:          read tag map 0
-  // TM1F:          force read of tag map 1
-  // TM0F:          force read of tag map 0
-  // TTF:           force read of tag table
-  // TM1L:          lock tag map 1
-  // TM0L:          lock tag map 0, does not really lock it but to force read or create
-  // TTL:           lock tag table, does not really lock it but to force read or create
-  // TTW:           invalidate or update tag table if necessary
-  // TM0W:          invalidate or update tag map 0 if necessary
-  // TM1W:          update tag map 1 if necessary, or just unlock it
+  // IDLE: 0        ready fro new memory transactions
+  // TTR:  1        read tag table
+  // TM0R: 2        read tag map 0
+  // TM1F: 3        force read of tag map 1
+  // TM0F: 4        force read of tag map 0
+  // TTF:  5        force read of tag table
+  // TM1L: 6        lock tag map 1
+  // TM0L: 7        lock tag map 0, does not really lock it but to force read or create
+  // TTL:  8        lock tag table, does not really lock it but to force read or create
+  // TTW:  9        invalidate or update tag table if necessary
+  // TM0W: A        invalidate or update tag map 0 if necessary
+  // TM1W: B        update tag map 1 if necessary, or just unlock it
 
   val ts_IDLE :: ts_TTR :: ts_TM0R :: ts_TM1F :: ts_TM0F :: ts_TTF :: ts_TM1L :: ts_TM0L :: ts_TTL :: ts_TTW :: ts_TM0W :: ts_TM1W :: Nil = Enum(UInt(), 12)
   val tc_state      = Reg(init=ts_IDLE)
@@ -1205,7 +1205,7 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
 
   // transaction locks
   //              total lock may need - number of trackers blocked + 1
-  val nLocks = max(min(nMemTransactors, nTopMapBlocks) * 2,  1)
+  val nLocks = max(nMemTransactors * 2,  1)
   val lock_vec = Reg(init = Vec.fill(nLocks)(TCTagLock()))
   val lock_avail = lock_vec.map(!_.lock)
   val lock_avail_bit = lock_avail.reduce(_||_)
@@ -1371,6 +1371,7 @@ class TagCacheTop(param: Parameters) extends Module
     case InnerTLId => "L2toTC"
     case OuterTLId => "TCtoMem"
     case BusId => "mem"
+    case RAMSize => {Dump("ROCKET_MEM_BASE", 0); Dump("ROCKET_MEM_SIZE", BigInt(1L << 31))}
   })
 
   def connectNasti(outer: NastiIO, inner: NastiIO)(implicit p: Parameters) {

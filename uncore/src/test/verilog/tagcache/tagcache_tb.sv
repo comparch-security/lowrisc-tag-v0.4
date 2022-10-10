@@ -166,6 +166,7 @@ class TCXact;
          if(burst) begin
             memory_data_map[baddr] = orig_xact.data;
             memory_tag_map[baddr]  = orig_xact.tag;
+            $info("Memory map record @ 0x%8h 0x%8h\n", baddr, orig_xact.tag);
          end else begin
             memory_data_map[baddr][index] = orig_xact.data[index];
             memory_tag_map[baddr][index]  = orig_xact.tag[index];
