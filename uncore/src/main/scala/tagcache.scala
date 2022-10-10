@@ -23,6 +23,7 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nLevel          = tgHelper.tclevel
   val nOrder          = tgHelper.order
   val bAEA            = tgHelper.avoid_empty_acc
+  val bBLL            = tgHelper.bit_level_lock
   val TopMapBase      = if(tgHelper.tclevel == 3)      tgHelper.map1Base
                         else if(tgHelper.tclevel == 2) tgHelper.map0Base
                         else                           BigInt(0)
@@ -140,6 +141,7 @@ class TCTagRequest(implicit p: Parameters) extends TCBundle()(p)
     with HasTCId with HasTCData with HasTCBitMask with HasTCAddr with HasTCMEMPFCType
 {
   val op   = UInt(width=TCTagOp.nBits)
+  val lindex = UInt(width=tgHelper.blockOffBits)
 }
 
 class TCTagResp(implicit p: Parameters) extends TCBundle()(p) with HasTCId
@@ -152,7 +154,8 @@ class TCTagXactIO(implicit p: Parameters) extends TCBundle()(p) {
 
 class TCTagLock(implicit p: Parameters) extends TCBundle()(p) with HasTCId
 {
-  val addr = UInt(width=log2Up(tgHelper.map0Size) - tgHelper.lockGranularity)
+  val addr = UInt(width=log2Up(tgHelper.map0Size))
+  val lindex = UInt(width=tgHelper.blockOffBits)
   val lock = Bool() // lock or unlock
 }
 
@@ -463,7 +466,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
 
   // lock
   io.lock.bits.id := xact.id
-  io.lock.bits.addr := xact.addr >> tgHelper.lockGranularity
+  io.lock.bits.addr := xact.addr
+  io.lock.bits.lindex := xact.lindex
   io.lock.bits.lock := TCTagOp.isLock(xact.op)
   io.lock.valid := state === s_L && tgHelper.is_map(xact.addr)
 
@@ -675,6 +679,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
       tc_tt_wmask  := tc_xact_mem_mask << (tc_tt_byte_index << 3)
   val tc_tm0_addr   = tgHelper.pa2tm0a(tc_xact_mem_addr)
   val tc_tm0_bit_index = tgHelper.pa2tm0b(tc_xact_mem_addr, rowOffBits)
+  val tc_tm0_lock_index = tgHelper.pa2tm0i(tc_xact_mem_addr)
   val tc_tm0_rdata  = io.tc.resp.bits.data(tc_tm0_bit_index)
   val tc_tm0_wdata  = Wire(UInt(width = rowBits))
       tc_tm0_wdata := (tc_xact_tt_tag1 || tc_xact_tt_tagN) << tc_tm0_bit_index
@@ -682,6 +687,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
       tc_tm0_wmask := UInt(1) << tc_tm0_bit_index
   val tc_tm1_addr   = tgHelper.pa2tm1a(tc_xact_mem_addr)
   val tc_tm1_bit_index = tgHelper.pa2tm1b(tc_xact_mem_addr, rowOffBits)
+  val tc_tm1_lock_index = tgHelper.pa2tm1i(tc_xact_mem_addr)
   val tc_tm1_rdata  = io.tc.resp.bits.data(tc_tm1_bit_index)
   val tc_tm1_wdata  = Wire(UInt(width = rowBits))
       tc_tm1_wdata := (tc_xact_tt_tag1 || tc_xact_tt_tagN || tc_xact_tm0_tagN) << tc_tm1_bit_index
@@ -695,6 +701,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
   io.tc.req.bits.data := UInt(0)
   io.tc.req.bits.mask := UInt(0)
   io.tc.req.bits.addr := UInt(0)
+  io.tc.req.bits.lindex := UInt(0)
   io.tc.req.bits.op   := UInt(0)
   when(tc_state =/= tc_state_next) {
     tc_req_sent := Bool(false)
@@ -709,14 +716,17 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     }
     is(ts_TM0R) {
       io.tc.req.bits.addr := tc_tm0_addr
+      io.tc.req.bits.lindex := tc_tm0_lock_index
       io.tc.req.bits.op   := TCTagOp.R
     }
     is(ts_TM1F) {
       io.tc.req.bits.addr := tc_tm1_addr
+      io.tc.req.bits.lindex := tc_tm1_lock_index
       io.tc.req.bits.op   := TCTagOp.FR
     }
     is(ts_TM0F) {
       io.tc.req.bits.addr := tc_tm0_addr
+      io.tc.req.bits.lindex := tc_tm0_lock_index
       io.tc.req.bits.op   := TCTagOp.FR
     }
     is(ts_TTF) {
@@ -725,10 +735,12 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
     }
     is(ts_TM1L) {
       io.tc.req.bits.addr := tc_tm1_addr
+      io.tc.req.bits.lindex := tc_tm1_lock_index
       io.tc.req.bits.op   := TCTagOp.FL
     }
     is(ts_TM0L) {
       io.tc.req.bits.addr := tc_tm0_addr
+      io.tc.req.bits.lindex := tc_tm0_lock_index
       io.tc.req.bits.op   := Mux(tc_xact_tm1_tag1 || Bool(nLevel <= 2), TCTagOp.FL, TCTagOp.L)
     }
     is(ts_TTL) {
@@ -746,6 +758,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
       io.tc.req.bits.data := tc_tm0_wdata
       io.tc.req.bits.mask := tc_tm0_wmask
       io.tc.req.bits.addr := tc_tm0_addr
+      io.tc.req.bits.lindex := tc_tm0_lock_index
       io.tc.req.bits.op   := Mux((tc_xact_tt_tag1 || tc_xact_tt_tagN) === tc_xact_tm0_tag1, TCTagOp.U,
                                   Mux(!tc_xact_tt_tag1 && !tc_xact_tt_tagN && !tc_xact_tm0_tagN && Bool(bAEA) && Bool(nLevel > 2),
                                       TCTagOp.I,
@@ -755,6 +768,7 @@ class TCMemXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p)
       io.tc.req.bits.data := tc_tm1_wdata
       io.tc.req.bits.mask := tc_tm1_wmask
       io.tc.req.bits.addr := tc_tm1_addr
+      io.tc.req.bits.lindex := tc_tm1_lock_index
       io.tc.req.bits.op   := Mux((tc_xact_tt_tag1 || tc_xact_tt_tagN || tc_xact_tm0_tagN) === tc_xact_tm1_tag1, TCTagOp.U, TCTagOp.W)
     }
   }
@@ -1215,23 +1229,27 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
   val lock_req_chosen = PriorityEncoderOH(Vec(lock_req).toBits)
 
   val tc_req_unblock = memTrackers.map( mt => {
-    val lock_addr_match = lock_vec.map(_.addr === mt.io.tc.req.bits.addr(log2Up(tgHelper.map0Size) - 1, tgHelper.lockGranularity))
+    val lock_addr_match = lock_vec.map(_.addr === mt.io.tc.req.bits.addr(log2Up(tgHelper.map0Size) - 1, 0))
+    val lock_index_match = lock_vec.map(_.lindex === mt.io.tc.req.bits.lindex)
     val lock_id_match   = lock_vec.map(_.id === mt.io.tc.req.bits.id)
     val lock_lock       = lock_vec.map(_.lock)
     val need_lock       = tgHelper.is_map(mt.io.tc.req.bits.addr)
-    val locked          = lock_addr_match.zip(lock_id_match).zip(lock_lock).map{ case ((am, im), l) => am && !im && l}.reduce(_||_)
+    val locked          =
+      if(bBLL) lock_addr_match.zip(lock_index_match).zip(lock_id_match).zip(lock_lock).map{ case (((addm, idxm), im), l) => addm && idxm && !im && l}.reduce(_||_)
+      else     lock_addr_match.zip(lock_id_match).zip(lock_lock).map{ case ((addm, im), l) => addm && !im && l}.reduce(_||_)
     !need_lock || !locked
   })
 
   lock_vec.zipWithIndex.foreach{ case(lock, i) => {
     val lock_match = tagTrackers.map( t => t.io.lock.valid && t.io.lock.bits.id === lock.id && !t.io.lock.bits.lock &&
-                                           t.io.lock.bits.addr === lock.addr)
+                                           t.io.lock.bits.addr === lock.addr && t.io.lock.bits.lindex === lock.lindex)
     when(lock.lock) {
       lock.lock := Mux(lock_match.reduce(_||_), Bool(false), Bool(true))
     }.elsewhen(lock_alloc === UInt(i) && lock_req_bit) {
       lock.lock := Bool(true)
       lock.id := Mux1H(lock_req_chosen, tagTrackers.map(_.io.lock.bits.id))
       lock.addr := Mux1H(lock_req_chosen, tagTrackers.map(_.io.lock.bits.addr))
+      lock.lindex := Mux1H(lock_req_chosen, tagTrackers.map(_.io.lock.bits.lindex))
     }
   }}
 

@@ -38,6 +38,7 @@ class TagUtil(
   def order   = 3                                       // 0: topdown, 1: bottomup, 2: middle-up, 3: dynamic
   def order_select_period = 1000                        // when picking order dynamically, the update period in TC xacts
   def avoid_empty_acc = true
+  def bit_level_lock = true
   def wordBits = 64                                     // add tag to every 64-bit word
   def wordBytes = wordBits / 8
   def normTagBits = 1 << log2Up(tagBits)                // normalized tag bits (around up to the nears 2's power)
@@ -53,12 +54,10 @@ class TagUtil(
   def cacheBlockTagBits = cacheBlockBytes / wordBytes * normTagBits // tag size of a cache block
   def cacheBlockTagBytes = cacheBlockTagBits / 8
   def blockOffBits = log2Up(cacheBlockBytes)
-  def lockGranularity = 0
 
   require(isPow2(memSize))
   require(isPow2(mapRatio))
   require(mapRatio >= tagRatio)                         // no extra space for map
-  require(lockGranularity < blockOffBits)
 
   def tagSize(dataSize:Int) = dataSize / wordBits * tagBits
   def tagMaskSize(dataSize:Int) = dataSize / wordBits
@@ -70,10 +69,12 @@ class TagUtil(
   // convert physical address to tag map 0 address(a) / bit offset(b)
   def pa2tm0a(addr: UInt): UInt = ((addr - UInt(memBase)) >> (unTagBits + unMapBits)) + UInt(map0Base)
   def pa2tm0b(addr: UInt, rbo: Int): UInt = addr(unTagBits + unMapBits + rbo - 1, unTagBits + unMapBits - 3)
+  def pa2tm0i(addr: UInt): UInt = addr(unTagBits + unMapBits + blockOffBits - 1, unTagBits + unMapBits - 3)
 
   // convert physical address to tag map 1 address(a) / bit offset(b)
   def pa2tm1a(addr: UInt): UInt = ((addr - UInt(memBase)) >> (unTagBits + unMapBits + unMapBits)) + UInt(map1Base)
   def pa2tm1b(addr: UInt, rbo: Int): UInt = addr(unTagBits + unMapBits + unMapBits + rbo - 1, unTagBits + unMapBits + unMapBits - 3)
+  def pa2tm1i(addr: UInt): UInt = addr(unTagBits + unMapBits + unMapBits + blockOffBits - 1, unTagBits + unMapBits + unMapBits - 3)
 
   // now need to enforce writeback of tm1 and tm0
   def is_top(addr: UInt): Bool = (addr >> blockOffBits) >= UInt(map1Base >> blockOffBits)
