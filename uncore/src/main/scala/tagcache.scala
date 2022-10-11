@@ -565,7 +565,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
     state_next := s_IDLE
   }
 
-  when(state =/= s_IDLE) {
+  when(state =/= s_IDLE && !(TCTagOp.isCreate(xact.op) && state === s_MR)) { // do not check deadlock when metadata array is resetting itself
     dbg_cnt := Mux(state_next =/= state, UInt(0), dbg_cnt + UInt(1))
     assert(dbg_cnt <= UInt(400), s"TagXact$id: possibly deadlocked!")
   }
@@ -1103,6 +1103,8 @@ class TCInitiator(id:Int)(implicit p: Parameters) extends TCModule()(p) {
   when(rst_cnt =/= UInt(nBlocks)) {
     io.tag_xact.req.valid  := Bool(true)
     io.tag_xact.req.bits.addr := UInt(TopMapBase + id * p(CacheBlockBytes)) + rst_cnt * UInt(nTagTransactors * p(CacheBlockBytes))
+    io.tag_xact.req.bits.data := UInt(0)
+    io.tag_xact.req.bits.mask := UInt(0)
     io.tag_xact.req.bits.op   := TCTagOp.C
     io.mem_xact.req.ready  := Bool(false)
     io.mem_xact.resp.valid := Bool(false)
