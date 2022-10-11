@@ -567,7 +567,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
 
   when(state =/= s_IDLE && !(TCTagOp.isCreate(xact.op) && state === s_MR)) { // do not check deadlock when metadata array is resetting itself
     dbg_cnt := Mux(state_next =/= state, UInt(0), dbg_cnt + UInt(1))
-    assert(dbg_cnt <= UInt(400), s"TagXact$id: possibly deadlocked!")
+    assert(dbg_cnt <= UInt(2000), s"TagXact$id: possibly deadlocked!") // for 400, timeout when data arrary is dead busy at creating blocks ar the beginning
   }
 
   // run-time checks
