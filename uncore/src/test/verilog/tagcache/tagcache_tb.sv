@@ -143,16 +143,17 @@ class TCXact;
       id_queue.push_back(gen_cnt);
    endfunction
 
-   function int unsigned check();
+   task check(inout int unsigned xact_id);
       TCXact orig_xact;
       bit [TLAW-1:0] baddr;
       int unsigned   index;
       int qi[$] = xact_queue.find_first_index(x) with (x.id == id);
-      automatic int unsigned cnt_id;
-      if(qi.size == 0)
-           $fatal(1, "Get a response to an unknown transaction!n");
+      if(qi.size == 0) begin
+         $info("Fatal! Get a response to an unknown transaction with id %d %s!\n", id, toString(1));
+         #5 $fatal(1);
+      end
       orig_xact = xact_queue[qi[0]];
-      cnt_id = id_queue[qi[0]];
+      xact_id = id_queue[qi[0]];
       addr = orig_xact.addr;
       burst = orig_xact.burst;
       baddr = addr /  64 * 64;
@@ -172,17 +173,22 @@ class TCXact;
             memory_tag_map[baddr][index]  = orig_xact.tag[index];
          end
       end else begin            // read
-         if(!memory_data_map.exists(baddr))
-           $fatal(1, "Read response miss in memory map!\n(%0d): %s\n", id_queue[qi[0]], toString(1));
-         if(burst && (memory_data_map[baddr] != data || memory_tag_map[baddr] != tag))
-           $fatal(1, "Read response mismatch with memory map!\n(%0d): %s\n", cnt_id, toString(1));
-         if(!burst && (memory_data_map[baddr][index] != data[index] || memory_tag_map[baddr][index] != tag[index]))
-           $fatal(1, "Read response mismatch with memory map!\n(%0d): %s\n", cnt_id, toString(1));
+         if(!memory_data_map.exists(baddr)) begin
+            $info("Fatal! Read response miss in memory map!\n(%0d): %s\n", id_queue[qi[0]], toString(1));
+            #15 $fatal(1);
+         end
+         if(burst && (memory_data_map[baddr] != data || memory_tag_map[baddr] != tag)) begin
+           $info("Fatal! Read response mismatch with memory map!\n(%0d): %s\n", xact_id, toString(1));
+            #15 $fatal(1);
+         end
+         if(!burst && (memory_data_map[baddr][index] != data[index] || memory_tag_map[baddr][index] != tag[index])) begin
+           $info("Fatal! Read response mismatch with memory map!\n(%0d): %s\n", xact_id, toString(1));
+            #15 $fatal(1);
+         end
       end // else: !if(rw)
       xact_queue.delete(qi[0]);
       id_queue.delete(qi[0]);
-      return cnt_id;
-   endfunction // check
+   endtask // check
 
 endclass
 
@@ -201,16 +207,16 @@ endclass
 
    task xact_check();
       TCXact xact;
-      automatic int unsigned id;
+      automatic int unsigned xact_id;
       while(xact_max == 0 || chk_cnt < xact_max) begin
          recv_queue.get(xact);
-         id = xact.check();
+         xact.check(xact_id);
          chk_cnt = chk_cnt + 1;
-         $info("Recieve a (%0d) %s\n", id, xact.toString(1));
+         $info("Recieve a (%0d) %s\n", xact_id, xact.toString(1));
       end
 
       if(xact.xact_queue.size() != 0)
-        $fatal(1, "Simulation finishes with more responses received than requests generated!\n",);
+        #15 $fatal(1, "Simulation finishes with more responses received than requests generated!\n",);
 
       $info("Simulation finishes OK with %d requests sent and checked.", chk_cnt);
       $finish();
@@ -357,11 +363,12 @@ endclass
 
    task xact_recv();
       TCXact xact;
+      io_in_grant_ready = 'b0;
       while(1) begin
          xact = new;
          @(posedge clk); #1;
+         while (!io_in_grant_valid) begin @(posedge clk); #1; end
          io_in_grant_ready = 'b1;
-         if(!io_in_grant_valid) @(posedge io_in_grant_valid); #1;
 
          if(io_in_grant_bits_g_type == 4'b0011) begin
             xact.rw = 'b1;
@@ -389,7 +396,7 @@ endclass
             xact.tag[io_in_grant_bits_addr_beat] = io_in_grant_bits_tag;
             for (i=1; i<TLBS; i=i+1) begin
                @(posedge clk); #1;
-               if(!io_in_grant_valid) @(posedge io_in_grant_valid);  #1;
+               while (!io_in_grant_valid) begin @(posedge clk); #1; end
                xact.data[io_in_grant_bits_addr_beat] = io_in_grant_bits_data;
                xact.tag[io_in_grant_bits_addr_beat] = io_in_grant_bits_tag;
             end

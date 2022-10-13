@@ -980,6 +980,7 @@ class TCMemAcquireTracker(id: Int)(implicit p: Parameters) extends TCMemXactTrac
   val ognt_done = connectIncomingDataBeatCounter(outer.grant)
   val (ignt_cnt, ignt_done) = connectOutgoingDataBeatCounter(inner.grant, ognt_cnt_reg)
   val (oacq_cnt, oacq_done) = connectOutgoingDataBeatCounter(outer.acquire, iacq_cnt_reg)
+  val ignt_done_reg = RegEnable(ignt_done, inner.grant.fire())
 
   def tmaskFill(tmask:UInt):UInt = {
     Vec(tmask.toBools.map(t => Mux(t, ~UInt(0, tgBits), UInt(0, tgBits)))).toBits
@@ -1001,6 +1002,8 @@ class TCMemAcquireTracker(id: Int)(implicit p: Parameters) extends TCMemXactTrac
     tdata(iacq_cnt) := inner.acquire.bits.tag
     write_tc_xact_data(tdata.toBits, tmask.toBits)
     xact.tmask_buffer(iacq_cnt) := inner.acquire.bits.tmask()
+    ignt_done_reg := Bool(false)
+    ognt_cnt_reg := UInt(0)
   }
   inner.acquire.ready := (mt_state === ms_IDLE && tc_state === ts_IDLE) || mt_state === ms_IACQ
 
@@ -1034,7 +1037,12 @@ class TCMemAcquireTracker(id: Int)(implicit p: Parameters) extends TCMemXactTrac
   }
 
   // inner grant
-  inner.grant.valid := mt_state === ms_IGNT && (!inner.grant.bits.hasData() || tc_state === ts_IDLE)
+  // try to make the IGNT ASAP
+  inner.grant.valid := !ignt_done_reg && (mt_state === ms_OACQ || mt_state === ms_OGNT || mt_state === ms_IGNT) &&
+                       (!inner.grant.bits.hasData() ||
+                        (tc_state === ts_IDLE && (ignt_cnt < ognt_cnt_reg || mt_state === ms_IGNT)))
+  //inner.grant.valid := mt_state === ms_IGNT && (!inner.grant.bits.hasData() || tc_state === ts_IDLE)
+
   inner.grant.bits := coh.makeGrant(
     acq = xact,
     manager_xact_id = UInt(id),
@@ -1070,7 +1078,7 @@ class TCMemAcquireTracker(id: Int)(implicit p: Parameters) extends TCMemXactTrac
   when(mt_state === ms_OGNT && ognt_done) {
     mt_state := ms_IGNT
   }
-  when(mt_state === ms_IGNT && ignt_done) {
+  when(mt_state === ms_IGNT && (ignt_done || ignt_done_reg)) {
     if(uncached) mt_state := ms_IDLE
     else mt_state := Mux(inner.grant.bits.requiresAck(), ms_IFIN, ms_IDLE)
   }
