@@ -173,7 +173,8 @@ object TCTagLock {
 class TCMetadataArray(implicit p: Parameters) extends TCModule()(p) {
   val io = new TCMetaIO().flip
 
-  val replacer = new RandomReplacement(nWays)
+  //val replacer = new RandomReplacement(nWays)
+  val replacer = new SeqPLRU(nSets, nWays)
   val ren = io.read.fire()
   val onReset = () => TCMetadata.onReset
   val meta = Module(new MetadataArray[TCMetadata](onReset))
@@ -184,14 +185,20 @@ class TCMetadataArray(implicit p: Parameters) extends TCModule()(p) {
   val s1_read_valid = Reg(next = ren)
   val s1_id         = RegEnable(io.read.bits.id, ren)
   val s1_tag        = RegEnable(io.read.bits.tag, ren)
+  val s1_idx        = RegEnable(io.read.bits.idx, ren)
   val s1_match_way  = Vec(meta.io.resp.map(m => m.tag === s1_tag && m.isValid())).toBits
+  val s1_hit_way    = Wire(Bits())
+  s1_hit_way := Bits(0)
+  (0 until nWays).foreach(i => when (s1_match_way(i)) { s1_hit_way := Bits(i) })
 
   val s2_match_way  = RegEnable(s1_match_way, s1_read_valid)
   val s2_repl_way   = RegEnable(replacer.way, s1_read_valid)
   val s2_hit        = s2_match_way.orR
   val s2_meta       = RegEnable(meta.io.resp, s1_read_valid)
 
-  when(s1_read_valid && !s1_match_way.orR) {replacer.miss}
+  replacer.access(io.read.bits.idx)
+  replacer.update(!reset && s1_read_valid, s1_match_way.orR, s1_idx, s1_hit_way)
+  //when(s1_read_valid && !s1_match_way.orR) {replacer.miss}
 
   io.resp.valid         := Reg(next = s1_read_valid)
   io.resp.bits.id       := RegEnable(s1_id, s1_read_valid)
