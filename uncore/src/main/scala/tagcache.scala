@@ -13,6 +13,7 @@ trait HasTCParameters extends HasCoherenceAgentParameters
     with HasCacheParameters with HasTagParameters
 {
   val uncached = true
+  val debug_print = false
 
   val nMemAcquireTransactors = p(TCMemTransactors)
   val nMemReleaseTransactors = if(uncached) 0 else 1
@@ -313,8 +314,9 @@ class TCWritebackUnit(id: Int)(implicit p: Parameters) extends TCModule()(p) wit
     state := s_IDLE
   }
 
+  if(debug_print)
   when(io.xact.req.fire()) {
-    //printf(s"TagWB$id: (%d) Write back 0x%x\n", xact.id, Cat(xact.tag, xact.idx, UInt(0, tlBlockOffsetBits)))
+    printf(s"TagWB$id: (%d) Write back 0x%x\n", xact.id, Cat(xact.tag, xact.idx, UInt(0, tlBlockOffsetBits)))
   }
 }
 
@@ -584,33 +586,34 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   //  s"TagXact$id: counters should return to zero when state changes!")
 
   // report log
+  if(debug_print)
   when(io.xact.resp.valid) {
     when(xact.op === TCTagOp.R && io.xact.resp.bits.hit) {
-      //printf(s"TagXact$id: (%d) Read 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
+      printf(s"TagXact$id: (%d) Read 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.R && !io.xact.resp.bits.hit) {
-      //printf(s"TagXact$id: (%d) Read 0x%x miss\n", xact.id, xact.addr)
+      printf(s"TagXact$id: (%d) Read 0x%x miss\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.U) {
-      //printf(s"TagXact$id: (%d) Unlock 0x%x\n", xact.id, xact.addr)
+      printf(s"TagXact$id: (%d) Unlock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.L) {
-      //printf(s"TagXact$id: (%d) lock 0x%x\n", xact.id, xact.addr)
+      printf(s"TagXact$id: (%d) lock 0x%x\n", xact.id, xact.addr)
     }
     when(xact.op === TCTagOp.FR) {
-      //printf(s"TagXact$id: (%d) FetchRead 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
+      printf(s"TagXact$id: (%d) FetchRead 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.FL) {
-      //printf(s"TagXact$id: (%d) FetchRead and lock 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
+      printf(s"TagXact$id: (%d) FetchRead and lock 0x%x => %x\n", xact.id, xact.addr, io.xact.resp.bits.data)
     }
     when(xact.op === TCTagOp.W) {
-      //printf(s"TagXact$id: (%d) Write 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
+      printf(s"TagXact$id: (%d) Write 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
     }
     when(xact.op === TCTagOp.C) {
-      //printf(s"TagXact$id: (%d) Create 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
+      printf(s"TagXact$id: (%d) Create 0x%x <= %x using mask %x\n", xact.id, xact.addr, xact.data, xact.mask)
     }
     when(xact.op === TCTagOp.I) {
-      //printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
+      printf(s"TagXact$id: (%d) Invalidate 0x%x\n", xact.id, xact.addr)
     }
   }
 }
