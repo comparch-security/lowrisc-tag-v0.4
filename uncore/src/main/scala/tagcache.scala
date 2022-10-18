@@ -45,6 +45,22 @@ trait HasTCParameters extends HasCoherenceAgentParameters
 abstract class TCModule(implicit val p: Parameters) extends Module with HasTCParameters
 abstract class TCBundle(implicit val p: Parameters) extends ParameterizedBundle()(p) with HasTCParameters
 
+object TCTagOp {
+  def nBits = 3
+  def R     = UInt("b000") // read if hit
+  def FR    = UInt("b001") // force a read and fetch if miss
+  def L     = UInt("b010") // lock the line
+  def FL    = UInt("b011") // force a read and lock the line
+  def U     = UInt("b100") // unlock the line
+  def I     = UInt("b101") // invalidate a line
+  def C     = UInt("b110") // create an empty line
+  def W     = UInt("b111") // write a line
+  def isWrite(t:UInt)  = t(2) && (t(1) || t(0))
+  def isCreate(t:UInt) = t === C
+  def isLock(t:UInt)   = !t(2) && t(1)
+  def isUnlock(t:UInt) = t(2)
+}
+
 trait HasTCId extends HasTCParameters {
   val id = UInt(width = log2Up(nMemTransactors + nTagTransactors + 1))
 }
@@ -76,6 +92,9 @@ object TCMetadata {
 }
 
 class TCMetaReadReq(implicit p: Parameters) extends MetaReadReq()(p) with HasTCTag with HasTCId
+{
+  val op   = UInt(width=TCTagOp.nBits) // need to use TC operation type to rectify LRU states
+}
 class TCMetaWriteReq(implicit p: Parameters) extends MetaWriteReq[TCMetadata](new TCMetadata)(p)
 class TCMetaReadResp(implicit p: Parameters) extends TCBundle()(p) with HasTCId with HasTCHit
 {
@@ -120,22 +139,6 @@ class TCWBIO(implicit p: Parameters) extends TCBundle()(p) {
   val req = Decoupled(new TCWBReq)
   val resp = Valid(new TCWBResp).flip
   override def cloneType = new TCWBIO().asInstanceOf[this.type]
-}
-
-object TCTagOp {
-  def nBits = 3
-  def R     = UInt("b000") // read if hit
-  def FR    = UInt("b001") // force a read and fetch if miss
-  def L     = UInt("b010") // lock the line
-  def FL    = UInt("b011") // force a read and lock the line
-  def U     = UInt("b100") // unlock the line
-  def I     = UInt("b101") // invalidate a line
-  def C     = UInt("b110") // create an empty line
-  def W     = UInt("b111") // write a line
-  def isWrite(t:UInt)  = t(2) && (t(1) || t(0))
-  def isCreate(t:UInt) = t === C
-  def isLock(t:UInt)   = !t(2) && t(1)
-  def isUnlock(t:UInt) = t(2)
 }
 
 class TCTagRequest(implicit p: Parameters) extends TCBundle()(p)
@@ -187,10 +190,12 @@ class TCMetadataArray(implicit p: Parameters) extends TCModule()(p) {
   val s1_id         = RegEnable(io.read.bits.id, ren)
   val s1_tag        = RegEnable(io.read.bits.tag, ren)
   val s1_idx        = RegEnable(io.read.bits.idx, ren)
+  val s1_op         = RegEnable(io.read.bits.op, ren)
   val s1_match_way  = Vec(meta.io.resp.map(m => m.tag === s1_tag && m.isValid())).toBits
   val s1_hit_way    = Wire(Bits())
   s1_hit_way := Bits(0)
   (0 until nWays).foreach(i => when (s1_match_way(i)) { s1_hit_way := Bits(i) })
+  val s1_hit        = s1_match_way.orR
 
   val s2_match_way  = RegEnable(s1_match_way, s1_read_valid)
   val s2_repl_way   = RegEnable(replacer.way, s1_read_valid)
@@ -198,7 +203,11 @@ class TCMetadataArray(implicit p: Parameters) extends TCModule()(p) {
   val s2_meta       = RegEnable(meta.io.resp, s1_read_valid)
 
   replacer.access(io.read.bits.idx)
-  replacer.update(!reset && s1_read_valid, s1_match_way.orR, s1_idx, s1_hit_way)
+  val update_replacer = ( s1_op === TCTagOp.FR || s1_op === TCTagOp.FL) ||
+                        ((s1_op === TCTagOp.R  || s1_op === TCTagOp.L ) && s1_hit) ||
+                        ((s1_op === TCTagOp.W  || s1_op === TCTagOp.C ) && !s1_hit)
+
+  replacer.update(!reset && s1_read_valid && update_replacer, s1_hit, s1_idx, s1_hit_way)
   //when(s1_read_valid && !s1_match_way.orR) {replacer.miss}
 
   io.resp.valid         := Reg(next = s1_read_valid)
@@ -423,6 +432,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   io.meta.read.bits.id := UInt(id)
   io.meta.read.bits.idx := idx
   io.meta.read.bits.tag := addrTag
+  io.meta.read.bits.op := xact.op
   io.meta.read.valid := state === s_MR && !req_sent
 
   // metadata write
