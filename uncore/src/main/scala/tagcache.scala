@@ -1179,26 +1179,59 @@ class TCTagXactDemux(banks: Int)(implicit p: Parameters) extends TCModule()(p) {
 
 class TCSearchOrderSelector(implicit p: Parameters) extends TCModule()(p) {
   val io = new Bundle {
-    val serveTT    = UInt(INPUT, width=2)
-    val serveTM0   = UInt(INPUT, width=2)
-    val serveTM1   = UInt(INPUT, width=2)
-    val accessTC   = UInt(INPUT, width=2)
-    val order      = UInt(OUTPUT, width=2)
+    val serveTT      = UInt(INPUT, width=2)
+    val serveTM0     = UInt(INPUT, width=2)
+    val serveTM1     = UInt(INPUT, width=2)
+    val accessTC     = UInt(INPUT, width=2)
+    val readTT       = Bool(INPUT)
+    val readTT_miss  = Bool(INPUT)
+    val readTM0      = Bool(INPUT)
+    val readTM0_miss = Bool(INPUT)
+    val readTM1      = Bool(INPUT)
+    val readTM1_miss = Bool(INPUT)
+    val order        = UInt(OUTPUT, width=2)
   }
 
-  val tt  = Reg(init=UInt(0, nOrderSelectWidth))
-  val tm0 = Reg(init=UInt(0, nOrderSelectWidth))
-  val tm1 = Reg(init=UInt(0, nOrderSelectWidth))
-  val access = Reg(init=UInt(0, nOrderSelectWidth+1))
-  val update = access > UInt(nOrderSelectPeriod)
-  val order = Reg(init=UInt(0, 2))
+  val ttserve  = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm0serve = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm1serve = Reg(init=UInt(0, nOrderSelectWidth))
+  val ttread   = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm0read  = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm1read  = Reg(init=UInt(0, nOrderSelectWidth))
+  val ttmiss   = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm0miss  = Reg(init=UInt(0, nOrderSelectWidth))
+  val tm1miss  = Reg(init=UInt(0, nOrderSelectWidth))
+  val access   = Reg(init=UInt(0, nOrderSelectWidth+1))
+  val update   = access > UInt(nOrderSelectPeriod)
+  val order    = Reg(init=UInt(0, 2))
+  val tt       = Wire(UInt(width = nOrderSelectWidth))
+  val tm0      = Wire(UInt(width = nOrderSelectWidth))
+  val tm1      = Wire(UInt(width = nOrderSelectWidth))
 
-  tt  := tt  + io.serveTT
-  tm0 := tm0 + io.serveTM0
-  tm1 := tm1 + io.serveTM1
-  access := access + io.accessTC
+  ttserve  := ttserve  + io.serveTT
+  tm0serve := tm0serve + io.serveTM0
+  tm1serve := tm1serve + io.serveTM1
+  ttread   := ttread   + io.readTT
+  tm0read  := tm0read  + io.readTM0
+  tm1read  := tm1read  + io.readTM1
+  ttmiss   := ttmiss   + io.readTT_miss
+  tm0miss  := tm0miss  + io.readTM0_miss
+  tm1miss  := tm1miss  + io.readTM1_miss
+  access   := access   + io.accessTC
 
   io.order := order
+
+  val consider_miss = true
+
+  if(consider_miss) {
+    tt  := ttread  - (if(nLevel > 1) ttmiss  else UInt(0))
+    tm0 := tm0read - (if(nLevel > 2) tm0miss else UInt(0)) - Mux(order =/= UInt(1), tt,  UInt(0))
+    tm1 := tm1read                                         - Mux(order === UInt(0), tm0, UInt(0))
+  } else {
+    tt  := ttserve
+    tm0 := tm0serve
+    tm1 := tm1serve
+  }
 
   when(update) {
     order := Mux(tt > tm0 + tm1, UInt(1),   // choose bottom-up when tt-hit > 50%
@@ -1247,6 +1280,12 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
       order_select.io.serveTT  :=  pfc.io.update.serveTT
       order_select.io.serveTM0 :=  pfc.io.update.serveTM0
       order_select.io.serveTM1 :=  pfc.io.update.serveTM1
+      order_select.io.readTT   :=  pfc.io.update.readTT
+      order_select.io.readTM0  :=  pfc.io.update.readTM0
+      order_select.io.readTM1  :=  pfc.io.update.readTM1
+      order_select.io.readTT_miss  :=  pfc.io.update.readTT_miss
+      order_select.io.readTM0_miss :=  pfc.io.update.readTM0_miss
+      order_select.io.readTM1_miss :=  pfc.io.update.readTM1_miss
       order_select.io.accessTC :=  pfc.io.update.accessTC
       order_select.io.order
     } else UInt(nOrder)
