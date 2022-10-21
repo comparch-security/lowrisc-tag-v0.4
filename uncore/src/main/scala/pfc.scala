@@ -9,7 +9,7 @@ import scala.math.{min, max}
 
 trait HasPFCParameters {
   implicit val p: Parameters
-  val PFCEmitLog      = true
+  val PFCEmitLog      = false 
   val Tiles           = p(NTiles) //how many cores
   val Csrs            = Tiles
   val L1s             = Tiles
