@@ -394,7 +394,8 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   io.xact.resp.bits.hit := xact.op =/= TCTagOp.R || RegEnable(io.meta.resp.bits.hit, io.meta.resp.valid)
   io.xact.resp.bits.tcnt := meta_tcnt       // only make sense when hit
   io.xact.resp.bits.data := data_buf(row)   // only make sense for R and F when hit
-  io.xact.resp.valid := state === s_L && state_next === s_IDLE
+  io.xact.resp.valid := Mux(TCTagOp.isWrite(xact.op), state === s_MR && io.meta.resp.valid,
+                            state === s_L && state_next === s_IDLE)
   when(io.meta.resp.valid) { data_buf(row) := UInt(0) }
   when(io.data.resp.valid) { data_buf(row) := io.data.resp.bits.data }
 
@@ -1333,8 +1334,8 @@ class TagCache(implicit p: Parameters) extends TCModule()(p)
     t.io.lock.ready := !t.io.lock.bits.lock || lock_req_chosen(i) && lock_avail_bit
   }}
 
-  assert(memTrackers.map(_.io.tl_block).reduce(_||_) || !lock_vec.map(_.lock).reduce(_||_),
-    "TagCache: all tag cache lines should be unlocked when the cache is idle!")
+  //assert(memTrackers.map(_.io.tl_block).reduce(_||_) || !lock_vec.map(_.lock).reduce(_||_),
+  //  "TagCache: all tag cache lines should be unlocked when the cache is idle!")
 
   // connect TileLink outputs
   val outer_arb = Module(new ClientUncachedTileLinkIOArbiter(nMemTransactors + nTagTransactors + 1)
