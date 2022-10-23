@@ -141,7 +141,7 @@ class BaseConfig extends Config (
       //Memory Parameters
       case CacheBlockBytes => 64
       case CacheBlockOffsetBits => log2Up(here(CacheBlockBytes))
-      case PAddrBits => Dump("ROCKET_PADDR_WIDTH", 34)
+      case PAddrBits => Dump("ROCKET_PADDR_WIDTH", 32)
       case PgIdxBits => 12
       case PgLevels => if (site(XLen) == 64) 3 /* Sv39 */ else 2 /* Sv32 */
       case PgLevelBits => site(PgIdxBits) - log2Up(site(XLen)/8)
@@ -338,7 +338,7 @@ class BaseConfig extends Config (
       case EmitLogMessages => true
 
       // IO devices
-      case RAMSize => BigInt(1L << 34)  // 16 GB
+      case RAMSize => BigInt(1L << 31)  // 2 GB
       case UseHost => false
       case UseFAN => false
       case UseUART => false
@@ -383,8 +383,8 @@ class BaseConfig extends Config (
 
     case "TC_MEM_XACTORS" => 3
     case "TC_TAG_XACTORS" => 4
-    case "TC_SETS" => 128
-    case "TC_WAYS" => 8
+    case "TC_SETS" => 32
+    case "TC_WAYS" => 4
   }
 )
 
@@ -545,7 +545,7 @@ class ZedConfig extends
 
 class WithParallelTCConfig extends Config (
   knobValues = {
-    case "L2_XACTORS" => Dump("N_L2_TRACKERS", 16)
+    case "L2_XACTORS" => Dump("N_L2_TRACKERS", 4)
     case "TC_MEM_XACTORS" => 6
     case "TC_TAG_XACTORS" => 4
   }
@@ -575,4 +575,11 @@ class SmallTCConfig extends Config(new WithSmallTCConfig ++ new BaseTagConfig)
 class SmallParallelTCConfig extends Config(new WithParallelTCConfig ++ new SmallTCConfig)
 class SmallSmallTCConfig extends Config(new With128MRamConfig ++ new WithSmallTCConfig ++ new BaseTagConfig)
 
-class TCTraceConfig extends Config(new BaseTagConfig)
+class WithTCTrace extends Config (
+  (pname,site,here) => pname match {
+    case PAddrBits => Dump("ROCKET_PADDR_WIDTH", 34)
+    case RAMSize => BigInt(1L << 34)  // 16 GB
+  }
+)
+
+class TCTraceConfig extends Config(new WithTCTrace ++ new BaseTagConfig)
