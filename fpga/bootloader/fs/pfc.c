@@ -82,6 +82,10 @@ ppfc->cycles = rdcycle();
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[31]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[32]));
   asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[33]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[34]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[35]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[36]));
+  asm volatile ("csrr %0, 0x402" : "=r"(pfcresp[37]));
 #endif
 
 #endif

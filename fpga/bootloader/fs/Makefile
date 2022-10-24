@@ -39,7 +39,7 @@ RISCV_PREFIX=riscv64-unknown-elf-
 LINUX_PREFIX=riscv64-unknown-linux-gnu-
 RISCV_GCC = $(RISCV_PREFIX)gcc
 LINUX_GPP = $(LINUX_PREFIX)g++
-RISCV_GCC_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD) -DELFDIRNUM=$(ELFDIRNUM) -DELFINPNUM=$(ELFINPNUM) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
+RISCV_GCC_OPTS = -MMD -MP -Wall -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD) -DELFDIRNUM=$(ELFDIRNUM) -DELFINPNUM=$(ELFINPNUM) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
 LINUX_GPP_OPTS = -MMD -MP -Wall -Werror -D__NO_INLINE__ -DENABLE_ATOMICS -mcmodel=medany -O2 -static -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -DBBL_PAYLOAD=\"$(PAYLOAD)\" -D ELFINSD=$(ELFINSD)  -DELFDIRNUM=$(ELFDIRNUM) -DELFINPNUM=$(ELFINPNUM) -I. -I.. -I$(DRIVER_DIR) -I$(SOFTFLOAT_DIR) -I$(GEN_DIR)
 RISCV_LINK_OPTS = -nostartfiles -nostdlib -static -T bbl.lds -lgcc
 RISCV_DUMP = $(RISCV_PREFIX)objdump
