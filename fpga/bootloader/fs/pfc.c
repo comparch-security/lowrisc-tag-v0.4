@@ -139,6 +139,8 @@ uint64_t cycles = ppfc -> cycles;
   printk("%lld  %10lld  %10lld  %10lld \n\n", pfcresp[26],pfcresp[27],pfcresp[28],pfcresp[29]);
   printk("TC_acqTTtoMem,   TC_acqTM0toMem,   TC_acqTM1toMem,   TC_acqTtoMemT\n");
   printk("%lld  %10lld  %10lld  %10lld \n\n", pfcresp[30],pfcresp[31],pfcresp[32],pfcresp[33]);
+  printk("TC_serveTT,   TC_serveTM0,   TC_serveTM1,   TC_accessTC\n");
+  printk("%lld  %10lld  %10lld  %10lld \n\n", pfcresp[34],pfcresp[35],pfcresp[36],pfcresp[37]);
 #endif
 
 #endif

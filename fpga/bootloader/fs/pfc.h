@@ -14,7 +14,7 @@
 #define tcpfc_conf    0x0020000000000001
 
 typedef struct {
-#define pfc_total_resp 34  //Tile + L2Banks + TC=7+4+23
+#define pfc_total_resp 38  //Tile + L2Banks + TC=7+4+27
     uint64_t resp[pfc_total_resp]; 
     uint64_t instret;
     uint64_t cycles;
