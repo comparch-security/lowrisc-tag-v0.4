@@ -19,19 +19,19 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nMemReleaseTransactors = if(uncached) 0 else 1
   val nMemTransactors = nMemReleaseTransactors + nMemAcquireTransactors
   val nTagTransactors = p(TCTagTransactors)
-  val nTTBlocks       = tgHelper.tableSize.toInt / p(CacheBlockBytes)
-  val nMap0Blocks     = tgHelper.map0Size.toInt / p(CacheBlockBytes)
-  val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)
+  val nTTBlocks       = tgHelper.tableSize.toInt / p(CacheBlockBytes) + (if(0 == tgHelper.tableSize.toInt % p(CacheBlockBytes)) 0 else 1)
+  val nMap0Blocks     = tgHelper.map0Size.toInt / p(CacheBlockBytes)  + (if(0 == tgHelper.map0Size.toInt % p(CacheBlockBytes)) 0 else 1)
+  val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)  + (if(0 == tgHelper.map1Size.toInt % p(CacheBlockBytes)) 0 else 1)
   val nLevel          = tgHelper.tclevel
   val nOrder          = tgHelper.order
   val bAEA            = tgHelper.avoid_empty_acc
   val bBLL            = tgHelper.bit_level_lock
   val TopMapBase      = if(tgHelper.tclevel == 3)      tgHelper.map1Base
                         else if(tgHelper.tclevel == 2) tgHelper.map0Base
-                        else                           BigInt(0)
-  val nTopMapBlocks   = if(tgHelper.tclevel == 3)      max(1, nMap1Blocks)
-                        else if(tgHelper.tclevel == 2) max(1, nMap0Blocks)
-                        else                           0
+                        else                           tgHelper.tableBase
+  val nTopMapBlocks   = if(tgHelper.tclevel == 3)      nMap1Blocks
+                        else if(tgHelper.tclevel == 2) nMap0Blocks
+                        else                           nTTBlocks
 
   val refillCycles = outerDataBeats
 
