@@ -1123,7 +1123,9 @@ class TCInitiator(id:Int)(implicit p: Parameters) extends TCModule()(p) {
   }
 
   require(isPow2(nTagTransactors))
-  val nBlocks = if(nTopMapBlocks < nTagTransactors && id < nTopMapBlocks) 1 else nTopMapBlocks / nTagTransactors
+  val totalBlocks = nTopMapBlocks
+  val resetBase   = TopMapBase
+  val nBlocks     = totalBlocks/nTagTransactors + (if(id < totalBlocks % nTagTransactors) 1 else 0)
 
   val rst_cnt = Reg(init = UInt(0, log2Up(nBlocks+1)))
   when(rst_cnt =/= UInt(nBlocks) && io.tag_xact.req.fire()) { rst_cnt := rst_cnt + UInt(1) }
@@ -1138,7 +1140,7 @@ class TCInitiator(id:Int)(implicit p: Parameters) extends TCModule()(p) {
   // tagcache initialization for the top map
   when(rst_cnt =/= UInt(nBlocks)) {
     io.tag_xact.req.valid  := Bool(true)
-    io.tag_xact.req.bits.addr := UInt(TopMapBase + id * p(CacheBlockBytes)) + rst_cnt * UInt(nTagTransactors * p(CacheBlockBytes))
+    io.tag_xact.req.bits.addr := UInt(resetBase + id * p(CacheBlockBytes)) + rst_cnt * UInt(nTagTransactors * p(CacheBlockBytes))
     io.tag_xact.req.bits.data := UInt(0)
     io.tag_xact.req.bits.mask := UInt(0)
     io.tag_xact.req.bits.op   := TCTagOp.C
