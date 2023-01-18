@@ -19,6 +19,7 @@ trait HasTCParameters extends HasCoherenceAgentParameters
   val nMemReleaseTransactors = if(uncached) 0 else 1
   val nMemTransactors = nMemReleaseTransactors + nMemAcquireTransactors
   val nTagTransactors = p(TCTagTransactors)
+  val nTTBlocks       = tgHelper.tableSize.toInt / p(CacheBlockBytes)
   val nMap0Blocks     = tgHelper.map0Size.toInt / p(CacheBlockBytes)
   val nMap1Blocks     = tgHelper.map1Size.toInt / p(CacheBlockBytes)
   val nLevel          = tgHelper.tclevel
@@ -1123,8 +1124,8 @@ class TCInitiator(id:Int)(implicit p: Parameters) extends TCModule()(p) {
   }
 
   require(isPow2(nTagTransactors))
-  val totalBlocks = nTopMapBlocks
-  val resetBase   = TopMapBase
+  val totalBlocks = if(bAEA) nTopMapBlocks else nTTBlocks
+  val resetBase   = if(bAEA) TopMapBase else tgHelper.tableBase
   val nBlocks     = totalBlocks/nTagTransactors + (if(id < totalBlocks % nTagTransactors) 1 else 0)
 
   val rst_cnt = Reg(init = UInt(0, log2Up(nBlocks+1)))
