@@ -400,7 +400,7 @@ class TCTagXactTracker(id: Int)(implicit p: Parameters) extends TCModule()(p) wi
   when(io.data.resp.valid) { data_buf(row) := io.data.resp.bits.data }
 
   //PFC
-  val wb_addr = meta_tag << untagBits
+  val wb_addr = Cat(meta_tag, idx) << blockOffBits
   val isTTaddr   = !tgHelper.is_map(xact.addr)
   val isTM0addr  = !tgHelper.is_top(xact.addr) && tgHelper.is_map(xact.addr)
   val isTM1addr  =  tgHelper.is_top(xact.addr)
