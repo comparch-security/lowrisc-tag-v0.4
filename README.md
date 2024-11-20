@@ -1,6 +1,16 @@
-lowRISC chip
+lowRISC chip v0.4 With an Improve Tag Cache
 ==============================================
 
+### Improvements:
+* Reduce lock granularity to a single bit in TM1 and Tm0.
+* Dynamc search order selection.
+* Added perfromance monitor.
+* various bug fixes.
+
+**Reference**: Wei Song, Da Xie, Zihan Xue, and Peng Liu. [A parallel tag cache for hardware managed tagged memory in multicore processors](https://doi.org/10.1109/TC.2024.3441835). IEEE Transactions on Computers, 2024, 73(11): 2488-2503.
+
+Original README from the lowRISC project
+===============================================
 The root git repo for lowRISC development and FPGA
 demos.
 
